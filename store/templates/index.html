@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Trang chủ - Re:Roomy</title>
+</head>
+<body>
+    <h1 style="color: pink;">Chào mừng đến với Re:Roomy</h1>
+    <h2>Các sản phẩm đang bán:</h2>
+    <ul>
+        <!-- Vòng lặp lấy dữ liệu từ Backend đẩy ra -->
+        {% for sp in san_pham_list %}
+            <li>
+                <strong>{{ sp.ten_san_pham }}</strong> 
+                - Giá: {{ sp.gia_ban }} VNĐ
+                - Phân loại: {{ sp.danh_muc.ten_danh_muc }}
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

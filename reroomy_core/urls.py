@@ -1,4 +1,4 @@
-"""
+﻿"""
 URL configuration for roomy_core project.
 
 The `urlpatterns` list routes URLs to views. For more information please see:
@@ -20,7 +20,18 @@ from store import views
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', views.trang_chu, name='trang_chu'), # Trang chủ
+    path('', views.trang_chu, name='trang_chu'),
+    path('goi-y-combo/', views.goi_y_combo, name='goi_y_combo'),
+    path('goi-y-san-pham/', views.goi_y_san_pham, name='goi_y_san_pham'),
+    path('thanh-toan/', views.thanh_toan, name='thanh_toan'),
+    path('ho-so/', views.ho_so, name='ho_so'),
+    path('yeu-thich/', views.yeu_thich, name='yeu_thich'),
+    path('mo-phong-combo/', views.mo_phong_combo, name='mo_phong_combo'),
+    path('gio-hang/', views.gio_hang, name='gio_hang'),
+    path('san-pham/<int:pk>/', views.chi_tiet_san_pham, name='chi_tiet_san_pham'),
+    path('san-pham/mau/', views.san_pham_mau, name='san_pham_mau'),
     path('dang-ky/', views.dang_ky, name='dang_ky'),
     path('dang-nhap/', views.dang_nhap, name='dang_nhap'),
 ]
+
+

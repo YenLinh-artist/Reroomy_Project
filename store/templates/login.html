@@ -1,0 +1,90 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffffff">
+    <title>Đăng nhập | RE:ROOM</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Pathway+Extreme:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Montserrat+Alternates:wght@600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'store/css/login.css' %}">
+</head>
+<body>
+    <main class="login-page">
+        <section class="login-visual" aria-label="Phòng khách RE:ROOM">
+            <img src="{% static 'store/images/login/living-room.svg' %}" alt="Phòng khách màu tím với sofa xanh và gối hồng">
+        </section>
+
+        <section class="login-panel" aria-labelledby="login-title">
+            <div class="login-content">
+                <h1 class="login-title" id="login-title">CHÀO MỪNG ĐẾN VỚI <a href="{% url 'trang_chu' %}">RE:ROOM</a></h1>
+
+                <div class="login-avatar" aria-hidden="true">
+                    <svg viewBox="0 0 68 68" role="presentation">
+                        <circle cx="34" cy="34" r="34" fill="currentColor" opacity=".48" />
+                        <circle cx="34" cy="28" r="12" fill="currentColor" />
+                        <path d="M13 62c1.6-12 9.4-19 21-19s19.4 7 21 19" fill="currentColor" />
+                    </svg>
+                </div>
+
+                <form class="login-form" id="login-form">
+                    <label class="visually-hidden" for="login-username">Tên đăng nhập</label>
+                    <input class="auth-input" id="login-username" name="username" type="text" placeholder="Tên đăng nhập" autocomplete="username" required>
+
+                    <label class="visually-hidden" for="login-password">Mật khẩu</label>
+                    <div class="password-wrap">
+                        <input class="auth-input" id="login-password" name="password" type="password" placeholder="Nhập mật khẩu" autocomplete="current-password" required>
+                        <button class="password-toggle" type="button" aria-label="Hiện mật khẩu" aria-pressed="false">
+                            <svg class="eye-icon" viewBox="0 0 32 32" aria-hidden="true">
+                                <path d="M3.5 16s4.2-8 12.5-8 12.5 8 12.5 8-4.2 8-12.5 8S3.5 16 3.5 16Z" />
+                                <circle cx="16" cy="16" r="3.5" />
+                                <path class="eye-slash" d="M5 27 27 5" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button class="login-submit" type="submit">Đăng nhập</button>
+                    <button class="google-submit" id="google-login" type="button">
+                        <span class="google-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24">
+                                <path fill="#4285F4" d="M21.6 12.23c0-.72-.06-1.42-.18-2.1H12v3.97h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.24c1.9-1.75 2.98-4.32 2.98-7.39Z" />
+                                <path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.38l-3.24-2.5c-.9.6-2.03.96-3.38.96-2.6 0-4.8-1.76-5.59-4.12H3.06v2.58A10 10 0 0 0 12 22Z" />
+                                <path fill="#FBBC05" d="M6.41 13.96a6 6 0 0 1 0-3.92V7.46H3.06a10 10 0 0 0 0 9.08l3.35-2.58Z" />
+                                <path fill="#EA4335" d="M12 5.92c1.47 0 2.8.5 3.84 1.5l2.88-2.88C16.96 2.98 14.7 2 12 2a10 10 0 0 0-8.94 5.46l3.35 2.58C7.2 7.68 9.4 5.92 12 5.92Z" />
+                            </svg>
+                        </span>
+                        <span>Đăng nhập với Google</span>
+                    </button>
+                    <p class="login-message" id="login-message" role="status" aria-live="polite" hidden></p>
+                </form>
+
+                <p class="register-prompt">Hoặc là <a href="{% url 'dang_ky' %}">tạo tài khoản nè</a></p>
+            </div>
+        </section>
+    </main>
+    <script>
+        const passwordInput = document.getElementById('login-password');
+        const passwordToggle = document.querySelector('.password-toggle');
+        passwordToggle.addEventListener('click', () => {
+            const showPassword = passwordInput.type === 'password';
+            passwordInput.type = showPassword ? 'text' : 'password';
+            passwordToggle.setAttribute('aria-pressed', String(showPassword));
+            passwordToggle.setAttribute('aria-label', showPassword ? 'Ẩn mật khẩu' : 'Hiện mật khẩu');
+            passwordToggle.classList.toggle('is-visible', showPassword);
+        });
+
+        const loginMessage = document.getElementById('login-message');
+        document.getElementById('login-form').addEventListener('submit', (event) => {
+            event.preventDefault();
+            loginMessage.textContent = 'Giao diện đăng nhập chưa được kết nối với hệ thống tài khoản.';
+            loginMessage.hidden = false;
+        });
+        document.getElementById('google-login').addEventListener('click', () => {
+            loginMessage.textContent = 'Đăng nhập Google chưa được cấu hình.';
+            loginMessage.hidden = false;
+        });
+    </script>
+</body>
+</html>

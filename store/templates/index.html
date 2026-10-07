@@ -1,20 +1,378 @@
-<!DOCTYPE html>
-<html>
+{% load static %}
+<!doctype html>
+<html lang="vi">
 <head>
-    <title>Trang chủ - Re:Roomy</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffc2d5">
+    <title>RE:ROOM — Sạch, xinh, gọn</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat+Alternates:wght@400;600;700;800&family=Parkinsans:wght@400;500;600;700&family=Pathway+Extreme:wght@300;400;500;600;700;800&family=Playfair+Display:wght@700&family=Playball&family=Poppins:wght@300;400&display=swap');
+        :root {
+            --pink-bar: #ffbdd2;
+            --pink-soft: #fce8e8;
+            --pink: #ffbcd7;
+            --pink-strong: #ff5cad;
+            --coral: #f59b7a;
+            --coral-dark: #d96f52;
+            --peach: #ffddc7;
+            --cream: #fff8f1;
+            --ink: #3b302c;
+            --muted: #82756f;
+            --line: #e8dcd2;
+            --white: #fff;
+        }
+        * { box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { margin: 0; background: var(--cream); color: var(--ink); font-family: "Pathway Extreme", Arial, sans-serif; }
+        a { color: inherit; text-decoration: none; }
+        button, input { font: inherit; }
+        button { cursor: pointer; }
+        .site-header { position: sticky; top: 0; z-index: 20; min-height: 84px; background: var(--pink-bar); box-shadow: 0 2px 5px #76485812; }
+        .header-inner { width: min(100% - 34px, 1440px); min-height: 84px; margin: auto; display: flex; align-items: center; gap: 18px; }
+        .brand { flex: 0 0 210px; margin-left: 64px; color: #f93471; font-family: "Montserrat Alternates", sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.06em; }
+        .main-nav { display: flex; align-items: center; justify-content: center; gap: 56px; margin-left: 65px; margin-right: auto; color: #e16a6a; font-size: 25px; }
+        .main-nav a { padding: 18px 0 15px; border-bottom: 2px solid transparent; font-weight: 400; }
+        .main-nav a:hover, .main-nav a.active { border-color: #e9706e; color: #d95760; }
+        .header-actions { display: flex; align-items: center; gap: 12px; }
+        .header-icon { position: relative; width: auto; height: auto; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #eb7416; }
+        .header-icon img { display: block; }
+        .icon-dot { position: absolute; top: 1px; right: 0; width: 7px; height: 7px; border-radius: 50%; background: #ed5943; }
+        .login-button { min-width: 178px; padding: 7px 16px; border: 0; border-radius: 6px; background: #ef9182; color: #fedeca; font-size: 24px; font-weight: 700; white-space: nowrap; }
+        .menu-toggle { display: none; }
+        .hero-shell { height: 680px; padding: 0; background: var(--pink-soft); }
+        .hero { width: min(100% - 60px, 1380px); height: 596px; margin: auto; display: grid; grid-template-columns: 44% 56%; align-items: start; gap: 0; }
+        .hero-copy { position: relative; z-index: 4; padding: 66px 0 0 22px; }
+        .hero-kicker { margin: 0 0 32px 7px; color: #d056fc; font-size: 25px; font-weight: 600; }
+        .hero h1 { max-width: 610px; margin: 0; color: #ff5cad; font-family: "Playfair Display", Georgia, "Times New Roman", serif; font-size: 55px; font-weight: 700; line-height: 1.08; letter-spacing: -.035em; text-transform: uppercase; }
+        .hero-rule { display: flex; align-items: center; gap: 5px; width: 239px; margin: 55px 0 25px 10px; color: #e9a6a6; }
+        .hero-rule::before, .hero-rule::after { content: ""; height: 1px; flex: 1; background: currentColor; }
+        .hero-rule span { width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
+        .hero-tagline { margin: 0; color: #cb6e4a; font-size: 36px; }
+        .hero-actions { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 56px; }
+        .hero-button { width: 259px; min-height: 50px; display: grid; place-items: center; padding: 8px 14px; border: 0; border-radius: 8px; background: #ffbcd7; box-shadow: 0 8px 0 #ff8ca9; color: #bd4e4e; font-size: 21px; font-weight: 600; text-align: center; transition: transform .15s, box-shadow .15s; }
+        .hero-button:hover { transform: translateY(2px); box-shadow: 0 3px 0 #ff80a8; }
+        .hero-scenes { position: relative; height: 465px; margin-top: 92px; }
+        .scene { position: absolute; overflow: hidden; border: 2px solid #fff6; border-radius: 12px; box-shadow: 0 8px 18px #5c403a35; background: #ead8c8; }
+        .scene img { display: block; width: 100%; height: 100%; object-fit: cover; }
+        .scene-back { z-index: 1; top: 0; right: 0; width: 39%; height: 100%; }
+        .scene-middle { z-index: 2; top: 35px; left: 34%; width: 35.5%; height: 92.5%; }
+        .scene-front { z-index: 3; top: 130px; bottom: auto; left: 3.4%; width: 42%; height: 72%; }
+        .benefits { position: relative; z-index: 5; width: min(100% - 88px, 1352px); min-height: 145px; margin: -84px auto 0; display: grid; grid-template-columns: repeat(4, 1fr); align-items: center; background: white; }
+        .benefit { min-height: 117px; display: flex; justify-content: center; align-items: center; gap: 12px; padding: 12px 15px; border-right: 2px solid #dedede; }
+        .benefit:last-child { border-right: 0; }
+        .benefit-icon { flex: 0 0 auto; display: flex; align-items: center; color: #f59778; }
+        .benefit-icon img { display: block; }
+        .benefit strong { display: block; color: #cc3e0f; font-size: 20px; font-weight: 600; }
+        .benefit small { display: block; margin-top: 3px; color: #cc3e0f; font-family: Poppins, Arial, sans-serif; font-size: 14px; font-weight: 300; }
+        .featured { padding: 26px 0 49px; background: var(--cream); }
+        .content-width { width: min(100% - 64px, 1376px); margin: auto; }
+        .section-title { margin: 0; color: #f48989; font-family: Phetsarath, "Pathway Extreme", Arial, sans-serif; font-size: 43px; font-weight: 700; line-height: 63px; text-align: center; text-transform: uppercase; }
+        .title-rule { height: 3px; margin: 16px 0 33px; background: #e9a6a6; }
+        .category-row { display: block; margin-bottom: 36px; }
+        .category-list { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-left: 17px; }
+        .category-chip { min-height: 63px; padding: 8px 15px; border: 0; border-radius: 20px; background: #ffe2ac; color: #f28675; font-size: 27px; font-weight: 600; white-space: nowrap; transition: background .2s, color .2s; }
+        .category-chip:hover, .category-chip.selected { background: #ffbc9d; color: white; }
+        .view-all { display: block; width: max-content; margin: 20px 18px 0 auto; color: #de7e7e; font-size: 19px; text-decoration: underline; white-space: nowrap; }
+        .product-grid { width: min(calc(100% - 36px), 1310px); margin-left: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 33px 20px; }
+        .product-card { height: 438px; min-width: 0; overflow: hidden; background: #fffdfd; box-shadow: 4px 6px 4px #3f302e3d; }
+        .product-image { position: relative; height: 289px; overflow: hidden; background: #eee3d9; }
+        .product-image img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
+        .product-card:hover .product-image img { transform: scale(1.04); }
+        .favorite { position: absolute; top: 8px; right: 8px; width: 40px; height: 37px; padding: 0; border: 0; background: transparent; color: white; font-size: 32px; line-height: 1; text-shadow: 0 1px 3px #4448; }
+        .favorite.is-favorite { color: #ff6990; }
+        .product-body { height: 149px; padding: 8px 11px 10px; }
+        .product-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+        .product-name { overflow: hidden; margin: 0; color: #3b302c; font-family: "Pathway Extreme", sans-serif; font-size: 25px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+        .product-price { flex: 0 0 auto; color: #3b302c; font-family: "Pathway Extreme", sans-serif; font-size: 25px; font-weight: 600; }
+        .sales-count { margin: 3px 0 8px; color: #82756f; font-family: "Montserrat Alternates", sans-serif; font-size: 19px; font-weight: 600; }
+        .add-cart { display: block; width: 222px; min-height: 51px; margin: 12px auto 0; border: 2px dashed #ff0d0d; border-radius: 9px; background: #ffb7b7; color: #753315; font-family: "Montserrat Alternates", sans-serif; font-size: 19px; font-weight: 800; }
+        .add-cart:hover { background: #ffb4bd; }
+        .promo { width: min(100% - 106px, 1334px); height: 364px; margin: 0 auto 52px; padding: 0; display: grid; grid-template-columns: 67.2% 33.7%; align-items: center; gap: 0; border-radius: 16px; background: white; }
+        .promo-photo { height: 364px; padding: 19px; overflow: hidden; border-radius: 19px; background: #fcdada; }
+        .promo-photo img { display: block; width: 100%; height: 100%; border-radius: 9px; object-fit: cover; }
+        .promo-copy { position: relative; z-index: 1; align-self: stretch; margin-left: -23px; padding: 24px 16px; }
+        .promo-kicker { color: #e64747; font-size: 15px; font-weight: 300; }
+        .promo h2 { margin: 54px 0 4px; color: #fc377c; font-family: "Playfair Display", Georgia, serif; font-size: 31px; }
+        .promo p { margin: 0; color: #e78383; font-family: Playball, cursive; font-size: 29px; }
+        .promo-button { display: inline-block; margin-top: 59px; padding: 8px 16px; border: 0; border-radius: 10px; background: #ffdede; box-shadow: 4px 4px 0 #47d847; color: #ce5353; font-family: Parkinsans, sans-serif; font-size: 23px; }
+        .site-footer { height: 474px; margin-top: 0; padding: 45px 0; border-radius: 37px 37px 0 0; background: var(--peach); }
+        .footer-inner { width: min(100% - 196px, 1244px); margin: auto; display: grid; grid-template-columns: 687px 199px 1fr; gap: 0; }
+        .footer-brand { color: #ff004f; font-family: "Montserrat Alternates", sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -.06em; }
+        .footer-copy { max-width: 452px; margin: 49px 0 35px; color: #111; font-size: 20px; line-height: 1.35; font-weight: 300; }
+        .socials { display: flex; align-items: center; gap: 27px; }
+        .socials a { width: 48px; height: 48px; display: grid; place-items: center; color: #171717; }
+        .socials img { display: block; }
+        .footer-col { padding-top: 17px; }
+        .footer-col strong { font-size: 30px; font-weight: 600; }
+        .footer-col a { display: block; margin-top: 12px; color: #51443e; font-size: 13px; }
+        .toast { position: fixed; right: 20px; bottom: 20px; z-index: 30; padding: 12px 18px; border-radius: 9px; background: #4c403c; color: white; opacity: 0; transform: translateY(10px); pointer-events: none; transition: .2s; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+        [hidden] { display: none !important; }
+        @media (max-width: 900px) {
+            .brand { flex-basis: auto; margin-left: 0; }
+            .main-nav { gap: 19px; margin: 0 auto; font-size: 14px; }
+            .header-inner { gap: 17px; }
+            .header-actions { gap: 10px; }
+            .hero-shell { height: auto; padding-bottom: 80px; }
+            .hero { width: min(100% - 36px, 780px); height: auto; min-height: 420px; grid-template-columns: 46% 54%; }
+            .hero-copy { padding: 64px 0 0 10px; }
+            .hero-kicker { font-size: 19px; }
+            .hero h1 { font-size: clamp(34px, 5vw, 46px); }
+            .hero-tagline { font-size: 25px; }
+            .hero-scenes { height: 340px; margin-top: 70px; }
+            .hero-button { width: auto; min-width: 155px; font-size: 16px; }
+            .benefits { width: calc(100% - 36px); }
+            .benefit { gap: 8px; padding: 10px; }
+            .benefit strong { font-size: 12px; }
+            .content-width { width: calc(100% - 40px); }
+            .product-grid { width: 100%; margin-left: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .product-card { height: auto; }
+            .product-image { height: auto; aspect-ratio: 1.08 / 1; }
+            .product-body { min-height: 149px; height: auto; }
+            .add-cart { width: min(100%, 222px); }
+            .promo { width: calc(100% - 40px); height: auto; grid-template-columns: 67% 33%; }
+            .promo-photo { height: 260px; }
+            .promo-copy { margin-left: -12px; padding: 18px 12px; }
+            .promo h2 { margin-top: 25px; font-size: 23px; }
+            .promo p { font-size: 20px; }
+            .promo-button { margin-top: 24px; font-size: 17px; }
+            .category-list { gap: 8px; }
+            .category-chip { min-height: 38px; padding: 7px 11px; font-size: 13px; }
+            .footer-inner { width: calc(100% - 60px); grid-template-columns: minmax(0, 1.4fr) .7fr .7fr; gap: 35px; }
+        }
+        @media (max-width: 640px) {
+            .site-header, .header-inner { min-height: 54px; }
+            .header-inner { width: calc(100% - 24px); gap: 11px; }
+            .brand { font-size: 17px; }
+            .menu-toggle { display: grid; width: 29px; height: 29px; place-items: center; border: 0; background: transparent; color: #e95979; font-size: 22px; }
+            .main-nav { display: none; position: absolute; top: 54px; right: 0; left: 0; padding: 8px 18px 16px; flex-direction: column; align-items: stretch; gap: 0; background: var(--pink-bar); }
+            .main-nav.open { display: flex; }
+            .main-nav a { padding: 11px 4px; }
+            .main-nav { margin: 0; }
+            .header-actions { margin-left: auto; gap: 8px; }
+            .header-icon { width: 26px; height: 26px; }
+            .header-icon img { transform: scale(.55); }
+            .login-button { padding: 6px 9px; font-size: 11px; }
+            .hero-shell { height: auto; padding: 0 0 70px; }
+            .hero { width: calc(100% - 32px); height: auto; min-height: 0; padding: 27px 0 16px; grid-template-columns: 1fr; gap: 23px; }
+            .hero-copy { padding: 0; }
+            .hero-kicker { margin: 0 0 14px; font-size: 15px; }
+            .hero h1 { max-width: 430px; font-size: clamp(34px, 10vw, 49px); }
+            .hero-tagline { font-size: 21px; }
+            .hero-actions { gap: 10px; margin-top: 24px; }
+            .hero-button { min-width: 0; flex: 1; padding: 9px 7px; font-size: 12px; }
+            .hero-scenes { height: 235px; margin-top: 0; }
+            .scene-back { width: 44%; }
+            .scene-middle { left: 37%; width: 42%; }
+            .scene-front { width: 45%; }
+            .benefits { width: calc(100% - 26px); min-height: auto; margin-top: -50px; grid-template-columns: repeat(2, 1fr); }
+            .benefit { min-height: 68px; justify-content: flex-start; border-right: 1px solid #dedede; border-bottom: 1px solid #eee; }
+            .benefit:nth-child(2) { border-right: 0; }
+            .benefit:nth-child(n+3) { border-bottom: 0; }
+            .benefit-icon { width: 30px; height: 34px; flex: 0 0 30px; }
+            .benefit-icon img { transform: scale(.55); }
+            .benefit strong { font-size: 10px; }
+            .benefit small { font-size: 9px; }
+            .featured { padding: 20px 0 30px; }
+            .content-width { width: calc(100% - 28px); }
+            .section-title { font-size: 25px; line-height: 38px; }
+            .title-rule { margin: 9px 0 17px; }
+            .category-row { display: block; margin-bottom: 17px; }
+            .category-list { flex-wrap: nowrap; overflow-x: auto; padding: 2px 0 8px; }
+            .category-chip { flex: 0 0 auto; min-height: 35px; border-radius: 12px; font-size: 11px; }
+            .view-all { display: block; margin: 3px 2px 0 auto; width: max-content; }
+            .product-grid { width: 100%; margin-left: 0; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 10px; }
+            .product-card { height: auto; }
+            .product-image { height: auto; aspect-ratio: .98 / 1; }
+            .product-body { min-height: 130px; height: auto; padding: 8px; }
+            .product-name { font-size: 12px; }
+            .product-price { font-size: 13px; }
+            .sales-count { font-size: 10px; }
+            .add-cart { width: 92%; min-height: 31px; margin-top: 8px; font-size: 10px; }
+            .promo { width: calc(100% - 28px); height: auto; margin: 0 auto 25px; padding: 9px; grid-template-columns: 1fr; gap: 8px; }
+            .promo-photo { height: 185px; }
+            .promo-copy { margin-left: 0; padding: 9px 12px 14px; }
+            .promo h2 { margin-top: 14px; font-size: 21px; }
+            .promo-button { margin-top: 17px; }
+            .site-footer { height: auto; min-height: 245px; padding: 28px 0; border-radius: 21px 21px 0 0; }
+            .footer-inner { width: calc(100% - 44px); grid-template-columns: 1fr 1fr; gap: 24px 15px; }
+            .footer-intro { grid-column: 1 / -1; }
+            .footer-brand { font-size: 20px; }
+            .footer-copy { margin: 17px 0; font-size: 12px; }
+            .footer-col { padding-top: 0; }
+            .footer-col strong { font-size: 16px; }
+        }
+    </style>
 </head>
 <body>
-    <h1 style="color: pink;">Chào mừng đến với Re:Roomy</h1>
-    <h2>Các sản phẩm đang bán:</h2>
-    <ul>
-        <!-- Vòng lặp lấy dữ liệu từ Backend đẩy ra -->
-        {% for sp in san_pham_list %}
-            <li>
-                <strong>{{ sp.ten_san_pham }}</strong> 
-                - Giá: {{ sp.gia_ban }} VNĐ
-                - Phân loại: {{ sp.danh_muc.ten_danh_muc }}
-            </li>
-        {% endfor %}
-    </ul>
+    <header class="site-header">
+        <div class="header-inner">
+            <a class="brand" href="#home">RE:ROOM</a>
+            <button class="menu-toggle" id="menuToggle" aria-label="Mở menu">☰</button>
+            <nav class="main-nav" id="mainNav" aria-label="Điều hướng chính">
+                <a class="active" href="#home">Trang chủ</a>
+                <a href="#products">Cửa hàng</a>
+                <a href="#categories">Phòng</a>
+                <a href="#footer">Giới thiệu</a>
+            </nav>
+            <div class="header-actions">
+                <button class="header-icon" type="button" aria-label="Tìm kiếm"><img src="{% static 'store/images/icons/search.svg' %}" alt=""></button>
+                <button class="header-icon" type="button" aria-label="Thông báo"><img src="{% static 'store/images/icons/bell-pin.svg' %}" alt=""><span class="icon-dot"></span></button>
+                <a class="header-icon" href="#products" aria-label="Giỏ hàng"><img src="{% static 'store/images/icons/bag.svg' %}" alt=""><span class="icon-dot" id="cartCount" hidden></span></a>
+                <a class="login-button" href="{% url 'dang_nhap' %}">Đăng nhập</a>
+            </div>
+        </div>
+    </header>
+
+    <main id="home">
+        <section class="hero-shell" aria-labelledby="heroTitle">
+            <div class="hero">
+                <div class="hero-copy">
+                    <p class="hero-kicker">Sạch + Xinh + Gọn</p>
+                    <h1 id="heroTitle">Tạo ra không gian<br>của riêng bạn</h1>
+                    <div class="hero-rule"><span></span></div>
+                    <p class="hero-tagline">Không gian nhỏ - ý tưởng to</p>
+                    <div class="hero-actions">
+                        <a class="hero-button" href="#products">Khám phá sản phẩm</a>
+                        <a class="hero-button" href="#promo">Tư vấn decor</a>
+                    </div>
+                </div>
+                <div class="hero-scenes" aria-label="Gợi ý không gian nội thất">
+                    <div class="scene scene-back"><img src="{% static 'store/images/home/01.jpeg' %}" alt="Phòng ngủ sáng ấm"></div>
+                    <div class="scene scene-middle"><img src="{% static 'store/images/home/03.jpeg' %}" alt="Không gian phòng ngủ tối giản"></div>
+                    <div class="scene scene-front"><img src="{% static 'store/images/home/18.jpeg' %}" alt="Phòng khách với sofa sáng màu"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="benefits" aria-label="Dịch vụ Re:Room">
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/delivery.svg' %}" alt="" width="56" height="62"></span><span><strong>Giao hàng toàn quốc</strong><small>Bạn ở đâu, tụi giao tới đó</small></span></div>
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/refund.svg' %}" alt="" width="28" height="30"></span><span><strong>Hoàn đơn dễ dàng</strong><small>Không lo mất tiền oan</small></span></div>
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/shield.svg' %}" alt="" width="46" height="50"></span><span><strong>Giao dịch an toàn</strong><small>Bảo mật dữ liệu</small></span></div>
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/headphones.svg' %}" alt="" width="46" height="55"></span><span><strong>Hỗ trợ bạn 24/7</strong><small>Hỗ trợ bạn hết mình</small></span></div>
+        </section>
+
+        <section class="featured" id="products">
+            <div class="content-width">
+                <h2 class="section-title">Sản phẩm nổi bật</h2>
+                <div class="title-rule"></div>
+                <div class="category-row" id="categories">
+                    <div class="category-list">
+                        <button class="category-chip selected" data-category="all">Phổ biến</button>
+                        <button class="category-chip" data-category="combo">Combo chăn ấm - gối êm</button>
+                        <button class="category-chip" data-category="giấy dán tường">Giấy dán tường</button>
+                        <button class="category-chip" data-category="đèn">Đèn ngủ - học tập</button>
+                        <button class="category-chip" data-category="gương">Gương tường</button>
+                    </div>
+                    <a class="view-all" href="#products">Xem tất cả</a>
+                </div>
+                <div class="product-grid" id="productGrid">
+                    {% for sp in san_pham_list|slice:":8" %}
+                        {% cycle '04.jpeg' '08.png' '11.png' 'product-sofa.png' '05.png' '12.png' '07.png' '09.png' as product_photo silent %}
+                        <article class="product-card" data-name="{{ sp.ten_san_pham|lower }}" data-category="{{ sp.danh_muc.ten_danh_muc|lower }}">
+                            <div class="product-image">
+                                <img loading="lazy" src="{% static 'store/images/home/' %}{{ product_photo }}" alt="{{ sp.ten_san_pham }}">
+                                <button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button>
+                            </div>
+                            <div class="product-body">
+                                <div class="product-heading"><h3 class="product-name">{{ sp.ten_san_pham }}</h3><span class="product-price">{% widthratio sp.gia_ban 1000 1 %}k</span></div>
+                                <p class="sales-count">2.0K lượt bán</p>
+                                <button class="add-cart" type="button">Thêm vào giỏ</button>
+                            </div>
+                        </article>
+                    {% empty %}
+                        <article class="product-card" data-name="ghế lười" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/04.jpeg' %}" alt="Ghế lười"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Ghế lười</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="gối ôm chiikawa" data-category="combo"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/08.png' %}" alt="Gối ôm Chiikawa"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Gối ôm Chiikawa</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="bàn gấp gọn" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/11.png' %}" alt="Bàn gấp gọn"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Bàn gấp gọn</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="sofa nhỏ" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/product-sofa.png' %}" alt="Sofa nhỏ hình đám mây"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Sofa nhỏ</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="đèn có hộc" data-category="đèn"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/05.png' %}" alt="Đèn có hộc hình thú"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Đèn có hộc</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="đồ kê điện thoại" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/12.png' %}" alt="Đồ kê điện thoại"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Đồ kê điện...</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="thùng rác vịt" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/07.png' %}" alt="Thùng rác hình vịt"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Thùng rác vịt</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="tủ đầu giường" data-category="phòng ngủ"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/09.png' %}" alt="Tủ đầu giường hình thú"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Tủ đầu giường</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+
+        <section class="promo" id="promo" aria-label="Ý tưởng trang trí phòng">
+            <div class="promo-photo"><img loading="lazy" src="{% static 'store/images/home/14.jpeg' %}" alt="Phòng ngủ ấm áp với nội thất màu kem"></div>
+            <div class="promo-copy">
+                <span class="promo-kicker">Không gian nhà đẹp - Tâm trí thoải mái</span>
+                <h2>Ý tưởng trang trí phòng?</h2>
+                <p>Có thể chọn theo combo gợi ý nè</p>
+                <a class="promo-button" href="#categories">Xem combo</a>
+            </div>
+        </section>
+    </main>
+
+    <footer class="site-footer" id="footer">
+        <div class="footer-inner">
+            <div class="footer-intro">
+                <a class="footer-brand" href="#home">RE:ROOM</a>
+                <p class="footer-copy">Chúng tớ có ở các nền tảng mạng xã hội, nơi bạn có thể tìm và tham khảo</p>
+                <div class="socials"><a href="#footer" aria-label="Instagram"><img src="{% static 'store/images/icons/instagram.svg' %}" alt="" width="48" height="48"></a><a href="#footer" aria-label="Facebook"><img src="{% static 'store/images/icons/facebook.svg' %}" alt="" width="48" height="48"></a><a href="#footer" aria-label="Threads"><img src="{% static 'store/images/icons/threads.svg' %}" alt="" width="48" height="48"></a><a href="#footer" aria-label="TikTok"><img src="{% static 'store/images/icons/tiktok.svg' %}" alt="" width="48" height="48"></a></div>
+            </div>
+            <div class="footer-col"><strong>Shop</strong><a href="#products">Sản phẩm</a><a href="#categories">Danh mục</a></div>
+            <div class="footer-col"><strong>About</strong><a href="#footer">Về RE:ROOM</a><a href="#footer">Liên hệ</a></div>
+        </div>
+    </footer>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <script>
+        const productCards = [...document.querySelectorAll('.product-card')];
+        let selectedCategory = 'all';
+        let cartItems = 0;
+        let toastTimer;
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => toast.classList.remove('show'), 1800);
+        }
+        function filterCards(query = '') {
+            const normalizedQuery = query.trim().toLocaleLowerCase('vi');
+            productCards.forEach(card => {
+                const name = card.dataset.name || '';
+                const category = card.dataset.category || '';
+                const matchesName = !normalizedQuery || name.includes(normalizedQuery) || category.includes(normalizedQuery);
+                const matchesCategory = selectedCategory === 'all' || category.includes(selectedCategory);
+                card.hidden = !(matchesName && matchesCategory);
+            });
+        }
+        document.querySelector('.header-icon[aria-label="Tìm kiếm"]').addEventListener('click', () => {
+            const query = window.prompt('Bạn muốn tìm món đồ nào?');
+            if (query === null) return;
+            filterCards(query);
+            document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
+        });
+        document.querySelector('.category-list').addEventListener('click', event => {
+            const chip = event.target.closest('[data-category]');
+            if (!chip) return;
+            selectedCategory = chip.dataset.category;
+            document.querySelectorAll('.category-chip').forEach(item => item.classList.toggle('selected', item === chip));
+            filterCards();
+        });
+        document.getElementById('productGrid').addEventListener('click', event => {
+            const favorite = event.target.closest('.favorite');
+            if (favorite) {
+                favorite.classList.toggle('is-favorite');
+                favorite.querySelector('img').src = favorite.classList.contains('is-favorite')
+                    ? "{% static 'store/images/icons/favorite-active.svg' %}"
+                    : "{% static 'store/images/icons/favorite.svg' %}";
+                showToast(favorite.classList.contains('is-favorite') ? 'Đã thêm vào mục yêu thích' : 'Đã bỏ khỏi mục yêu thích');
+                return;
+            }
+            const addButton = event.target.closest('.add-cart');
+            if (addButton) {
+                cartItems += 1;
+                const cartCount = document.getElementById('cartCount');
+                cartCount.hidden = false;
+                cartCount.textContent = cartItems;
+                showToast('Đã thêm sản phẩm vào giỏ hàng');
+            }
+        });
+        document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('mainNav').classList.toggle('open'));
+    </script>
 </body>
 </html>

@@ -1,0 +1,241 @@
+@import url('https://fonts.googleapis.com/css2?family=Montserrat+Alternates:wght@600;700;800&display=swap');
+
+:root {
+    color-scheme: light;
+    --register-canvas-height: 1112px;
+    --pink: #ff3679;
+    --pink-soft: #ffb4d0;
+    --orange: #ff704d;
+    --peach: #ffe1cd;
+    --text: #111111;
+    --placeholder: #a9a9a9;
+}
+
+* { box-sizing: border-box; }
+
+html, body { min-width: 320px; min-height: 100%; margin: 0; }
+
+body {
+    color: var(--text);
+    background: #fff;
+    font-family: "Pathway Extreme", "Poppins", Arial, sans-serif;
+}
+
+button, input { font: inherit; }
+
+.register-page {
+    min-height: max(100vh, var(--register-canvas-height));
+    display: grid;
+    grid-template-columns: 52.65% minmax(0, 1fr);
+    background: #fff;
+}
+
+.register-visual {
+    min-height: max(100vh, var(--register-canvas-height));
+    overflow: hidden;
+    border-radius: 0 52px 52px 0;
+    background: #d4d8d1;
+}
+
+.register-visual img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    min-height: max(100vh, var(--register-canvas-height));
+    object-fit: cover;
+    object-position: center center;
+}
+
+.register-panel {
+    min-width: 0;
+    min-height: max(100vh, var(--register-canvas-height));
+    display: flex;
+    justify-content: flex-start;
+    padding: 68px 80px 48px 38px;
+}
+
+.register-content { width: min(100%, 563px); }
+
+.register-title {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 17px;
+    margin: 0 0 48px;
+    color: var(--orange);
+    font-size: clamp(22px, 2.2vw, 32px);
+    font-weight: 700;
+    line-height: 1.25;
+    white-space: nowrap;
+}
+
+.wordmark {
+    color: var(--pink);
+    font-family: "Montserrat Alternates", "Pathway Extreme", sans-serif;
+    font-size: 1.05em;
+    font-weight: 800;
+    letter-spacing: -.065em;
+    text-decoration: none;
+}
+
+.avatar {
+    width: 68px;
+    height: 68px;
+    margin: 0 auto 45px;
+    color: #ff387b;
+}
+
+.avatar svg { display: block; width: 100%; height: 100%; }
+
+.register-form { display: flex; flex-direction: column; }
+
+.field-group { margin-bottom: 24px; }
+
+.field-group label {
+    display: block;
+    margin: 0 0 18px 14px;
+    font-size: 25px;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.field-group input {
+    width: 100%;
+    height: 92px;
+    padding: 0 30px;
+    border: 1.3px solid #151515;
+    border-radius: 17px;
+    outline: none;
+    background: white;
+    color: #252525;
+    font-size: 25px;
+    font-weight: 300;
+    transition: border-color .16s, box-shadow .16s;
+}
+
+.field-group input::placeholder {
+    color: var(--placeholder);
+    font-style: italic;
+    opacity: 1;
+}
+
+.field-group input:focus {
+    border-color: var(--pink);
+    box-shadow: 0 0 0 3px #ff36791c;
+}
+
+.password-group { margin-bottom: 19px; }
+
+.confirm-group { margin-bottom: 0; }
+
+.confirm-group .password-input-wrap { margin-top: 0; }
+
+.password-input-wrap { position: relative; }
+
+.password-input-wrap input { padding-right: 78px; }
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 24px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    padding: 3px;
+    transform: translateY(-50%);
+    border: 0;
+    background: transparent;
+    color: #191919;
+    cursor: pointer;
+}
+
+.eye-icon { width: 31px; height: 31px; overflow: visible; fill: none; stroke: currentColor; stroke-width: 1.65; stroke-linecap: round; stroke-linejoin: round; }
+.eye-icon circle { fill: none; }
+.eye-slash { display: block; }
+.password-toggle.is-visible .eye-slash { display: none; }
+
+.submit-button {
+    width: min(100% - 88px, 414px);
+    min-height: 69px;
+    margin: 45px auto 0;
+    border: 0;
+    border-radius: 17px;
+    background: var(--peach);
+    color: #ff43cb;
+    font-size: 30px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter .15s, transform .15s;
+}
+
+.submit-button:hover { filter: saturate(1.12); transform: translateY(-1px); }
+.submit-button:focus-visible, .password-toggle:focus-visible, .login-prompt a:focus-visible { outline: 3px solid #ff6ca1; outline-offset: 3px; }
+
+.form-message {
+    margin: 15px auto 0;
+    color: #be527d;
+    font-size: 15px;
+    text-align: center;
+}
+
+.login-prompt {
+    margin: 30px 0 0;
+    color: #dc4cff;
+    font-size: 26px;
+    font-style: italic;
+    font-weight: 300;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.login-prompt a { color: inherit; text-decoration: underline; text-underline-offset: 3px; }
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@media (max-width: 1000px) {
+    .register-page { grid-template-columns: 46% minmax(0, 1fr); }
+    .register-panel { padding: 55px 28px 40px; }
+    .register-title { gap: 10px; margin-bottom: 40px; font-size: clamp(20px, 2.6vw, 27px); }
+    .avatar { margin-bottom: 30px; }
+    .field-group { margin-bottom: 19px; }
+    .field-group label { margin-bottom: 12px; font-size: 21px; }
+    .field-group input { height: 76px; padding-left: 22px; font-size: 21px; }
+    .password-group { margin-bottom: 15px; }
+    .submit-button { min-height: 60px; margin-top: 32px; font-size: 26px; }
+    .login-prompt { margin-top: 24px; font-size: 22px; }
+}
+
+@media (max-width: 700px) {
+    .register-page { min-height: 100svh; grid-template-columns: 1fr; grid-template-rows: minmax(180px, 30svh) 1fr; }
+    .register-visual { min-height: 0; border-radius: 0 0 30px 30px; }
+    .register-visual img { min-height: 0; height: 100%; object-position: center 48%; }
+    .register-panel { min-height: 0; padding: 27px 24px 38px; }
+    .register-content { width: min(100%, 480px); }
+    .register-title { margin-bottom: 22px; font-size: clamp(19px, 5vw, 25px); }
+    .avatar { width: 56px; height: 56px; margin-bottom: 24px; }
+    .field-group { margin-bottom: 17px; }
+    .field-group label { margin: 0 0 9px 9px; font-size: 18px; }
+    .field-group input { height: 62px; padding: 0 18px; border-radius: 13px; font-size: 18px; }
+    .password-input-wrap input { padding-right: 62px; }
+    .password-toggle { right: 14px; width: 34px; height: 34px; }
+    .eye-icon { width: 27px; height: 27px; }
+    .password-group { margin-bottom: 14px; }
+    .submit-button { width: min(100% - 30px, 360px); min-height: 56px; margin-top: 25px; border-radius: 13px; font-size: 23px; }
+    .login-prompt { margin-top: 21px; font-size: clamp(17px, 4.7vw, 21px); }
+}
+
+@media (max-width: 370px) {
+    .register-title { flex-direction: column; align-items: center; gap: 2px; }
+    .register-panel { padding-inline: 18px; }
+}

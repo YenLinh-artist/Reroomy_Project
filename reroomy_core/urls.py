@@ -21,4 +21,6 @@ from store import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.trang_chu, name='trang_chu'), # Trang chủ
+    path('dang-ky/', views.dang_ky, name='dang_ky'),
+    path('dang-nhap/', views.dang_nhap, name='dang_nhap'),
 ]

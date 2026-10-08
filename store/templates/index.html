@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -40,6 +40,7 @@
         .header-icon { position: relative; width: auto; height: auto; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #eb7416; }
         .header-icon img { display: block; }
         .icon-dot { position: absolute; top: 1px; right: 0; width: 7px; height: 7px; border-radius: 50%; background: #ed5943; }
+        .cart-count { min-width: 18px; width: auto; height: 18px; padding: 0 4px; display: grid; place-items: center; border-radius: 99px; color: #fff; font: 600 11px Arial, sans-serif; }
         .login-button { min-width: 150px; padding: 7px 16px; border: 0; border-radius: 6px; background: #ef9182; color: #fedeca; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 18px; font-weight: 600; white-space: nowrap; }
         .menu-toggle { display: none; }
         .hero-shell { height: 680px; padding: 0; background: var(--pink-soft); }
@@ -222,7 +223,7 @@
             <div class="header-actions">
                 <button class="header-icon" type="button" aria-label="Tìm kiếm"><img src="{% static 'store/images/icons/search.svg' %}" alt=""></button>
                 <button class="header-icon" type="button" aria-label="Thông báo"><img src="{% static 'store/images/icons/bell-pin.svg' %}" alt=""><span class="icon-dot"></span></button>
-                <a class="header-icon" href="{% url 'yeu_thich' %}" aria-label="Sản phẩm yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></a><a class="header-icon" href="{% url 'gio_hang' %}" aria-label="Giỏ hàng"><img src="{% static 'store/images/icons/bag.svg' %}" alt=""><span class="icon-dot" id="cartCount" hidden></span></a>
+                <a class="header-icon" href="{% url 'yeu_thich' %}" aria-label="Sản phẩm yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></a><a class="header-icon" href="{% url 'gio_hang' %}" aria-label="Giỏ hàng"><img src="{% static 'store/images/icons/bag.svg' %}" alt=""><span class="icon-dot cart-count" id="cartCount" hidden>0</span></a>
                 <a class="login-button" href="{% url 'dang_nhap' %}">Đăng nhập</a>
             </div>
         </div>
@@ -273,7 +274,7 @@
                 <div class="product-grid" id="productGrid">
                     {% for sp in san_pham_list|slice:":8" %}
                         {% cycle '04.jpeg' '08.png' '11.png' 'product-sofa.png' '05.png' '12.png' '07.png' '09.png' as product_photo silent %}
-                        <article class="product-card" data-name="{{ sp.ten_san_pham|lower }}" data-category="{{ sp.danh_muc.ten_danh_muc|lower }}">
+                        <article class="product-card" data-product-id="{{ sp.pk }}" data-name="{{ sp.ten_san_pham|lower }}" data-category="{{ sp.danh_muc.ten_danh_muc|lower }}">
                             <div class="product-image">
                                 <a href="{% url 'chi_tiet_san_pham' sp.pk %}"><img loading="lazy" src="{% static 'store/images/home/' %}{{ product_photo }}" alt="{{ sp.ten_san_pham }}"></a>
                                 <button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button>
@@ -324,7 +325,24 @@
     <script>
         const productCards = [...document.querySelectorAll('.product-card')];
         let selectedCategory = 'all';
-        let cartItems = 0;
+        const CART_STORAGE_KEY = 'reroomy-cart-items';
+        function loadCartItems() {
+            try {
+                const items = JSON.parse(localStorage.getItem(CART_STORAGE_KEY) || '[]');
+                return Array.isArray(items) ? items.filter(item => item && item.id != null && item.name) : [];
+            } catch { return []; }
+        }
+        function saveCartItems(items) {
+            try { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(items)); return true; }
+            catch { return false; }
+        }
+        function updateCartBadge(items = loadCartItems()) {
+            const count = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0);
+            const badge = document.getElementById('cartCount');
+            badge.textContent = count;
+            badge.hidden = count === 0;
+        }
+        updateCartBadge();
         let toastTimer;
         function showToast(message) {
             const toast = document.getElementById('toast');
@@ -373,7 +391,22 @@
                 return;
             }
             if (addButton) {
-                window.location.href = "{% url 'gio_hang' %}";
+                const name = card.querySelector('.product-name').textContent.trim();
+                const priceLabel = card.querySelector('.product-price').textContent.trim();
+                const priceValue = Number(priceLabel.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+                const unitPrice = /k/i.test(priceLabel) ? Math.round(priceValue * 1000) : Number(priceLabel.replace(/\D/g, ''));
+                const image = card.querySelector('.product-image img').src;
+                const id = card.dataset.productId || `catalog-${(card.dataset.name || name).trim().toLocaleLowerCase('vi')}`;
+                const items = loadCartItems();
+                const existing = items.find(item => String(item.id) === String(id));
+                if (existing) existing.quantity = Math.min(99, (Number(existing.quantity) || 1) + 1);
+                else items.push({ id, name, image, unitPrice, quantity: 1, variant: 'Mặc định' });
+                if (saveCartItems(items)) {
+                    updateCartBadge(items);
+                    showToast(`Đã thêm ${name} vào giỏ hàng`);
+                } else {
+                    showToast('Không thể lưu giỏ hàng trên trình duyệt này');
+                }
             }
         });
         document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('mainNav').classList.toggle('open'));

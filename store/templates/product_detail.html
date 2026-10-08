@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -56,7 +56,7 @@
 <a class="top-action" href="{% if user.is_authenticated %}{% url 'gio_hang' %}{% else %}{% url 'dang_nhap' %}{% endif %}" aria-label="Giỏ hàng"><img class="top-icon" src="{% static 'store/images/icons/bag.svg' %}" alt=""><span class="cart-count">1</span></a>
 </div></header>
 <nav class="crumb"><a href="{% url 'trang_chu' %}">‹ &nbsp; Trang chủ</a> / {{ san_pham.danh_muc.ten_danh_muc }} / <strong>{{ san_pham.ten_san_pham }}</strong></nav>
-<main class="detail"><section class="overview"><div class="photo"><img src="{% static 'store/images/home/' %}{{ anh_san_pham }}" alt="{{ san_pham.ten_san_pham }}"><button class="heart" aria-label="Yêu thích">♡</button><button class="next" aria-label="Ảnh tiếp theo">›</button></div><div class="summary"><h1>{{ san_pham.ten_san_pham }}</h1><p class="variant">Màu kem</p><div class="price"><strong>{{ san_pham.gia_ban }}.000 VND</strong><del>{{ san_pham.gia_ban|add:120 }}.000</del></div><p class="sold">10k lượt bán 🔥</p><div class="buy-row"><button class="buy" data-login-url="{% url 'dang_nhap' %}" data-checkout-url="{% url 'thanh_toan' %}">CHỐT ĐƠN</button><button class="square" aria-label="Thêm vào giỏ" data-login-url="{% url 'dang_nhap' %}" data-cart-url="{% url 'gio_hang' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V6a5 5 0 0 1 10 0v2m-12 0h14l1 13H4L5 8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12v2m6-2v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><button class="square" aria-label="Chia sẻ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4 21 11l-7 7v-4C7 14 4 17 3 21c0-8 4-12 11-12V4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button></div></div></section>
+<main class="detail"><section class="overview"><div class="photo"><img src="{% static 'store/images/home/' %}{{ anh_san_pham }}" alt="{{ san_pham.ten_san_pham }}"><button class="heart" aria-label="Yêu thích">♡</button><button class="next" aria-label="Ảnh tiếp theo">›</button></div><div class="summary"><h1>{{ san_pham.ten_san_pham }}</h1><p class="variant">Màu kem</p><div class="price"><strong>{{ san_pham.gia_ban }}.000 VND</strong><del>{{ san_pham.gia_ban|add:120 }}.000</del></div><p class="sold">10k lượt bán 🔥</p><div class="buy-row"><button class="buy" data-login-url="{% url 'dang_nhap' %}" data-checkout-url="{% url 'thanh_toan' %}">CHỐT ĐƠN</button><button class="square" aria-label="Thêm vào giỏ" data-cart-product-id="{{ san_pham.pk|default:'sample-chair' }}" data-cart-product-name="{{ san_pham.ten_san_pham }}" data-cart-product-image="{% static 'store/images/home/' %}{{ anh_san_pham }}" data-cart-url="{% url 'gio_hang' %}"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 8V6a5 5 0 0 1 10 0v2m-12 0h14l1 13H4L5 8Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9 12v2m6-2v2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg></button><button class="square" aria-label="Chia sẻ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4 21 11l-7 7v-4C7 14 4 17 3 21c0-8 4-12 11-12V4Z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg></button></div></div></section>
 <div class="classification">Phân loại<span class="swatch" title="Màu kem"></span></div>
 <section class="panel"><h2>Mô tả sản phẩm</h2><div class="description">{{ san_pham.ten_san_pham }} mềm mại, tiện dụng, giúp không gian thêm ấm cúng và thư thái. Thiết kế tinh tế, phù hợp với nhiều phong cách trang trí.</div></section>
 <section class="panel"><div class="reviews-title"><strong>Đánh giá</strong><span class="stars">★★★★◐</span><span class="rating">(4.0)</span></div></section>
@@ -74,10 +74,27 @@ document.querySelector('.heart').addEventListener('click',event=>{
 document.querySelector('.buy').addEventListener('click',event=>{
     window.location.href=isSignedIn?event.currentTarget.dataset.checkoutUrl:event.currentTarget.dataset.loginUrl;
 });
-document.querySelector('.square[aria-label="Thêm vào giỏ"]').addEventListener('click',event=>{
-    window.location.href=isSignedIn?event.currentTarget.dataset.cartUrl:event.currentTarget.dataset.loginUrl;
-});
-document.querySelector('.square[aria-label="Chia sẻ"]').addEventListener('click',async()=>{
+document.querySelector('.square[aria-label="Thêm vào giỏ"]').addEventListener('click', event => {
+    const button = event.currentTarget;
+    const name = button.dataset.cartProductName;
+    const productId = button.dataset.cartProductId;
+    const priceLabel = document.querySelector('.price strong').textContent;
+    const unitPrice = Number(priceLabel.replace(/[^0-9]/g, '')) || 0;
+    let items = [];
+    try {
+        const saved = JSON.parse(localStorage.getItem('reroomy-cart-items') || '[]');
+        if (Array.isArray(saved)) items = saved.filter(item => item && item.id != null && item.name);
+    } catch { items = []; }
+    const existing = items.find(item => String(item.id) === String(productId));
+    if (existing) existing.quantity = Math.min(99, (Number(existing.quantity) || 1) + 1);
+    else items.push({ id: productId, name, image: new URL('/' + button.dataset.cartProductImage.replace(/^\/+/, ''), window.location.origin).href, unitPrice, quantity: 1, variant: document.querySelector('.variant').textContent.trim() });
+    try {
+        localStorage.setItem('reroomy-cart-items', JSON.stringify(items));
+        window.location.href = button.dataset.cartUrl;
+    } catch {
+        window.alert('Không thể lưu giỏ hàng trên trình duyệt này.');
+    }
+});document.querySelector('.square[aria-label="Chia sẻ"]').addEventListener('click',async()=>{
     if (navigator.share) await navigator.share({title:document.title,url:window.location.href});
     else if (navigator.clipboard) await navigator.clipboard.writeText(window.location.href);
 });

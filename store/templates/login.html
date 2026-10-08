@@ -1,4 +1,5 @@
 {% load static %}
+{% load socialaccount %}
 <!doctype html>
 <html lang="vi">
 <head>
@@ -30,9 +31,11 @@
                     </svg>
                 </div>
 
-                <form class="login-form" id="login-form">
-                    <label class="visually-hidden" for="login-username">Tên đăng nhập</label>
-                    <input class="auth-input" id="login-username" name="username" type="text" placeholder="Tên đăng nhập" autocomplete="username" required>
+                <form class="login-form" id="login-form" method="post" action="{% url 'dang_nhap' %}">
+                    {% csrf_token %}
+                    {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+                    <label class="visually-hidden" for="login-username">Tên đăng nhập hoặc email</label>
+                    <input class="auth-input" id="login-username" name="username" type="text" placeholder="Tên đăng nhập hoặc email" autocomplete="username" required>
 
                     <label class="visually-hidden" for="login-password">Mật khẩu</label>
                     <div class="password-wrap">
@@ -47,7 +50,12 @@
                     </div>
 
                     <button class="login-submit" type="submit">Đăng nhập</button>
-                    <button class="google-submit" id="google-login" type="button">
+                    {% if login_error %}<p class="login-message" role="alert">{{ login_error }}</p>{% endif %}
+                    {% if google_oauth_enabled %}
+                        <a class="google-submit" id="google-login" href="{% provider_login_url 'google' %}">
+                    {% else %}
+                        <button class="google-submit" id="google-login" type="button" disabled title="Cần cấu hình Google OAuth">
+                    {% endif %}
                         <span class="google-icon" aria-hidden="true">
                             <svg viewBox="0 0 24 24">
                                 <path fill="#4285F4" d="M21.6 12.23c0-.72-.06-1.42-.18-2.1H12v3.97h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.24c1.9-1.75 2.98-4.32 2.98-7.39Z" />
@@ -57,8 +65,8 @@
                             </svg>
                         </span>
                         <span>Đăng nhập với Google</span>
-                    </button>
-                    <p class="login-message" id="login-message" role="status" aria-live="polite" hidden></p>
+                    {% if google_oauth_enabled %}</a>{% else %}</button>{% endif %}
+                    {% if not google_oauth_enabled %}<p class="login-message" role="status">Google OAuth cần Client ID và Client Secret để hoạt động.</p>{% endif %}
                 </form>
 
                 <p class="register-prompt">Hoặc là <a href="{% url 'dang_ky' %}">tạo tài khoản nè</a></p>
@@ -68,7 +76,7 @@
     <script>
         const passwordInput = document.getElementById('login-password');
         const passwordToggle = document.querySelector('.password-toggle');
-        passwordToggle.addEventListener('click', () => {
+        if (passwordInput && passwordToggle) passwordToggle.addEventListener('click', () => {
             const showPassword = passwordInput.type === 'password';
             passwordInput.type = showPassword ? 'text' : 'password';
             passwordToggle.setAttribute('aria-pressed', String(showPassword));
@@ -76,16 +84,6 @@
             passwordToggle.classList.toggle('is-visible', showPassword);
         });
 
-        const loginMessage = document.getElementById('login-message');
-        document.getElementById('login-form').addEventListener('submit', (event) => {
-            event.preventDefault();
-            loginMessage.textContent = 'Giao diện đăng nhập chưa được kết nối với hệ thống tài khoản.';
-            loginMessage.hidden = false;
-        });
-        document.getElementById('google-login').addEventListener('click', () => {
-            loginMessage.textContent = 'Đăng nhập Google chưa được cấu hình.';
-            loginMessage.hidden = false;
-        });
     </script>
 </body>
 </html>

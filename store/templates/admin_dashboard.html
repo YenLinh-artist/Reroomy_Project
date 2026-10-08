@@ -1,0 +1,96 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#ffead8">
+    <title>RE:ROOM | Trang quản trị</title>
+    <link rel="stylesheet" href="{% static 'store/css/typography.css' %}">
+    <link rel="stylesheet" href="{% static 'store/css/admin_dashboard.css' %}">
+</head>
+<body>
+    <header class="admin-topbar">
+        <a class="admin-brand" href="{% url 'trang_admin' %}">RE:ROOM <span>QUẢN TRỊ</span></a>
+        <nav class="admin-nav" aria-label="Điều hướng quản trị">
+            <a class="active" href="#overview">Tổng quan</a>
+            <a href="#orders">Quản lý đơn hàng</a>
+            <a href="#inventory">Quản lý kho</a>
+        </nav>
+        <div class="admin-tools">
+            <a class="admin-tool" href="#orders" aria-label="Tin nhắn">
+                <svg viewBox="0 0 40 40"><path d="M10 8h20a8 8 0 0 1 8 8v9a8 8 0 0 1-8 8h-8l-7 5v-5h-5a8 8 0 0 1-8-8v-9a8 8 0 0 1 8-8Z"/><path d="M12 21h.1M20 21h.1M28 21h.1"/></svg>
+            </a>
+            <a class="admin-tool" href="#orders" aria-label="Thông báo">
+                <svg viewBox="0 0 40 40"><path d="M20 5a8 8 0 0 0-8 8c0 10-5 12-5 16h26c0-4-5-6-5-16a8 8 0 0 0-8-8Z"/><path d="M16 33a4 4 0 0 0 8 0"/><circle cx="32" cy="7" r="4" fill="#df390e" stroke="none"/></svg>
+            </a>
+            <form class="admin-logout" method="post" action="{% url 'dang_xuat' %}">
+                {% csrf_token %}
+                <button class="admin-logout-button" type="submit" title="Đăng xuất">
+                    <svg viewBox="0 0 40 40" aria-hidden="true"><path d="M17 7H8a3 3 0 0 0-3 3v20a3 3 0 0 0 3 3h9M23 13l8 7-8 7M12 20h19"/></svg>
+                    <span>Đăng xuất</span>
+                </button>
+            </form>
+        </div>
+    </header>
+
+    <div class="admin-shell" id="overview">
+        <aside class="admin-sidebar" aria-label="Lối tắt quản trị">
+            <a class="side-link active" href="#overview" aria-label="Tổng quan"><svg viewBox="0 0 40 40"><rect x="3" y="3" width="34" height="34" rx="2"/><path d="M13 28V17m7 11V10m7 18v-7"/></svg></a>
+            <a class="side-link" href="#orders" aria-label="Đơn hàng"><svg viewBox="0 0 40 40"><path d="M5 13h30v22H5zM5 13l4-9h22l4 9M5 20h30"/><path d="M15 26h10"/></svg></a>
+            <a class="side-link" href="#inventory" aria-label="Kho hàng"><svg viewBox="0 0 40 40"><path d="m20 3 16 9-16 9-16-9 16-9Zm-16 9v17l16 9 16-9V12M20 21v17"/><circle cx="31" cy="28" r="5"/><path d="m35 32 3 3"/></svg></a>
+            <a class="side-link" href="#customers" aria-label="Khách hàng"><svg viewBox="0 0 40 40"><circle cx="14" cy="13" r="5"/><circle cx="27" cy="13" r="5"/><circle cx="20" cy="8" r="5"/><path d="M3 30c0-6 4-9 9-9m25 9c0-6-4-9-9-9M8 34c0-8 5-12 12-12s12 4 12 12H8Z"/></svg></a>
+            <a class="side-link" href="#orders" aria-label="Phản hồi"><svg viewBox="0 0 40 40"><path d="M10 4h20a7 7 0 0 1 7 7v16a7 7 0 0 1-7 7h-7l-7 5v-5h-6a7 7 0 0 1-7-7V11a7 7 0 0 1 7-7Z"/><path d="M13 15h14M13 22h10"/></svg></a>
+            <a class="side-link" href="{% url 'admin:index' %}" aria-label="Cài đặt trang quản trị"><svg viewBox="0 0 40 40"><path d="m15 3 10 0 2 5 5 2 5 7-3 4v6l-5 2-3 5H14l-3-5-5-2-3-7 3-5V9l6-2z"/><circle cx="20" cy="19" r="6"/></svg></a>
+        </aside>
+
+        <main class="admin-main">
+            <section class="stat-grid" aria-label="Số liệu tổng quan">
+                <article class="stat-card revenue"><h2>Doanh thu</h2><p>000.000.000</p></article>
+                <article class="stat-card"><h2>Tổng đơn hàng</h2><p>000.000.000</p></article>
+                <a class="stat-card customers" id="customers" href="{% url 'admin:auth_user_changelist' %}"><h2>Khách hàng</h2><p>{{ customer_count }}</p></a>
+            </section>
+
+            <div class="dashboard-grid">
+                <section class="revenue-section" aria-labelledby="revenue-title">
+                    <h1 class="section-heading" id="revenue-title">Doanh thu tháng này</h1>
+                    <div class="chart-wrap" role="img" aria-label="Biểu đồ doanh thu mô phỏng tăng dần trong tháng">
+                        <svg class="chart" viewBox="0 0 720 420" preserveAspectRatio="none" aria-hidden="true">
+                            <path class="chart-axis" d="M8 18V400H710"/>
+                            <path class="chart-line" d="M22 388 168 315 250 350 430 250 600 145"/>
+                            <circle class="chart-point" cx="168" cy="315" r="15"/><circle class="chart-point" cx="250" cy="350" r="15"/><circle class="chart-point" cx="430" cy="250" r="15"/><circle class="chart-point" cx="600" cy="145" r="11"/>
+                        </svg>
+                    </div>
+                    <p class="chart-caption">(SƠ ĐỒ MÔ PHỎNG)</p>
+                </section>
+
+                <section class="orders-section" id="orders" aria-labelledby="orders-title">
+                    <div class="orders-heading"><h2 class="section-heading" id="orders-title">Đơn gần đây</h2><a href="{% url 'admin:index' %}">xem tất cả</a></div>
+                    <div class="order-list">
+                        <article class="order-card"><img src="{% static 'store/images/home/08.png' %}" alt="Chăn họa tiết xanh"><div class="order-info"><div class="order-line"><h3 class="order-name">Tên sản phẩm</h3><span class="order-status status-done">ĐÃ GIAO ✓</span></div><em>Phân loại</em><div class="order-bottom"><strong class="order-price">199.000 VND</strong><div class="quantity"><button type="button" aria-label="Giảm">−</button><span>1</span><button type="button" aria-label="Tăng">+</button></div></div></div></article>
+                        <article class="order-card"><img src="{% static 'store/images/home/07.png' %}" alt="Sản phẩm hình thú"><div class="order-info"><div class="order-line"><h3 class="order-name">Tên sản phẩm</h3><span class="order-status status-preparing">ĐANG CHUẨN BỊ ◷</span></div><em>Phân loại</em><div class="order-bottom"><strong class="order-price">199.000 VND</strong><div class="quantity"><button type="button" aria-label="Giảm">−</button><span>1</span><button type="button" aria-label="Tăng">+</button></div></div></div></article>
+                        <article class="order-card"><img src="{% static 'store/images/home/09.png' %}" alt="Tủ màu xanh"><div class="order-info"><div class="order-line"><h3 class="order-name">Tên sản phẩm</h3><span class="order-status status-shipping">ĐANG GIAO ⇢</span></div><em>Phân loại</em><div class="order-bottom"><strong class="order-price">199.000 VND</strong><div class="quantity"><button type="button" aria-label="Giảm">−</button><span>1</span><button type="button" aria-label="Tăng">+</button></div></div></div></article>
+                    </div>
+                </section>
+            </div>
+
+            <section class="stock-section" id="inventory" aria-labelledby="stock-title">
+                <h2 class="section-heading" id="stock-title">Sản phẩm sắp hết</h2>
+                <div class="stock-list">
+                    <article class="stock-card"><img class="stock-photo" src="{% static 'store/images/home/04.jpeg' %}" alt="Ghế màu kem"><div class="stock-info"><h3>Tên sản phẩm</h3><p>Phân loại</p><strong class="stock-price">199.000 VND</strong></div><div class="stock-action"><p class="stock-quantity">Số lượng trong kho: 4</p><button type="button" class="check-stock">Kiểm tra hàng hóa</button></div></article>
+                    <article class="stock-card"><img class="stock-photo" src="{% static 'store/images/home/05.png' %}" alt="Đèn trang trí"><div class="stock-info"><h3>Tên sản phẩm</h3><p>Phân loại</p><strong class="stock-price">199.000 VND</strong></div><div class="stock-action"><p class="stock-quantity">Số lượng trong kho: 6</p><button type="button" class="check-stock">Kiểm tra hàng hóa</button></div></article>
+                </div>
+            </section>
+        </main>
+    </div>
+    <div class="admin-toast" id="adminToast" role="status" aria-live="polite"></div>
+    <script>
+        const toast = document.getElementById('adminToast');
+        document.querySelectorAll('.check-stock').forEach(button => button.addEventListener('click', () => {
+            toast.textContent = 'Đã mở danh sách hàng hóa trong trang quản trị.';
+            toast.classList.add('show');
+            window.setTimeout(() => toast.classList.remove('show'), 1800);
+        }));
+    </script>
+</body>
+</html>

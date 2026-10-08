@@ -1,0 +1,53 @@
+@import url('https://fonts.googleapis.com/css2?family=Phudu:wght@400;500;600;700;800;900&family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Pathway+Extreme:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&display=swap');
+
+:root {
+    --font-primary: "Phudu", sans-serif;
+    --font-accent: "Playfair Display", Georgia, serif;
+    --font-secondary: "Pathway Extreme", Arial, sans-serif;
+}
+
+body,
+input,
+select,
+textarea {
+    font-family: var(--font-secondary) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+.brand,
+.logo,
+.footer-brand,
+.section-title,
+.hero-kicker,
+.main-nav,
+.topnav,
+.nav,
+.title,
+.heading,
+.recommend h2,
+.benefit strong,
+.footer-col strong,
+.footer-links,
+.login-title,
+.register-title,
+.buy,
+.hero-button,
+.login-button,
+.add-cart,
+.checkout,
+.submit-button,
+.pay {
+    font-family: var(--font-primary) !important;
+}
+
+.review-copy p,
+.promo-kicker,
+.details h2,
+.style-row span,
+.quote,
+blockquote {
+    font-family: var(--font-accent) !important;
+}

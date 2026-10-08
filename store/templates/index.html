@@ -5,7 +5,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="theme-color" content="#ffc2d5">
-    <title>RE:ROOM â€” Sáº¡ch, xinh, gá»n</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat+Alternates:wght@600;700;800&family=Pathway+Extreme:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <title>RE:ROOM — Sạch, xinh, gọn</title>
     <style>
         :root {
             --pink-bar: #ffbdd2;
@@ -23,33 +26,33 @@
         }
         * { box-sizing: border-box; }
         html { scroll-behavior: smooth; }
-        body { margin: 0; background: var(--cream); color: var(--ink); font-family: Arial, sans-serif; }
+        body { margin: 0; background: var(--cream); color: var(--ink); font-family: "Pathway Extreme", Arial, sans-serif; }
         a { color: inherit; text-decoration: none; }
         button, input { font: inherit; }
         button { cursor: pointer; }
         .site-header { position: sticky; top: 0; z-index: 20; min-height: 84px; background: var(--pink-bar); box-shadow: 0 2px 5px #76485812; }
         .header-inner { width: min(100% - 34px, 1440px); min-height: 84px; margin: auto; display: flex; align-items: center; gap: 18px; }
-        .brand { flex: 0 0 210px; margin-left: 64px; color: #f93471; font-family: Arial, sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.06em; }
-        .main-nav { display: flex; align-items: center; justify-content: center; gap: 56px; margin-left: 65px; margin-right: auto; color: #e16a6a; font-size: 20px; font-family: Arial, sans-serif; }
+        .brand { flex: 0 0 210px; margin-left: 64px; color: #f93471; font-family: "Montserrat Alternates", "Pathway Extreme", sans-serif; font-size: 26px; font-weight: 800; letter-spacing: -.06em; }
+        .main-nav { display: flex; align-items: center; justify-content: center; gap: 56px; margin-left: 65px; margin-right: auto; color: #e16a6a; font-size: 20px; font-family: "Pathway Extreme", Arial, sans-serif; }
         .main-nav a { padding: 18px 0 15px; border-bottom: 2px solid transparent; font-weight: 400; }
         .main-nav a:hover, .main-nav a.active { border-color: #e9706e; color: #d95760; }
         .header-actions { display: flex; align-items: center; gap: 12px; }
         .header-icon { position: relative; width: auto; height: auto; display: grid; place-items: center; padding: 0; border: 0; background: transparent; color: #eb7416; }
         .header-icon img { display: block; }
         .icon-dot { position: absolute; top: 1px; right: 0; width: 7px; height: 7px; border-radius: 50%; background: #ed5943; }
-        .login-button { min-width: 150px; padding: 7px 16px; border: 0; border-radius: 6px; background: #ef9182; color: #fedeca; font-family: Arial, sans-serif; font-size: 18px; font-weight: 600; white-space: nowrap; }
+        .login-button { min-width: 150px; padding: 7px 16px; border: 0; border-radius: 6px; background: #ef9182; color: #fedeca; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 18px; font-weight: 600; white-space: nowrap; }
         .menu-toggle { display: none; }
         .hero-shell { height: 680px; padding: 0; background: var(--pink-soft); }
         .hero { width: min(100% - 60px, 1380px); height: 596px; margin: auto; display: grid; grid-template-columns: 44% 56%; align-items: start; gap: 0; }
         .hero-copy { position: relative; z-index: 4; padding: 66px 0 0 22px; }
-        .hero-kicker { margin: 0 0 32px 7px; color: #d056fc; font-family: Arial, sans-serif; font-size: 20px; font-weight: 600; }
-        .hero h1 { max-width: 610px; margin: 0; color: #ff5cad; font-family: Arial, sans-serif; font-size: 55px; font-weight: 700; line-height: 1.08; letter-spacing: -.035em; text-transform: uppercase; }
+        .hero-kicker { margin: 0 0 32px 7px; color: #d056fc; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 20px; font-weight: 600; }
+        .hero h1 { max-width: 610px; margin: 0; color: #ff5cad; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 55px; font-weight: 700; line-height: 1.08; letter-spacing: -.035em; text-transform: uppercase; }
         .hero-rule { display: flex; align-items: center; gap: 5px; width: 239px; margin: 55px 0 25px 10px; color: #e9a6a6; }
         .hero-rule::before, .hero-rule::after { content: ""; height: 1px; flex: 1; background: currentColor; }
         .hero-rule span { width: 7px; height: 7px; border: 1px solid currentColor; border-radius: 50%; }
-        .hero-tagline { margin: 0; color: #cb6e4a; font-family: Arial, sans-serif; font-size: 29px; font-weight: 400; }
+        .hero-tagline { margin: 0; color: #cb6e4a; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 29px; font-weight: 400; }
         .hero-actions { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 56px; }
-        .hero-button { width: 259px; min-height: 50px; display: grid; place-items: center; padding: 8px 14px; border: 0; border-radius: 8px; background: #ffbcd7; box-shadow: 0 8px 0 #ff8ca9; color: #bd4e4e; font-family: Arial, sans-serif; font-size: 16px; font-weight: 600; text-align: center; transition: transform .15s, box-shadow .15s; }
+        .hero-button { width: 259px; min-height: 50px; display: grid; place-items: center; padding: 8px 14px; border: 0; border-radius: 8px; background: #ffbcd7; box-shadow: 0 8px 0 #ff8ca9; color: #bd4e4e; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 16px; font-weight: 600; text-align: center; transition: transform .15s, box-shadow .15s; }
         .hero-button:hover { transform: translateY(2px); box-shadow: 0 3px 0 #ff80a8; }
         .hero-scenes { position: relative; height: 465px; margin-top: 92px; }
         .scene { position: absolute; overflow: hidden; border: 2px solid #fff6; border-radius: 12px; box-shadow: 0 8px 18px #5c403a35; background: #ead8c8; }
@@ -63,14 +66,14 @@
         .benefit-icon { flex: 0 0 auto; display: flex; align-items: center; color: #f59778; }
         .benefit-icon img { display: block; }
         .benefit strong { display: block; color: #cc3e0f; font-size: 20px; font-weight: 600; }
-        .benefit small { display: block; margin-top: 3px; color: #cc3e0f; font-family: Arial, sans-serif; font-size: 14px; font-weight: 300; }
+        .benefit small { display: block; margin-top: 3px; color: #cc3e0f; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 14px; font-weight: 300; }
         .featured { padding: 26px 0 49px; background: var(--cream); }
         .content-width { width: min(100% - 64px, 1376px); margin: auto; }
-        .section-title { margin: 0; color: #f48989; font-family: Arial, sans-serif; font-size: 38px; font-weight: 700; line-height: 63px; text-align: center; text-transform: uppercase; }
+        .section-title { margin: 0; color: #f48989; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 38px; font-weight: 700; line-height: 63px; text-align: center; text-transform: uppercase; }
         .title-rule { height: 3px; margin: 16px 0 33px; background: #e9a6a6; }
         .category-row { display: block; margin-bottom: 36px; }
         .category-list { display: flex; align-items: center; justify-content: space-between; gap: 15px; padding-left: 17px; }
-        .category-chip { min-height: 63px; padding: 8px 15px; border: 0; border-radius: 20px; background: #ffe2ac; color: #f28675; font-family: Arial, sans-serif; font-size: 21px; font-weight: 500; white-space: nowrap; transition: background .2s, color .2s; }
+        .category-chip { min-height: 63px; padding: 8px 15px; border: 0; border-radius: 20px; background: #ffe2ac; color: #f28675; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 21px; font-weight: 500; white-space: nowrap; transition: background .2s, color .2s; }
         .category-chip:hover, .category-chip.selected { background: #ffbc9d; color: white; }
         .view-all { display: block; width: max-content; margin: 20px 18px 0 auto; color: #de7e7e; font-size: 19px; text-decoration: underline; white-space: nowrap; }
         .product-grid { width: min(calc(100% - 36px), 1310px); margin-left: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 33px 20px; }
@@ -82,22 +85,22 @@
         .favorite.is-favorite { color: #ff6990; }
         .product-body { height: 149px; padding: 8px 11px 10px; }
         .product-heading { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-        .product-name { overflow: hidden; margin: 0; color: #3b302c; font-family: Arial, sans-serif; font-size: 19px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-        .product-price { flex: 0 0 auto; color: #3b302c; font-family: Arial, sans-serif; font-size: 19px; font-weight: 600; }
-        .sales-count { margin: 3px 0 8px; color: #82756f; font-family: Arial, sans-serif; font-size: 13px; font-weight: 400; }
-        .add-cart { display: block; width: 222px; min-height: 51px; margin: 12px auto 0; border: 2px dashed #ff0d0d; border-radius: 9px; background: #ffb7b7; color: #753315; font-family: Arial, sans-serif; font-size: 15px; font-weight: 600; }
+        .product-name { overflow: hidden; margin: 0; color: #3b302c; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 19px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
+        .product-price { flex: 0 0 auto; color: #3b302c; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 19px; font-weight: 600; }
+        .sales-count { margin: 3px 0 8px; color: #82756f; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 13px; font-weight: 400; }
+        .add-cart { display: block; width: 222px; min-height: 51px; margin: 12px auto 0; border: 2px dashed #ff0d0d; border-radius: 9px; background: #ffb7b7; color: #753315; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 15px; font-weight: 600; }
         .add-cart:hover { background: #ffb4bd; }
         .promo { width: min(100% - 106px, 1334px); height: 364px; margin: 0 auto 52px; padding: 0; display: grid; grid-template-columns: 67.2% 33.7%; align-items: center; gap: 0; border-radius: 16px; background: white; }
         .promo-photo { height: 364px; padding: 19px; overflow: hidden; border-radius: 19px; background: #fcdada; }
         .promo-photo img { display: block; width: 100%; height: 100%; border-radius: 9px; object-fit: cover; }
         .promo-copy { position: relative; z-index: 1; align-self: stretch; margin-left: -23px; padding: 24px 16px; }
         .promo-kicker { color: #e64747; font-size: 15px; font-weight: 300; }
-        .promo h2 { margin: 54px 0 4px; color: #fc377c; font-family: Arial, sans-serif; font-size: 31px; }
-        .promo p { margin: 0; color: #e78383; font-family: Arial, sans-serif; font-size: 29px; }
-        .promo-button { display: inline-block; margin-top: 59px; padding: 8px 16px; border: 0; border-radius: 10px; background: #ffdede; box-shadow: 4px 4px 0 #47d847; color: #ce5353; font-family: Arial, sans-serif; font-size: 23px; }
+        .promo h2 { margin: 54px 0 4px; color: #fc377c; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 31px; }
+        .promo p { margin: 0; color: #e78383; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 29px; }
+        .promo-button { display: inline-block; margin-top: 59px; padding: 8px 16px; border: 0; border-radius: 10px; background: #ffdede; box-shadow: 4px 4px 0 #47d847; color: #ce5353; font-family: "Pathway Extreme", Arial, sans-serif; font-size: 23px; }
         .site-footer { height: 474px; margin-top: 0; padding: 45px 0; border-radius: 37px 37px 0 0; background: var(--peach); }
         .footer-inner { width: min(100% - 196px, 1244px); margin: auto; display: grid; grid-template-columns: 687px 199px 1fr; gap: 0; }
-        .footer-brand { color: #ff004f; font-family: Arial, sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -.06em; }
+        .footer-brand { color: #ff004f; font-family: "Montserrat Alternates", "Pathway Extreme", sans-serif; font-size: 34px; font-weight: 700; letter-spacing: -.06em; }
         .footer-copy { max-width: 452px; margin: 49px 0 35px; color: #111; font-size: 20px; line-height: 1.35; font-weight: 300; }
         .socials { display: flex; align-items: center; gap: 27px; }
         .socials a { width: 48px; height: 48px; display: grid; place-items: center; color: #171717; }
@@ -203,23 +206,24 @@
             .footer-col strong { font-size: 16px; }
         }
     </style>
+    <link rel="stylesheet" href="{% static 'store/css/typography.css' %}">
 </head>
 <body>
     <header class="site-header">
         <div class="header-inner">
             <a class="brand" href="#home">RE:ROOM</a>
-            <button class="menu-toggle" id="menuToggle" aria-label="Má»Ÿ menu">â˜°</button>
-            <nav class="main-nav" id="mainNav" aria-label="Äiá»u hÆ°á»›ng chÃ­nh">
-                <a class="active" href="#home">Trang chá»§</a>
-                <a href="#products">Cá»­a hÃ ng</a>
-                <a href="{% url 'goi_y_combo' %}">PhÃ²ng</a>
-                <a href="#footer">Giá»›i thiá»‡u</a>
+            <button class="menu-toggle" id="menuToggle" aria-label="Mở menu">&#9776;</button>
+            <nav class="main-nav" id="mainNav" aria-label="Điều hướng chính">
+                <a class="active" href="#home">Trang chủ</a>
+                <a href="#products">Cửa hàng</a>
+                <a href="{% url 'goi_y_combo' %}">Phòng</a>
+                <a href="#footer">Giới thiệu</a>
             </nav>
             <div class="header-actions">
-                <button class="header-icon" type="button" aria-label="TÃ¬m kiáº¿m"><img src="{% static 'store/images/icons/search.svg' %}" alt=""></button>
-                <button class="header-icon" type="button" aria-label="ThÃ´ng bÃ¡o"><img src="{% static 'store/images/icons/bell-pin.svg' %}" alt=""><span class="icon-dot"></span></button>
-                <a class="header-icon" href="{% url 'yeu_thich' %}" aria-label="Sản phẩm yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></a><a class="header-icon" href="{% url 'gio_hang' %}" aria-label="Giá» hÃ ng"><img src="{% static 'store/images/icons/bag.svg' %}" alt=""><span class="icon-dot" id="cartCount" hidden></span></a>
-                <a class="login-button" href="{% url 'dang_nhap' %}">ÄÄƒng nháº­p</a>
+                <button class="header-icon" type="button" aria-label="Tìm kiếm"><img src="{% static 'store/images/icons/search.svg' %}" alt=""></button>
+                <button class="header-icon" type="button" aria-label="Thông báo"><img src="{% static 'store/images/icons/bell-pin.svg' %}" alt=""><span class="icon-dot"></span></button>
+                <a class="header-icon" href="{% url 'yeu_thich' %}" aria-label="Sản phẩm yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></a><a class="header-icon" href="{% url 'gio_hang' %}" aria-label="Giỏ hàng"><img src="{% static 'store/images/icons/bag.svg' %}" alt=""><span class="icon-dot" id="cartCount" hidden></span></a>
+                <a class="login-button" href="{% url 'dang_nhap' %}">Đăng nhập</a>
             </div>
         </div>
     </header>
@@ -228,43 +232,43 @@
         <section class="hero-shell" aria-labelledby="heroTitle">
             <div class="hero">
                 <div class="hero-copy">
-                    <p class="hero-kicker">Sáº¡ch + Xinh + Gá»n</p>
-                    <h1 id="heroTitle">Táº¡o ra khÃ´ng gian<br>cá»§a riÃªng báº¡n</h1>
+                    <p class="hero-kicker">Sạch + Xinh + Gọn</p>
+                    <h1 id="heroTitle">Tạo ra không gian<br>của riêng bạn</h1>
                     <div class="hero-rule"><span></span></div>
-                    <p class="hero-tagline">KhÃ´ng gian nhá» - Ã½ tÆ°á»Ÿng to</p>
+                    <p class="hero-tagline">Không gian nhỏ - ý tưởng to</p>
                     <div class="hero-actions">
-                        <a class="hero-button" href="#products">KhÃ¡m phÃ¡ sáº£n pháº©m</a>
-                        <a class="hero-button" href="{% url 'goi_y_combo' %}">TÆ° váº¥n decor</a>
+                        <a class="hero-button" href="#products">Khám phá sản phẩm</a>
+                        <a class="hero-button" href="{% url 'goi_y_combo' %}">Tư vấn decor</a>
                     </div>
                 </div>
-                <div class="hero-scenes" aria-label="Gá»£i Ã½ khÃ´ng gian ná»™i tháº¥t">
-                    <div class="scene scene-back"><img src="{% static 'store/images/home/01.jpeg' %}" alt="PhÃ²ng ngá»§ sÃ¡ng áº¥m"></div>
-                    <div class="scene scene-middle"><img src="{% static 'store/images/home/03.jpeg' %}" alt="KhÃ´ng gian phÃ²ng ngá»§ tá»‘i giáº£n"></div>
-                    <div class="scene scene-front"><img src="{% static 'store/images/home/18.jpeg' %}" alt="PhÃ²ng khÃ¡ch vá»›i sofa sÃ¡ng mÃ u"></div>
+                <div class="hero-scenes" aria-label="Gợi ý không gian nội thất">
+                    <div class="scene scene-back"><img src="{% static 'store/images/home/01.jpeg' %}" alt="Phòng ngủ sáng ấm"></div>
+                    <div class="scene scene-middle"><img src="{% static 'store/images/home/03.jpeg' %}" alt="Không gian phòng ngủ tối giản"></div>
+                    <div class="scene scene-front"><img src="{% static 'store/images/home/18.jpeg' %}" alt="Phòng khách với sofa sáng màu"></div>
                 </div>
             </div>
         </section>
 
-        <section class="benefits" aria-label="Dá»‹ch vá»¥ Re:Room">
-            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/delivery.svg' %}" alt="" width="56" height="62"></span><span><strong>Giao hÃ ng toÃ n quá»‘c</strong><small>Báº¡n á»Ÿ Ä‘Ã¢u, tá»¥i giao tá»›i Ä‘Ã³</small></span></div>
-            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/refund.svg' %}" alt="" width="28" height="30"></span><span><strong>HoÃ n Ä‘Æ¡n dá»… dÃ ng</strong><small>KhÃ´ng lo máº¥t tiá»n oan</small></span></div>
-            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/shield.svg' %}" alt="" width="46" height="50"></span><span><strong>Giao dá»‹ch an toÃ n</strong><small>Báº£o máº­t dá»¯ liá»‡u</small></span></div>
-            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/headphones.svg' %}" alt="" width="46" height="55"></span><span><strong>Há»— trá»£ báº¡n 24/7</strong><small>Há»— trá»£ báº¡n háº¿t mÃ¬nh</small></span></div>
+        <section class="benefits" aria-label="Dịch vụ Re:Room">
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/delivery.svg' %}" alt="" width="56" height="62"></span><span><strong>Giao hàng toàn quốc</strong><small>Chúng tôi giao hàng đến tận nơi</small></span></div>
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/refund.svg' %}" alt="" width="28" height="30"></span><span><strong>Hoàn đơn dễ dàng</strong><small>Không lo mất tiền oan</small></span></div>
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/shield.svg' %}" alt="" width="46" height="50"></span><span><strong>Giao dịch an toàn</strong><small>Bảo mật dữ liệu</small></span></div>
+            <div class="benefit"><span class="benefit-icon"><img src="{% static 'store/images/icons/headphones.svg' %}" alt="" width="46" height="55"></span><span><strong>Hỗ trợ bạn 24/7</strong><small>Hỗ trợ bạn hết mình</small></span></div>
         </section>
 
         <section class="featured" id="products">
             <div class="content-width">
-                <h2 class="section-title">Sáº£n pháº©m ná»•i báº­t</h2>
+                <h2 class="section-title">Sản phẩm nổi bật</h2>
                 <div class="title-rule"></div>
                 <div class="category-row" id="categories">
                     <div class="category-list">
-                        <button class="category-chip selected" data-category="all">Phá»• biáº¿n</button>
-                        <button class="category-chip" data-category="combo">Combo chÄƒn áº¥m - gá»‘i Ãªm</button>
-                        <button class="category-chip" data-category="giáº¥y dÃ¡n tÆ°á»ng">Giáº¥y dÃ¡n tÆ°á»ng</button>
-                        <button class="category-chip" data-category="Ä‘Ã¨n">ÄÃ¨n ngá»§ - há»c táº­p</button>
-                        <button class="category-chip" data-category="gÆ°Æ¡ng">GÆ°Æ¡ng tÆ°á»ng</button>
+                        <button class="category-chip selected" data-category="all">Phổ biến</button>
+                        <button class="category-chip" data-category="combo">Combo chăn ấm - gối êm</button>
+                        <button class="category-chip" data-category="giấy dán tường">Giấy dán tường</button>
+                        <button class="category-chip" data-category="đèn">Đèn ngủ - học tập</button>
+                        <button class="category-chip" data-category="gương">Gương tường</button>
                     </div>
-                    <a class="view-all" href="#products">Xem táº¥t cáº£</a>
+                    <a class="view-all" href="#products">Xem tất cả</a>
                 </div>
                 <div class="product-grid" id="productGrid">
                     {% for sp in san_pham_list|slice:":8" %}
@@ -272,34 +276,34 @@
                         <article class="product-card" data-name="{{ sp.ten_san_pham|lower }}" data-category="{{ sp.danh_muc.ten_danh_muc|lower }}">
                             <div class="product-image">
                                 <a href="{% url 'chi_tiet_san_pham' sp.pk %}"><img loading="lazy" src="{% static 'store/images/home/' %}{{ product_photo }}" alt="{{ sp.ten_san_pham }}"></a>
-                                <button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button>
+                                <button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button>
                             </div>
                             <div class="product-body">
                                 <div class="product-heading"><h3 class="product-name"><a href="{% url 'chi_tiet_san_pham' sp.pk %}">{{ sp.ten_san_pham }}</a></h3><span class="product-price">{% widthratio sp.gia_ban 1000 1 %}k</span></div>
-                                <p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p>
-                                <button class="add-cart" type="button">ThÃªm vÃ o giá»</button>
+                                <p class="sales-count">2.0K lượt bán</p>
+                                <button class="add-cart" type="button">Thêm vào giỏ</button>
                             </div>
                         </article>
                     {% empty %}
-                        <article class="product-card" data-name="gháº¿ lÆ°á»i" data-category="phá»• biáº¿n"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/04.jpeg' %}" alt="Gháº¿ lÆ°á»i"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Gháº¿ lÆ°á»i</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="gá»‘i Ã´m chiikawa" data-category="combo"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/08.png' %}" alt="Gá»‘i Ã´m Chiikawa"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Gá»‘i Ã´m Chiikawa</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="bÃ n gáº¥p gá»n" data-category="phá»• biáº¿n"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/11.png' %}" alt="BÃ n gáº¥p gá»n"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">BÃ n gáº¥p gá»n</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="sofa nhá»" data-category="phá»• biáº¿n"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/product-sofa.png' %}" alt="Sofa nhá» hÃ¬nh Ä‘Ã¡m mÃ¢y"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Sofa nhá»</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="Ä‘Ã¨n cÃ³ há»™c" data-category="Ä‘Ã¨n"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/05.png' %}" alt="ÄÃ¨n cÃ³ há»™c hÃ¬nh thÃº"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">ÄÃ¨n cÃ³ há»™c</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="Ä‘á»“ kÃª Ä‘iá»‡n thoáº¡i" data-category="phá»• biáº¿n"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/12.png' %}" alt="Äá»“ kÃª Ä‘iá»‡n thoáº¡i"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Äá»“ kÃª Ä‘iá»‡n...</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="thÃ¹ng rÃ¡c vá»‹t" data-category="phá»• biáº¿n"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/07.png' %}" alt="ThÃ¹ng rÃ¡c hÃ¬nh vá»‹t"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">ThÃ¹ng rÃ¡c vá»‹t</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
-                        <article class="product-card" data-name="tá»§ Ä‘áº§u giÆ°á»ng" data-category="phÃ²ng ngá»§"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/09.png' %}" alt="Tá»§ Ä‘áº§u giÆ°á»ng hÃ¬nh thÃº"><button class="favorite" type="button" aria-label="ThÃªm vÃ o yÃªu thÃ­ch"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Tá»§ Ä‘áº§u giÆ°á»ng</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lÆ°á»£t bÃ¡n</p><button class="add-cart" type="button">ThÃªm vÃ o giá»</button></div></article>
+                        <article class="product-card" data-name="ghế lười" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/04.jpeg' %}" alt="Ghế lười"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Ghế lười</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="gối ôm chiikawa" data-category="combo"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/08.png' %}" alt="Gối ôm Chiikawa"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Gối ôm Chiikawa</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="bàn gấp gọn" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/11.png' %}" alt="Bàn gấp gọn"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Bàn gấp gọn</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="sofa nhỏ" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/product-sofa.png' %}" alt="Sofa nhỏ hình đám mây"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Sofa nhỏ</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="đèn có hộc" data-category="đèn"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/05.png' %}" alt="Đèn có hộc hình thú"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Đèn có hộc</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="đồ kê điện thoại" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/12.png' %}" alt="Đồ kê điện thoại"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Đồ kê điện...</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="thùng rác vịt" data-category="phổ biến"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/07.png' %}" alt="Thùng rác hình vịt"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Thùng rác vịt</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
+                        <article class="product-card" data-name="tủ đầu giường" data-category="phòng ngủ"><div class="product-image"><img loading="lazy" src="{% static 'store/images/home/09.png' %}" alt="Tủ đầu giường hình thú"><button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button></div><div class="product-body"><div class="product-heading"><h3 class="product-name">Tủ đầu giường</h3><span class="product-price">200k</span></div><p class="sales-count">2.0K lượt bán</p><button class="add-cart" type="button">Thêm vào giỏ</button></div></article>
                     {% endfor %}
                 </div>
             </div>
         </section>
 
-        <section class="promo" id="promo" aria-label="Ã tÆ°á»Ÿng trang trÃ­ phÃ²ng">
-            <div class="promo-photo"><img loading="lazy" src="{% static 'store/images/home/14.jpeg' %}" alt="PhÃ²ng ngá»§ áº¥m Ã¡p vá»›i ná»™i tháº¥t mÃ u kem"></div>
+        <section class="promo" id="promo" aria-label="Ý tưởng trang trí phòng">
+            <div class="promo-photo"><img loading="lazy" src="{% static 'store/images/home/14.jpeg' %}" alt="Phòng ngủ ấm áp với nội thất màu kem"></div>
             <div class="promo-copy">
-                <span class="promo-kicker">KhÃ´ng gian nhÃ  Ä‘áº¹p - TÃ¢m trÃ­ thoáº£i mÃ¡i</span>
-                <h2>Ã tÆ°á»Ÿng trang trÃ­ phÃ²ng?</h2>
-                <p>CÃ³ thá»ƒ chá»n theo combo gá»£i Ã½ nÃ¨</p>
+                <span class="promo-kicker">Không gian nhà đẹp - Tâm trí thoải mái</span>
+                <h2>Ý tưởng trang trí phòng?</h2>
+                <p>Có thể chọn theo combo gợi ý nè</p>
                 <a class="promo-button" href="#categories">Xem combo</a>
             </div>
         </section>
@@ -309,11 +313,11 @@
         <div class="footer-inner">
             <div class="footer-intro">
                 <a class="footer-brand" href="#home">RE:ROOM</a>
-                <p class="footer-copy">ChÃºng tá»› cÃ³ á»Ÿ cÃ¡c ná»n táº£ng máº¡ng xÃ£ há»™i, nÆ¡i báº¡n cÃ³ thá»ƒ tÃ¬m vÃ  tham kháº£o</p>
+                <p class="footer-copy">Chúng tớ có ở các nền tảng mạng xã hội, nơi bạn có thể tìm và tham khảo</p>
                 <div class="socials"><a href="#footer" aria-label="Instagram"><img src="{% static 'store/images/icons/instagram.svg' %}" alt="" width="48" height="48"></a><a href="#footer" aria-label="Facebook"><img src="{% static 'store/images/icons/facebook.svg' %}" alt="" width="48" height="48"></a><a href="#footer" aria-label="Threads"><img src="{% static 'store/images/icons/threads.svg' %}" alt="" width="48" height="48"></a><a href="#footer" aria-label="TikTok"><img src="{% static 'store/images/icons/tiktok.svg' %}" alt="" width="48" height="48"></a></div>
             </div>
-            <div class="footer-col"><strong>Shop</strong><a href="#products">Sáº£n pháº©m</a><a href="#categories">Danh má»¥c</a></div>
-            <div class="footer-col"><strong>About</strong><a href="#footer">Vá» RE:ROOM</a><a href="#footer">LiÃªn há»‡</a></div>
+            <div class="footer-col"><strong>Shop</strong><a href="#products">Sản phẩm</a><a href="#categories">Danh mục</a></div>
+            <div class="footer-col"><strong>About</strong><a href="#footer">Về RE:ROOM</a><a href="#footer">Liên hệ</a></div>
         </div>
     </footer>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -339,8 +343,8 @@
                 card.hidden = !(matchesName && matchesCategory);
             });
         }
-        document.querySelector('.header-icon[aria-label="TÃ¬m kiáº¿m"]').addEventListener('click', () => {
-            const query = window.prompt('Báº¡n muá»‘n tÃ¬m mÃ³n Ä‘á»“ nÃ o?');
+        document.querySelector('.header-icon[aria-label="Tìm kiếm"]').addEventListener('click', () => {
+            const query = window.prompt('Bạn muốn tìm món đồ nào?');
             if (query === null) return;
             filterCards(query);
             document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
@@ -359,7 +363,7 @@
                 favorite.querySelector('img').src = favorite.classList.contains('is-favorite')
                     ? "{% static 'store/images/icons/favorite-active.svg' %}"
                     : "{% static 'store/images/icons/favorite.svg' %}";
-                showToast(favorite.classList.contains('is-favorite') ? 'ÄÃ£ thÃªm vÃ o má»¥c yÃªu thÃ­ch' : 'ÄÃ£ bá» khá»i má»¥c yÃªu thÃ­ch');
+                showToast(favorite.classList.contains('is-favorite') ? 'Đã thêm vào mục yêu thích' : 'Đã bỏ khỏi mục yêu thích');
                 return;
             }
             const addButton = event.target.closest('.add-cart');
@@ -369,11 +373,7 @@
                 return;
             }
             if (addButton) {
-                cartItems += 1;
-                const cartCount = document.getElementById('cartCount');
-                cartCount.hidden = false;
-                cartCount.textContent = cartItems;
-                showToast('ÄÃ£ thÃªm sáº£n pháº©m vÃ o giá» hÃ ng');
+                window.location.href = "{% url 'gio_hang' %}";
             }
         });
         document.getElementById('menuToggle').addEventListener('click', () => document.getElementById('mainNav').classList.toggle('open'));

@@ -13,7 +13,7 @@
     const cartCount = document.getElementById('cartCount');
     const emptyMessage = document.getElementById('empty');
     const cartSummary = document.getElementById('cartSummary');
-    let voucher = false;
+    let voucher = localStorage.getItem('reroomy-cart-voucher') === 'true';
     let cartItems = [];
 
     function loadCartItems() {
@@ -129,6 +129,7 @@
 
     document.getElementById('voucherButton').addEventListener('click', event => {
         voucher = !voucher;
+        localStorage.setItem('reroomy-cart-voucher', String(voucher));
         event.currentTarget.textContent = voucher ? '✓' : '♢';
         show(voucher ? 'Đã áp dụng voucher giảm 10%' : 'Đã bỏ voucher');
         recalculateCart();

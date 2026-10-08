@@ -98,6 +98,9 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 GOOGLE_OAUTH_CLIENT_ID = os.environ.get('GOOGLE_OAUTH_CLIENT_ID', '')
 GOOGLE_OAUTH_CLIENT_SECRET = os.environ.get('GOOGLE_OAUTH_CLIENT_SECRET', '')
+VIETQR_BANK_ID = os.environ.get('VIETQR_BANK_ID') or '970436'
+VIETQR_ACCOUNT_NO = os.environ.get('VIETQR_ACCOUNT_NO') or '23050126'
+VIETQR_ACCOUNT_NAME = os.environ.get('VIETQR_ACCOUNT_NAME') or 'Phạm Nguyễn Ngọc Phương'
 
 
 # Database

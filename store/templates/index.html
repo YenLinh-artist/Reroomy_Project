@@ -78,7 +78,7 @@
         .category-chip:hover, .category-chip.selected { background: #ffbc9d; color: white; }
         .view-all { display: block; width: max-content; margin: 20px 18px 0 auto; color: #de7e7e; font-size: 19px; text-decoration: underline; white-space: nowrap; }
         .product-grid { width: min(calc(100% - 36px), 1310px); margin-left: 18px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 33px 20px; }
-        .product-card { height: 438px; min-width: 0; overflow: hidden; background: #fffdfd; box-shadow: 4px 6px 4px #3f302e3d; }
+        .product-card { height: 438px; min-width: 0; overflow: hidden; background: #fffdfd; box-shadow: 4px 6px 4px #3f302e3d; cursor: pointer; }
         .product-image { position: relative; height: 289px; overflow: hidden; background: #eee3d9; }
         .product-image img { display: block; width: 100%; height: 100%; object-fit: cover; transition: transform .3s; }
         .product-card:hover .product-image img { transform: scale(1.04); }
@@ -274,13 +274,13 @@
                 <div class="product-grid" id="productGrid">
                     {% for sp in san_pham_list|slice:":8" %}
                         {% cycle '04.jpeg' '08.png' '11.png' 'product-sofa.png' '05.png' '12.png' '07.png' '09.png' as product_photo silent %}
-                        <article class="product-card" data-product-id="{{ sp.pk }}" data-name="{{ sp.ten_san_pham|lower }}" data-category="{{ sp.danh_muc.ten_danh_muc|lower }}">
+                        <article class="product-card" data-product-id="{{ sp.pk }}" data-price-vnd="{{ sp.gia_ban_vnd }}" data-detail-url="{% url 'chi_tiet_san_pham' sp.pk %}?image={{ product_photo|urlencode }}" data-name="{{ sp.ten_san_pham|lower }}" data-category="{{ sp.danh_muc.ten_danh_muc|lower }}">
                             <div class="product-image">
-                                <a href="{% url 'chi_tiet_san_pham' sp.pk %}"><img loading="lazy" src="{% static 'store/images/home/' %}{{ product_photo }}" alt="{{ sp.ten_san_pham }}"></a>
+                                <a href="{% url 'chi_tiet_san_pham' sp.pk %}?image={{ product_photo|urlencode }}"><img loading="lazy" src="{% static 'store/images/home/' %}{{ product_photo }}" alt="{{ sp.ten_san_pham }}"></a>
                                 <button class="favorite" type="button" aria-label="Thêm vào yêu thích"><img src="{% static 'store/images/icons/favorite.svg' %}" alt=""></button>
                             </div>
                             <div class="product-body">
-                                <div class="product-heading"><h3 class="product-name"><a href="{% url 'chi_tiet_san_pham' sp.pk %}">{{ sp.ten_san_pham }}</a></h3><span class="product-price">{% widthratio sp.gia_ban 1000 1 %}k</span></div>
+                                <div class="product-heading"><h3 class="product-name"><a href="{% url 'chi_tiet_san_pham' sp.pk %}?image={{ product_photo|urlencode }}">{{ sp.ten_san_pham }}</a></h3><span class="product-price">{{ sp.gia_ban_hien_thi }} VND</span></div>
                                 <p class="sales-count">2.0K lượt bán</p>
                                 <button class="add-cart" type="button">Thêm vào giỏ</button>
                             </div>
@@ -386,20 +386,34 @@
             }
             const addButton = event.target.closest('.add-cart');
             const card = event.target.closest('.product-card');
-            if (card && !card.hasAttribute('data-name') && !addButton) {
-                window.location.href = "{% url 'san_pham_mau' %}";
+            if (card && !event.target.closest('a, button')) {
+                const detailUrl = new URL(card.dataset.detailUrl || "{% url 'san_pham_mau' %}", window.location.origin);
+                if (!card.dataset.detailUrl) {
+                    const priceLabel = card.querySelector('.product-price').textContent.trim();
+                    const priceValue = Number(priceLabel.replace(/[^0-9,.-]/g, '').replace(',', '.'));
+                    const priceVnd = /k/i.test(priceLabel) ? Math.round(priceValue * 1000) : Number(priceLabel.replace(/\D/g, ''));
+                    const productName = card.dataset.name || card.querySelector('.product-name').textContent.trim();
+                    detailUrl.searchParams.set('name', productName.charAt(0).toLocaleUpperCase('vi') + productName.slice(1));
+                    detailUrl.searchParams.set('price', String(priceVnd));
+                    detailUrl.searchParams.set('image', card.querySelector('.product-image img').getAttribute('src').split('/').pop());
+                }
+                window.location.href = detailUrl.toString();
                 return;
             }
             if (addButton) {
                 const name = card.querySelector('.product-name').textContent.trim();
                 const priceLabel = card.querySelector('.product-price').textContent.trim();
-                const priceValue = Number(priceLabel.replace(/[^0-9,.-]/g, '').replace(',', '.'));
-                const unitPrice = /k/i.test(priceLabel) ? Math.round(priceValue * 1000) : Number(priceLabel.replace(/\D/g, ''));
+                const priceValue = Number(card.dataset.priceVnd);
+                const unitPrice = Number.isFinite(priceValue) && priceValue > 0 ? priceValue : Number(priceLabel.replace(/\D/g, ''));
                 const image = card.querySelector('.product-image img').src;
                 const id = card.dataset.productId || `catalog-${(card.dataset.name || name).trim().toLocaleLowerCase('vi')}`;
                 const items = loadCartItems();
                 const existing = items.find(item => String(item.id) === String(id));
-                if (existing) existing.quantity = Math.min(99, (Number(existing.quantity) || 1) + 1);
+                if (existing) {
+                    existing.quantity = Math.min(99, (Number(existing.quantity) || 1) + 1);
+                    existing.unitPrice = unitPrice;
+                    existing.name = name;
+                }
                 else items.push({ id, name, image, unitPrice, quantity: 1, variant: 'Mặc định' });
                 if (saveCartItems(items)) {
                     updateCartBadge(items);

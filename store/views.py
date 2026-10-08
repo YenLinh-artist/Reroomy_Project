@@ -9,6 +9,17 @@ from django.conf import settings
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 from types import SimpleNamespace
+import re
+
+ANH_SAN_PHAM_CHO_PHEP = {
+    '04.jpeg', '08.png', '11.png', 'product-sofa.png',
+    '05.png', '12.png', '07.png', '09.png', '14.jpeg',
+    '19.jpeg', '03.jpeg', '20.png',
+}
+
+def anh_san_pham_tu_request(request):
+    anh = request.GET.get('image', '04.jpeg')
+    return anh if anh in ANH_SAN_PHAM_CHO_PHEP else '04.jpeg'
 
 def trang_chu(request):
     danh_sach = SanPham.objects.all() # LÃ´i toÃ n bá»™ sáº£n pháº©m ra
@@ -26,7 +37,11 @@ def goi_y_san_pham(request):
     return render(request, 'product_suggestions.html')
 
 def thanh_toan(request):
-    return render(request, 'checkout.html')
+    return render(request, 'checkout.html', {
+        'vietqr_bank_id': settings.VIETQR_BANK_ID,
+        'vietqr_account_no': settings.VIETQR_ACCOUNT_NO,
+        'vietqr_account_name': settings.VIETQR_ACCOUNT_NAME,
+    })
 
 def ho_so(request):
     return render(request, 'profile.html')
@@ -46,18 +61,26 @@ def chi_tiet_san_pham(request, pk):
     return render(request, 'product_detail.html', {
         'san_pham': san_pham,
         'goi_y': goi_y,
-        'anh_san_pham': '04.jpeg',
+        'anh_san_pham': anh_san_pham_tu_request(request),
     })
 
 def san_pham_mau(request):
+    ten_san_pham = request.GET.get('name', 'Ghế xoay đệm bọc').strip()[:200] or 'Ghế xoay đệm bọc'
+    try:
+        gia_ban_vnd = int(re.sub(r'\D', '', request.GET.get('price', '99000')))
+    except (TypeError, ValueError):
+        gia_ban_vnd = 99000
+    if not 0 < gia_ban_vnd <= 2_000_000_000:
+        gia_ban_vnd = 99000
     san_pham = SimpleNamespace(
-        ten_san_pham='Ghế xoay đệm bọc', gia_ban=99,
+        ten_san_pham=ten_san_pham, gia_ban=gia_ban_vnd,
+        gia_ban_vnd=gia_ban_vnd, gia_ban_hien_thi=f'{gia_ban_vnd:,}',
         danh_muc=SimpleNamespace(ten_danh_muc='Ghế'),
     )
     return render(request, 'product_detail.html', {
         'san_pham': san_pham,
         'goi_y': SanPham.objects.all()[:4],
-        'anh_san_pham': '04.jpeg',
+        'anh_san_pham': anh_san_pham_tu_request(request),
     })
 
 def dang_ky(request):
@@ -113,3 +136,4 @@ def dang_nhap(request):
         'google_oauth_enabled': google_oauth_enabled,
     })
 # Create your views here.
+

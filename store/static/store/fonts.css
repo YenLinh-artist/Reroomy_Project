@@ -1,0 +1,19 @@
+@import url('https://fonts.googleapis.com/css2?family=Phudu:wght@400;500;600;700;800&family=Pathway+Extreme:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Playfair+Display:wght@400;600;700&display=swap');
+
+:root {
+  --font-primary: 'Phudu', sans-serif;
+  --font-body: 'Pathway Extreme', sans-serif;
+  --font-accent: 'Playfair Display', Georgia, serif;
+}
+
+body { font-family: var(--font-body); }
+h1, h2, h3, h4, .brand, .navlinks, .section-title, .chip, .product-name,
+.product-tag, .price, .add-cart, .benefit strong, .btn-primary, .btn-soft,
+.combo-btn, .footer-col h3, .login-cta, .avatar, .drawer-head h2,
+.cart-row strong, .auth-title, .field label, .submit, .google,
+.admin-brand, .admin-nav, .admin-title, .metric-value, .metric-label,
+.detail-title, .detail-price, .detail-action, .detail-section-title {
+  font-family: var(--font-primary);
+}
+
+.hero h1, .combo-copy h2, .display-serif { font-family: var(--font-accent); }

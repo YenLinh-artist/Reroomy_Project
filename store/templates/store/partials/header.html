@@ -1,0 +1,20 @@
+{% load static %}<header class="topbar">
+    <nav class="nav" aria-label="Điều hướng chính">
+      <a class="brand" href="{% url 'trang_chu' %}" aria-label="Re:Room trang chủ">RE<span>:</span>ROOM</a>
+      <div class="navlinks" id="mainNav">
+        <div class="navlink"><a data-nav-key="home" href="{% url 'trang_chu' %}">Trang chủ</a></div>
+        <div class="navlink"><a data-nav-key="shop" href="{% url 'trang_chu' %}#san-pham">Cửa hàng <i class="chevron"></i></a><div class="drop"><a href="{% url 'trang_chu' %}#san-pham">Tất cả sản phẩm</a><a href="{% url 'trang_chu' %}#san-pham" data-nav-filter="Đồ thư giãn">Đồ thư giãn</a><a href="{% url 'trang_chu' %}#san-pham" data-nav-filter="Góc học tập">Góc học tập</a><a href="{% url 'trang_chu' %}#san-pham" data-nav-filter="Đồ tiện ích">Đồ tiện ích</a></div></div>
+        <div class="navlink"><a data-nav-key="room" href="{% url 'trang_chu' %}#combo">Phòng <i class="chevron"></i></a><div class="drop"><a href="{% url 'trang_chu' %}#combo">Phòng ngủ nhỏ</a><a href="{% url 'trang_chu' %}#combo">Góc học tập</a><a href="{% url 'trang_chu' %}#combo">Gợi ý combo decor</a></div></div>
+        <div class="navlink"><a data-nav-key="about" href="{% url 'trang_chu' %}#about">Giới thiệu</a></div>
+      </div>
+      <div class="tools">
+        <button class="icon-btn" id="searchToggle" aria-label="Mở tìm kiếm"><svg viewBox="0 0 24 24"><circle cx="10.8" cy="10.8" r="7.2"/><path d="m16 16 5 5"/></svg></button>
+        <button class="icon-btn" id="notifyToggle" aria-label="Thông báo"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4"/></svg><i class="badge"></i></button>
+        <button class="icon-btn" id="cartToggle" data-cart-url="{% url 'gio_hang' %}" aria-label="Giỏ hàng"><svg viewBox="0 0 24 24"><path d="M5 8h14l1 13H4L5 8Z"/><path d="M8 8V6a4 4 0 0 1 8 0v2"/></svg><span class="badge cart-count" id="cartBadge" aria-live="polite" style="display:none"></span></button>
+        {% if user.is_authenticated %}
+          <div class="account"><button class="avatar" id="accountToggle" aria-label="Tài khoản">{{ user.username|first|upper }}</button><div class="drop account-menu" id="accountMenu"><a href="#profile">Xin chào, {{ user.username }}</a>{% if user.is_staff %}<a href="{% url 'quan_tri_dashboard' %}">Trang quản trị</a>{% endif %}<a href="#yeu-thich">Sản phẩm yêu thích</a><a href="{% url 'dang_xuat' %}">Đăng xuất</a></div></div>
+        {% else %}<a class="login-cta" href="{% url 'dang_nhap' %}">Đăng nhập</a>{% endif %}
+      </div>
+    </nav>
+    <form class="searchbar" id="searchBar" role="search"><div class="search-wrap"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="10.8" cy="10.8" r="7.2"/><path d="m16 16 5 5"/></svg><input id="productSearch" type="search" placeholder="Tìm món decor hợp với phòng bạn..." autocomplete="off"><span class="search-hint">Thử “đèn ngủ”, “gối êm”</span></div></form>
+  </header><script src="{% static 'store/site-chrome.js' %}"></script>

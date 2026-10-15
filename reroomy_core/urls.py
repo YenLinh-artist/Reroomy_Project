@@ -30,6 +30,7 @@ urlpatterns = [
     path('gio-hang/', views.gio_hang, name='gio_hang'),
     path('thanh-toan/', views.thanh_toan, name='thanh_toan'),
     path('dat-hang-thanh-cong/', views.dat_hang_thanh_cong, name='dat_hang_thanh_cong'),
+    path('theo-doi-don/<uuid:tracking_token>/', views.theo_doi_don_hang, name='theo_doi_don_hang'),
     path('tai-khoan/', views.tai_khoan, name='tai_khoan'),
     path('goi-y-combo/', views.goi_y_combo, name='goi_y_combo'),
     path('phong-mau/', views.phong_mau, name='phong_mau'),

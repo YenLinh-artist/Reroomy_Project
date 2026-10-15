@@ -2,6 +2,7 @@ from django.conf import settings
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
+import uuid
 
 class DanhMuc(models.Model):
     ten_danh_muc = models.CharField(max_length=100)
@@ -66,6 +67,7 @@ class Order(models.Model):
         REFUNDED = "refunded", "Đã hoàn tiền"
 
     code = models.CharField(max_length=24, unique=True)
+    tracking_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     customer = models.ForeignKey(CustomerProfile, on_delete=models.PROTECT, related_name="orders")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     payment_method = models.CharField(max_length=12, choices=PaymentMethod.choices, default=PaymentMethod.COD)
@@ -102,6 +104,19 @@ class OrderItem(models.Model):
     @property
     def line_total(self):
         return self.unit_price * self.quantity
+
+
+class OrderNotification(models.Model):
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="notifications")
+    message = models.CharField(max_length=240)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.order.code}: {self.message}"
 
 
 class InventoryAdjustment(models.Model):

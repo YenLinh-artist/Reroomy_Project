@@ -1,1 +1,48 @@
-{% load static %}<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Đặt hàng thành công | Re:Room</title><link rel="stylesheet" href="{% static 'store/fonts.css' %}"><link rel="stylesheet" href="{% static 'store/site-chrome.css' %}"><link rel="stylesheet" href="{% static 'store/cart-flow.css' %}"><link rel="stylesheet" href="{% static 'store/customer-pages.css' %}"></head><body>{% include 'store/partials/header.html' %}<main class="flow-wrap success-page"><nav class="flow-crumb"><a href="{% url 'trang_chu' %}">Trang chủ</a><span>/</span><b>Hoàn tất đặt hàng</b></nav><section class="success-card"><div class="success-mark"><img src="{% static 'store/icons/check.svg' %}" alt=""></div><p class="eyebrow">Re:Room đã nhận đơn</p><h1>Cảm ơn {{ order.customer.full_name }} nha!</h1><p>Đơn <strong>{{ order.code }}</strong> đã được ghi nhận. Trạng thái đơn và thanh toán được theo dõi riêng.</p><div class="success-status"><span>Đơn hàng <b>{{ order.get_status_display }}</b></span><span>Thanh toán <b>{{ order.get_payment_status_display }}</b></span></div><div class="success-items">{% for item in order.items.all %}<div><span>{{ item.product_name }} · {{ item.variant }} × {{ item.quantity }}</span><b>{{ item.line_total|floatformat:0 }}đ</b></div>{% endfor %}</div><div class="grand-total"><span>Tổng đơn</span><strong>{{ order.total|floatformat:0 }}đ</strong></div><p class="secure-note">Đây là bản demo. Đơn COD chưa được tính là đã thanh toán; thanh toán online chưa kết nối cổng thu tiền.</p><div class="success-actions"><a class="primary-link" href="{% url 'trang_chu' %}">Về trang chủ</a>{% if user.is_authenticated and not user.is_staff %}<a class="text-link" href="{% url 'tai_khoan' %}">Xem đơn của tôi</a>{% endif %}</div></section></main>{% include 'store/partials/footer.html' %}<script src="{% static 'store/cart.js' %}"></script><script src="{% static 'store/order-success.js' %}"></script></body></html>
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Đặt hàng thành công | Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'store/site-chrome.css' %}">
+  <link rel="stylesheet" href="{% static 'store/cart-flow.css' %}">
+  <link rel="stylesheet" href="{% static 'store/customer-pages.css' %}">
+</head>
+<body class="order-success-body">
+  {% include 'store/partials/header.html' %}
+  <main class="order-success-main">
+    <section class="order-success-hero" aria-labelledby="successTitle">
+      <div class="success-check" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26"></circle><path d="m19 32 9 9 19-21"></path></svg></div>
+      <p class="success-kicker">Chốt đơn thật xinh</p>
+      <h1 id="successTitle">ĐẶT HÀNG THÀNH CÔNG</h1>
+      <p class="success-caption">Đơn <strong class="success-order-code">{{ order.code }}</strong> đã được ghi nhận. Nhân viên bán hàng sẽ kiểm tra tồn kho và duyệt đơn sớm nha.</p>
+      <a class="success-track-button" href="{% url 'theo_doi_don_hang' order.tracking_token %}">Theo dõi đơn hàng <span aria-hidden="true">→</span></a>
+      <p class="success-payment-note">Đơn COD chỉ được ghi nhận đã thanh toán sau khi bạn nhận hàng.</p>
+      {% if user.is_authenticated and not user.is_staff %}<a class="success-account-link" href="{% url 'tai_khoan' %}#orders">Xem đơn trong tài khoản</a>{% endif %}
+    </section>
+
+    <section class="success-recommendations" aria-labelledby="suggestionsTitle">
+      <div class="success-divider"></div>
+      <p class="success-recommend-kicker">Gợi ý cho góc phòng của bạn</p>
+      <h2 id="suggestionsTitle">SẢN PHẨM BẠN CÓ THỂ THÍCH</h2>
+      <div class="success-product-grid">
+        {% for product in suggestions %}
+          <article class="success-product-card">
+            <a class="success-product-image" href="{% url 'chi_tiet_san_pham' product.id %}">
+              {% if product.has_photo %}<img src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy">{% else %}<img class="success-product-icon" src="{{ product.icon_url }}" alt="">{% endif %}
+            </a>
+            <div class="success-product-info"><div><a href="{% url 'chi_tiet_san_pham' product.id %}">{{ product.name }}</a><strong>{{ product.display_price }}</strong></div><p>{{ product.category }}</p>
+              <button class="success-add-cart" type="button" data-id="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image_url }}">Thêm vào giỏ</button>
+            </div>
+          </article>
+        {% empty %}<p class="empty-note">Tụi mình sẽ sớm có thêm sản phẩm gợi ý cho bạn.</p>{% endfor %}
+      </div>
+      <a class="success-back-link" href="{% url 'trang_chu' %}">Tiếp tục khám phá Re:Room</a>
+    </section>
+  </main>
+  {% include 'store/partials/footer.html' %}
+  <script src="{% static 'store/cart.js' %}"></script>
+  <script src="{% static 'store/order-success.js' %}"></script>
+</body>
+</html>

@@ -20,7 +20,7 @@ import uuid
 
 from .forms import DanhMucForm, SanPhamForm, StaffAccountForm, VoucherForm
 from .models import (CustomerProfile, DanhMuc, DecorConsultation, InventoryAdjustment,
-                     Order, OrderItem, ProductReview, SanPham, StaffProfile, Voucher)
+                     Order, OrderItem, OrderNotification, ProductReview, SanPham, StaffProfile, Voucher)
 from .services import cancel_order, confirm_order, mark_cod_collected
 from .validators import validate_gmail_address
 
@@ -60,9 +60,11 @@ def _demo_admin_products():
 def _demo_admin_orders():
     now = timezone.now()
     rows = [
-        ("RR-DEMO-031", "Minh Anh", "0901 234 567", "shipping", "online", "paid", 680000, "Ghế lười", 1, 1),
-        ("RR-DEMO-030", "Gia Hân", "0902 345 678", "pending", "cod", "pending", 420000, "Bàn gấp gọn", 1, 2),
-        ("RR-DEMO-029", "Quốc Bảo", "0903 456 789", "completed", "online", "paid", 1250000, "Đèn ngủ mây mini", 2, 4),
+        ("RR-DEMO-031", "Minh Anh", "0901 234 567", "shipping", "cod", "pending", 680000, "Gh\u1ebf l\u01b0\u1eddi", 1, 1),
+        ("RR-DEMO-030", "Gia H\u00e2n", "0902 345 678", "pending", "cod", "pending", 420000, "B\u00e0n g\u1ea5p g\u1ecdn", 1, 4),
+        ("RR-DEMO-029", "Qu\u1ed1c B\u1ea3o", "0903 456 789", "completed", "cod", "paid", 1250000, "\u0110\u00e8n ng\u1ee7 m\u00e2y mini", 2, 6),
+        ("RR-DEMO-028", "Th\u1ea3o Vy", "0904 567 890", "cancelled", "cod", "pending", 199000, "G\u1ed1i t\u1ef1a hoa kem", 1, 8),
+        ("RR-DEMO-027", "Kh\u00e1nh Linh", "0905 678 901", "confirmed", "cod", "pending", 349000, "K\u1ec7 g\u1ed7 \u0111\u1ec3 b\u00e0n", 1, 2),
     ]
     statuses = dict(Order.Status.choices)
     methods = dict(Order.PaymentMethod.choices)
@@ -153,6 +155,30 @@ def _products_for_homepage():
     return [_demo_product(item) for item in DEMO_PRODUCTS]
 
 
+def _active_checkout_vouchers():
+    now = timezone.now()
+    vouchers = list(Voucher.objects.filter(
+        status=Voucher.Status.APPROVED, starts_at__lte=now, ends_at__gt=now,
+        used_count__lt=F("usage_limit"),
+    ).order_by("ends_at"))
+    if settings.ADMIN_DEMO_MODE:
+        demo_codes = [item["code"] for item in DEMO_VOUCHERS]
+        saved_codes = set(Voucher.objects.filter(code__in=demo_codes).values_list("code", flat=True))
+        vouchers.extend(
+            SimpleNamespace(**item, used_count=0)
+            for item in DEMO_VOUCHERS if item["code"] not in saved_codes
+        )
+    preview = [{
+        "code": item.code,
+        "discount_type": item.discount_type,
+        "discount_value": item.discount_value,
+        "minimum_order": item.minimum_order,
+        "usage_left": item.usage_limit - item.used_count,
+        "cap_amount": getattr(item, "cap_amount", None),
+    } for item in vouchers]
+    return vouchers, preview
+
+
 def trang_chu(request):
     return render(request, "index.html", {
         "san_pham_list": _products_for_homepage(),
@@ -161,7 +187,8 @@ def trang_chu(request):
 
 
 def gio_hang(request):
-    return render(request, "store/cart.html")
+    _, voucher_preview = _active_checkout_vouchers()
+    return render(request, "store/cart.html", {"voucher_preview": voucher_preview})
 
 
 def thanh_toan(request):
@@ -175,6 +202,9 @@ def thanh_toan(request):
     }
     if request.method == "POST":
         try:
+            # Keep the optional voucher value defined even when no code was submitted.
+            applied_voucher = None
+            discount = 0
             submitted = json.loads(request.POST.get("cart_data", "[]"))
             if not isinstance(submitted, list) or not submitted:
                 raise ValueError("Giỏ hàng chưa có sản phẩm được chọn.")
@@ -211,27 +241,25 @@ def thanh_toan(request):
             if not full_name or not phone or not address:
                 raise ValueError("Vui lòng nhập họ tên, số điện thoại và địa chỉ giao hàng.")
             payment = request.POST.get("payment", Order.PaymentMethod.COD)
-            if payment not in ("cod", "bank"):
-                raise ValueError("Phương thức thanh toán chưa hợp lệ.")
+            if payment != Order.PaymentMethod.COD:
+                raise ValueError("Hiện tại hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD).")
             code = request.POST.get("voucher_code", "").strip().upper()
             shipping = 0 if subtotal >= 500000 else (20000 if subtotal else 0)
             with transaction.atomic():
-                applied_voucher = None
-                discount = 0
                 if code:
                     applied_voucher = Voucher.objects.select_for_update().filter(code=code).first()
                     if applied_voucher:
                         if not applied_voucher.is_usable(subtotal):
                             raise ValueError("Voucher không còn hiệu lực hoặc đơn hàng chưa đạt giá trị tối thiểu.")
                         if applied_voucher.discount_type == Voucher.DiscountType.PERCENT:
-                            discount = round(subtotal * applied_voucher.discount_value / 100)
+                            discount = (subtotal * applied_voucher.discount_value + 50) // 100
                         else:
                             discount = min(subtotal, applied_voucher.discount_value)
                     else:
                         demo_voucher = next((item for item in DEMO_VOUCHERS if item["code"] == code), None)
                         if not (settings.ADMIN_DEMO_MODE and demo_voucher):
                             raise ValueError("Mã voucher không hợp lệ hoặc chưa được duyệt.")
-                        discount = min(round(subtotal * demo_voucher["discount_value"] / 100), demo_voucher["cap_amount"])
+                        discount = min((subtotal * demo_voucher["discount_value"] + 50) // 100, demo_voucher["cap_amount"])
                 if request.user.is_authenticated:
                     customer, _ = CustomerProfile.objects.get_or_create(
                         user=request.user,
@@ -243,7 +271,7 @@ def thanh_toan(request):
                     customer = CustomerProfile.objects.create(full_name=full_name, email=email, phone=phone)
                 order = Order.objects.create(
                     code=f"RR-{uuid.uuid4().hex[:10].upper()}", customer=customer,
-                    payment_method=Order.PaymentMethod.COD if payment == "cod" else Order.PaymentMethod.ONLINE,
+                    payment_method=Order.PaymentMethod.COD,
                     payment_status=Order.PaymentStatus.PENDING,
                     total=max(0, subtotal - discount) + shipping,
                     voucher_code=code if code else "",
@@ -254,6 +282,10 @@ def thanh_toan(request):
                               quantity=quantity, variant=variant)
                     for product, name, price, quantity, variant in clean_items
                 ])
+                OrderNotification.objects.create(
+                    order=order,
+                    message="Đơn hàng đã được tiếp nhận và đang chờ nhân viên bán hàng duyệt.",
+                )
                 if applied_voucher:
                     applied_voucher.used_count += 1
                     applied_voucher.save(update_fields=["used_count"])
@@ -261,22 +293,7 @@ def thanh_toan(request):
             return redirect("dat_hang_thanh_cong")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             messages.error(request, str(exc))
-    now = timezone.now()
-    active_vouchers = list(Voucher.objects.filter(
-        status=Voucher.Status.APPROVED, starts_at__lte=now, ends_at__gt=now,
-        used_count__lt=F("usage_limit"),
-    ).order_by("ends_at"))
-    if settings.ADMIN_DEMO_MODE:
-        saved_codes = set(Voucher.objects.filter(code__in=[item["code"] for item in DEMO_VOUCHERS]).values_list("code", flat=True))
-        active_vouchers.extend(SimpleNamespace(**item) for item in DEMO_VOUCHERS if item["code"] not in saved_codes)
-    voucher_preview = [{
-        "code": item.code,
-        "discount_type": item.discount_type,
-        "discount_value": item.discount_value,
-        "minimum_order": item.minimum_order,
-        "usage_left": item.usage_limit - item.used_count,
-        "cap_amount": getattr(item, "cap_amount", None),
-    } for item in active_vouchers]
+    active_vouchers, voucher_preview = _active_checkout_vouchers()
     return render(request, "store/checkout.html", {
         "checkout_defaults": defaults, "active_vouchers": active_vouchers,
         "voucher_preview": voucher_preview,
@@ -288,7 +305,21 @@ def dat_hang_thanh_cong(request):
     if not order_id:
         return redirect("trang_chu")
     order = get_object_or_404(Order.objects.select_related("customer").prefetch_related("items"), pk=order_id)
-    return render(request, "store/order_success.html", {"order": order})
+    purchased_ids = {str(product_id) for product_id in order.items.exclude(product_id=None).values_list("product_id", flat=True)}
+    purchased_names = {item.product_name.casefold() for item in order.items.all()}
+    suggestions = [
+        product for product in _products_for_homepage()
+        if product["id"] not in purchased_ids
+        and product["name"].casefold() not in purchased_names
+    ][:4]
+    return render(request, "store/order_success.html", {"order": order, "suggestions": suggestions})
+
+
+def theo_doi_don_hang(request, tracking_token):
+    order = get_object_or_404(
+        Order.objects.prefetch_related("notifications"), tracking_token=tracking_token
+    )
+    return render(request, "store/order_tracking.html", {"order": order})
 
 
 @login_required
@@ -324,8 +355,9 @@ def tai_khoan(request):
             return redirect("tai_khoan")
     products = _products_for_homepage()
     orders = Order.objects.filter(customer=customer).prefetch_related("items").order_by("-created_at")[:10]
+    notifications = OrderNotification.objects.filter(order__customer=customer).select_related("order")[:20]
     last_order = orders[0] if orders else None
-    return render(request, "store/account.html", {"customer": customer, "products": products, "orders": orders, "last_order": last_order})
+    return render(request, "store/account.html", {"customer": customer, "products": products, "orders": orders, "last_order": last_order, "order_notifications": notifications})
 
 
 def goi_y_combo(request):
@@ -562,6 +594,7 @@ def quan_tri_dashboard(request):
         "month_labels": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"],
         "revenue_total": sum(month_values), "order_count": order_count,
         "pending_orders": pending_orders,
+        "cancelled_order_count": sum(order.status == Order.Status.CANCELLED for order in _demo_admin_orders()) if demo_preview else Order.objects.filter(status=Order.Status.CANCELLED).count(),
         "shipping_orders": shipping_orders,
         "preparing_orders": preparing_orders,
         "new_consultations": new_consultations,
@@ -655,21 +688,31 @@ def quan_tri_danh_muc(request):
 def quan_tri_don_hang(request):
     orders = Order.objects.select_related("customer", "staff_assignee").prefetch_related("items").order_by("-created_at")
     status = request.GET.get("status", "")
-    query = request.GET.get("q", "").strip()
+    search_term = request.GET.get("q", "").strip()
+    all_orders = orders
     if status in Order.Status.values:
         orders = orders.filter(status=status)
-    if query:
-        orders = orders.filter(Q(code__icontains=query) | Q(customer__full_name__icontains=query) | Q(customer__phone__icontains=query))
+    if search_term:
+        orders = orders.filter(Q(code__icontains=search_term) | Q(customer__full_name__icontains=search_term) | Q(customer__phone__icontains=search_term))
     demo_preview = bool(settings.ADMIN_DEMO_MODE and not Order.objects.exists())
     if demo_preview:
-        orders = _demo_admin_orders()
+        all_orders = _demo_admin_orders()
+        orders = all_orders
         if status in Order.Status.values:
             orders = [order for order in orders if order.status == status]
-        if query:
-            needle = query.casefold()
+        if search_term:
+            needle = search_term.casefold()
             orders = [order for order in orders if needle in f"{order.code} {order.customer.full_name} {order.customer.phone}".casefold()]
-    sales_staff = StaffProfile.objects.filter(role=StaffProfile.Role.SALES, is_enabled=True).select_related("user") if request.user.is_superuser or request.user.staff_profile.role == StaffProfile.Role.ADMIN else []
-    return render(request, "store/admin_orders.html", {"orders": orders, "statuses": Order.Status.choices, "selected_status": status, "sales_staff": sales_staff, "demo_preview": demo_preview, "query": query})
+    for order in all_orders:
+        order.needs_attention = (
+            order.status == Order.Status.PENDING
+            and order.created_at <= timezone.now() - timedelta(days=3)
+        )
+    cancelled_order_count = sum(order.status == Order.Status.CANCELLED for order in all_orders) if demo_preview else Order.objects.filter(status=Order.Status.CANCELLED).count()
+    profile = getattr(request.user, "staff_profile", None)
+    role = "admin" if request.user.is_superuser else profile.role
+    sales_staff = StaffProfile.objects.filter(role=StaffProfile.Role.SALES, is_enabled=True).select_related("user") if role == "admin" else []
+    return render(request, "store/admin_orders.html", {"orders": orders, "statuses": Order.Status.choices, "selected_status": status, "sales_staff": sales_staff, "demo_preview": demo_preview, "query": search_term, "cancelled_order_count": cancelled_order_count, "role": role})
 
 
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
@@ -678,6 +721,7 @@ def quan_tri_cap_nhat_don(request, order_id):
         return HttpResponseNotAllowed(["POST"])
     order = get_object_or_404(Order, pk=order_id)
     action = request.POST.get("action")
+    notification_text = None
     try:
         if action == "assign":
             profile = getattr(request.user, "staff_profile", None)
@@ -688,19 +732,26 @@ def quan_tri_cap_nhat_don(request, order_id):
             order.save(update_fields=["staff_assignee", "updated_at"])
         elif action == "confirm":
             confirm_order(order.pk, request.user)
+            notification_text = f"Đơn hàng {order.code} đã được duyệt thành công. Đơn COD sẽ thanh toán khi nhận hàng."
         elif action == "cancel":
             cancel_order(order.pk, request.user)
+            notification_text = f"Đơn hàng {order.code} đã được hủy. Nếu cần hỗ trợ, bạn có thể liên hệ Re:Room."
         elif action == "shipping" and order.status == Order.Status.CONFIRMED:
             order.status = Order.Status.SHIPPING
             order.save(update_fields=["status", "updated_at"])
+            notification_text = f"Đơn hàng {order.code} đang được giao đến bạn."
         elif action == "complete" and order.status == Order.Status.SHIPPING:
             order.status = Order.Status.COMPLETED
             order.save(update_fields=["status", "updated_at"])
+            notification_text = f"Đơn hàng {order.code} đã giao thành công. Cảm ơn bạn đã mua sắm tại Re:Room!"
         elif action == "collect_cod":
             mark_cod_collected(order.pk, request.user)
+            notification_text = f"Re:Room đã ghi nhận thanh toán COD cho đơn hàng {order.code}."
         else:
             raise ValidationError("Thao tác không hợp lệ với trạng thái đơn hiện tại.")
         messages.success(request, "Đã cập nhật đơn hàng.")
+        if notification_text:
+            OrderNotification.objects.create(order=order, message=notification_text)
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))
     return redirect("quan_tri_don_hang")

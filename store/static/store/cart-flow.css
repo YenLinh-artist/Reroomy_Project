@@ -5,3 +5,4 @@
 
 .topbar .cart-count{right:-8px;top:-5px;min-width:19px;height:19px;padding:0 4px;align-items:center;justify-content:center;border:2px solid #ffc1d5;border-radius:999px;background:#fa653e;color:#fff;font:700 10px/1 var(--font-primary);white-space:nowrap;z-index:2}
 .cart-drawer #checkoutButton{font-family:var(--font-primary);font-size:16px;font-weight:700;letter-spacing:normal;text-transform:none}
+.checkout-link{font-family:var(--font-primary),sans-serif;font-size:16px;font-weight:700;letter-spacing:0;text-transform:none}

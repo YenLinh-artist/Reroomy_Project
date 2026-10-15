@@ -24,6 +24,7 @@ SECRET_KEY = 'django-insecure-di)6$b-6rdmg_rh3$h1_epc+al&a)cqpp-tkw^fwvi$c*@vz4a
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
+ADMIN_DEMO_MODE = DEBUG
 
 ALLOWED_HOSTS = []
 
@@ -62,6 +63,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'store.context_processors.admin_role',
+                'store.context_processors.admin_notifications',
             ],
         },
     },
@@ -90,12 +93,16 @@ AUTH_PASSWORD_VALIDATORS = [
     },
     {
         'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
+        'OPTIONS': {'min_length': 8},
     },
     {
         'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
     },
     {
         'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
+    },
+    {
+        'NAME': 'store.validators.ReRoomPasswordValidator',
     },
 ]
 

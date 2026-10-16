@@ -56,16 +56,18 @@ class StaffAccountForm(forms.Form):
 class SanPhamForm(forms.ModelForm):
     class Meta:
         model = SanPham
-        fields = ("ten_san_pham", "danh_muc", "gia_ban", "so_luong", "mo_ta", "hinh_anh", "is_active")
+        fields = ("ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta", "hinh_anh", "is_active")
         labels = {
             "ten_san_pham": "Tên sản phẩm", "danh_muc": "Danh mục", "gia_ban": "Giá bán (₫)",
-            "so_luong": "Tồn kho ban đầu", "mo_ta": "Mô tả", "hinh_anh": "Ảnh sản phẩm",
+            "so_luong": "Tồn kho ban đầu", "phan_loai": "Phân loại",
+            "mo_ta": "Mô tả", "hinh_anh": "Ảnh sản phẩm",
             "is_active": "Đang kinh doanh",
         }
         widgets = {
             "ten_san_pham": forms.TextInput(attrs={"placeholder": "Ví dụ: Đèn ngủ mây nhỏ"}),
             "gia_ban": forms.NumberInput(attrs={"min": 0}),
             "so_luong": forms.NumberInput(attrs={"min": 0}),
+            "phan_loai": forms.TextInput(attrs={"placeholder": "Màu kem, Màu trắng, Size S"}),
             "mo_ta": forms.Textarea(attrs={"rows": 5, "placeholder": "Chất liệu, kích thước, cách sử dụng..."}),
             "hinh_anh": forms.ClearableFileInput(attrs={"accept": "image/*"}),
         }

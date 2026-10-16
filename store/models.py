@@ -14,6 +14,7 @@ class SanPham(models.Model):
     ten_san_pham = models.CharField(max_length=200)
     gia_ban = models.IntegerField()
     danh_muc = models.ForeignKey(DanhMuc, on_delete=models.CASCADE)
+    phan_loai = models.CharField(max_length=300, blank=True)
     mo_ta = models.TextField(blank=True)
     so_luong = models.PositiveIntegerField(default=0)
     hinh_anh = models.FileField(upload_to="products/", blank=True)
@@ -176,6 +177,7 @@ class DecorConsultation(models.Model):
         NEW = "new", "Mới"
         ASSIGNED = "assigned", "Đã phân công"
         WORKING = "working", "Đang tư vấn"
+        WAITING_CUSTOMER = "waiting_customer", "Chờ khách phản hồi"
         DONE = "done", "Hoàn tất"
         CANCELLED = "cancelled", "Đã hủy"
 
@@ -192,7 +194,7 @@ class DecorConsultation(models.Model):
     notes = models.TextField(blank=True)
     conversation_log = models.TextField(blank=True)
     assigned_to = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="decor_consultations")
-    status = models.CharField(max_length=12, choices=Status.choices, default=Status.NEW)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.NEW)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
 
 

@@ -5,7 +5,7 @@ from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import Sum, Count, Q, F
+from django.db.models import Sum, Count, Q, F, Avg
 from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.templatetags.static import static
@@ -14,7 +14,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from functools import wraps
 from types import SimpleNamespace
-from datetime import timedelta
+from datetime import date, timedelta
 import json
 import uuid
 
@@ -85,6 +85,7 @@ def _local_demo_photo(filename):
 
 
 def _demo_product(item):
+    variants = ["Màu kem"]
     return {
         **item,
         "image_url": static(f"store/images/{item['image']}") if _local_demo_photo(item["image"]).is_file() else "",
@@ -95,7 +96,8 @@ def _demo_product(item):
         "old_price": int(item["price"] * 1.15),
         "price_text": f"{item['price']:,}".replace(",", ".") + "đ",
         "old_price_text": f"{int(item['price'] * 1.15):,}".replace(",", ".") + "đ",
-        "variant": "Màu kem",
+        "variant": variants[0],
+        "variants": variants,
         "stock_status": "Còn hàng · mẫu minh họa",
         "is_demo": True,
         "sold_text": f"{item['sold']} lượt bán · mẫu minh họa",
@@ -104,6 +106,7 @@ def _demo_product(item):
 
 
 def _database_product(item):
+    variants = [value.strip() for value in (item.phan_loai or "").split(",") if value.strip()] or ["Mẫu hiện có"]
     return {
         "id": str(item.pk),
         "name": item.ten_san_pham,
@@ -122,7 +125,8 @@ def _database_product(item):
         "old_price": None,
         "price_text": f"{item.gia_ban:,}".replace(",", ".") + "đ",
         "old_price_text": "",
-        "variant": "Mẫu hiện có",
+        "variant": variants[0],
+        "variants": variants,
         "stock_status": f"Còn {item.so_luong} sản phẩm" if item.so_luong else "Tạm hết hàng",
         "is_demo": False,
         "sold_text": "Chưa có dữ liệu bán",
@@ -153,6 +157,26 @@ def _products_for_homepage():
     if all_saved_products:
         return [_database_product(item) for item in saved_products]
     return [_demo_product(item) for item in DEMO_PRODUCTS]
+
+
+def _saved_consultation_proposal(raw_value):
+    try:
+        rows = json.loads(raw_value or "[]")
+    except (TypeError, json.JSONDecodeError):
+        return []
+    if not isinstance(rows, list):
+        return []
+    return [row for row in rows if isinstance(row, dict) and str(row.get("product_id", "")).isdigit()]
+
+
+def _consultation_proposal_total(rows):
+    total = 0
+    for row in rows:
+        try:
+            total += max(0, int(row.get("unit_price", 0))) * max(1, int(row.get("quantity", 1)))
+        except (TypeError, ValueError):
+            continue
+    return total
 
 
 def _active_checkout_vouchers():
@@ -323,6 +347,26 @@ def theo_doi_don_hang(request, tracking_token):
 
 
 @login_required
+def bao_cao_danh_gia(request, review_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    review = get_object_or_404(
+        ProductReview.objects.select_related("order_item__product"),
+        pk=review_id,
+        order_item__product__isnull=False,
+        is_visible=True,
+    )
+    if review.customer.user_id == request.user.pk:
+        messages.error(request, "Bạn không thể báo cáo đánh giá của chính mình.")
+    else:
+        review.reported = True
+        review.is_visible = False
+        review.save(update_fields=["reported", "is_visible"])
+        messages.success(request, "Đã gửi báo cáo. Đánh giá được ẩn trong lúc nhân viên kiểm tra.")
+    return redirect("chi_tiet_san_pham", product_key=str(review.order_item.product_id))
+
+
+@login_required
 def tai_khoan(request):
     if request.user.is_staff:
         return redirect("quan_tri_dashboard")
@@ -331,6 +375,33 @@ def tai_khoan(request):
         defaults={"full_name": request.user.get_full_name() or request.user.username, "email": request.user.email},
     )
     if request.method == "POST":
+        if request.POST.get("action") == "submit_review":
+            order_item = get_object_or_404(
+                OrderItem.objects.select_related("order", "product"),
+                pk=request.POST.get("order_item_id"),
+                order__customer=customer,
+                order__status=Order.Status.COMPLETED,
+                product__isnull=False,
+            )
+            try:
+                rating = int(request.POST.get("rating", "0"))
+            except (TypeError, ValueError):
+                rating = 0
+            content = request.POST.get("content", "").strip()[:1000]
+            if rating not in range(1, 6) or not content:
+                messages.error(request, "Chọn số sao từ 1 đến 5 và viết nội dung đánh giá nha.")
+            elif ProductReview.objects.filter(order_item=order_item).exists():
+                messages.error(request, "Sản phẩm trong đơn này đã được đánh giá rồi.")
+            else:
+                ProductReview.objects.create(
+                    order_item=order_item,
+                    customer=customer,
+                    rating=rating,
+                    content=content,
+                    is_visible=False,
+                )
+                messages.success(request, "Đánh giá đã lưu và đang chờ nhân viên duyệt trước khi hiển thị.")
+            return redirect("tai_khoan")
         full_name = request.POST.get("full_name", "").strip()[:160]
         email = request.POST.get("email", "").strip()[:254]
         phone = request.POST.get("phone", "").strip()[:30]
@@ -354,7 +425,7 @@ def tai_khoan(request):
             messages.success(request, "Đã lưu thông tin tài khoản.")
             return redirect("tai_khoan")
     products = _products_for_homepage()
-    orders = Order.objects.filter(customer=customer).prefetch_related("items").order_by("-created_at")[:10]
+    orders = Order.objects.filter(customer=customer).prefetch_related("items__review").order_by("-created_at")[:10]
     notifications = OrderNotification.objects.filter(order__customer=customer).select_related("order")[:20]
     last_order = orders[0] if orders else None
     return render(request, "store/account.html", {"customer": customer, "products": products, "orders": orders, "last_order": last_order, "order_notifications": notifications})
@@ -424,7 +495,7 @@ def tu_van_decor(request):
                 area_m2=area, style=style, budget=budget, room_photo=photo,
                 notes=notes, status=DecorConsultation.Status.NEW,
             )
-            messages.success(request, "?? g?i y?u c?u t? v?n. Nh?n vi?n Re:Room s? li?n h? theo th?ng tin b?n ?? l?i.")
+            messages.success(request, "\u0110\u00e3 g\u1eedi y\u00eau c\u1ea7u t\u01b0 v\u1ea5n. Nh\u00e2n vi\u00ean Re:Room s\u1ebd li\u00ean h\u1ec7 theo th\u00f4ng tin b\u1ea1n \u0111\u1ec3 l\u1ea1i.")
             return redirect("tu_van_decor")
     return render(request, "store/consultation_request.html")
 
@@ -435,6 +506,7 @@ def phong_mau(request):
 
 def chi_tiet_san_pham(request, product_key):
     product = next((item for item in DEMO_PRODUCTS if item["id"] == product_key), None)
+    saved = None
     if product:
         item = _demo_product(product)
     elif product_key.isdigit():
@@ -448,14 +520,32 @@ def chi_tiet_san_pham(request, product_key):
         for other in DEMO_PRODUCTS
         if other["id"] != product_key
     ][:4]
-    reviews = [
-        {"name": "Mây nhỏ", "text": "Món decor xinh, vừa vặn với góc phòng của mình.", "date": "Đánh giá minh họa"},
-        {"name": "Linh Chi", "text": "Màu sắc dịu và nhìn ngoài đời cũng dễ phối.", "date": "Đánh giá minh họa"},
-    ]
+    if saved:
+        review_rows = list(ProductReview.objects.filter(
+            order_item__product=saved, is_visible=True,
+        ).select_related("customer").order_by("-created_at"))
+        review_average = ProductReview.objects.filter(
+            order_item__product=saved, is_visible=True,
+        ).aggregate(value=Avg("rating"))["value"]
+        item["rating"] = f"{review_average:.1f}" if review_average else "—"
+        item["reviews_count"] = str(len(review_rows))
+        reviews = [SimpleNamespace(
+            name=review.customer.full_name,
+            text=review.content or "Khách hàng đã đánh giá sản phẩm này.",
+            date=review.created_at.strftime("%d/%m/%Y"),
+            pk=review.pk,
+        ) for review in review_rows]
+    else:
+        reviews = [
+            {"name": "Mây nhỏ", "text": "Món decor xinh, vừa vặn với góc phòng của mình.", "date": "Đánh giá minh họa"},
+            {"name": "Linh Chi", "text": "Màu sắc dịu và nhìn ngoài đời cũng dễ phối.", "date": "Đánh giá minh họa"},
+        ]
     return render(request, "store/product_detail.html", {
         "product": item,
         "related_products": related,
         "reviews": reviews,
+        "review_count": item["reviews_count"],
+        "is_database_product": bool(saved),
     })
 
 
@@ -554,31 +644,58 @@ def quan_tri_dashboard(request):
     products = list(SanPham.objects.select_related("danh_muc").order_by("so_luong", "ten_san_pham")[:5]) if role == "admin" else []
     order_count = Order.objects.count() if role in ("admin", "sales") else 0
     pending_orders = Order.objects.filter(status=Order.Status.PENDING).count() if role in ("admin", "sales") else 0
+    new_order_count = Order.objects.filter(status=Order.Status.PENDING, created_at__date=today).count() if role == "sales" else 0
+    needs_attention_count = Order.objects.filter(
+        status=Order.Status.PENDING,
+        created_at__lte=timezone.now() - timedelta(days=3),
+    ).count() if role == "sales" else 0
+    pending_review_count = ProductReview.objects.filter(is_visible=False, reported=False).count() if role in ("admin", "sales") else 0
     customer_count = CustomerProfile.objects.count() if role == "admin" else 0
     low_stock_products = list(SanPham.objects.filter(is_active=True, so_luong__lte=5).select_related("danh_muc").order_by("so_luong")[:5]) if role in ("admin", "sales") else []
     low_stock_count = SanPham.objects.filter(is_active=True, so_luong__lte=5).count() if role in ("admin", "sales") else 0
     stock_units = (SanPham.objects.filter(is_active=True).aggregate(total=Sum("so_luong"))["total"] or 0) if role in ("admin", "sales") else 0
     shipping_orders = Order.objects.filter(status=Order.Status.SHIPPING).count() if role == "sales" else 0
     preparing_orders = Order.objects.filter(status=Order.Status.CONFIRMED).count() if role == "sales" else 0
-    consultant_cases = DecorConsultation.objects.filter(status__in=["new", "assigned", "working"])
+    consultant_cases = DecorConsultation.objects.filter(status__in=[
+        DecorConsultation.Status.NEW, DecorConsultation.Status.ASSIGNED,
+        DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER,
+    ])
     if role == "consultant":
         consultant_cases = consultant_cases.filter(Q(assigned_to=request.user) | Q(assigned_to__isnull=True))
     new_consultations = consultant_cases.filter(status=DecorConsultation.Status.NEW).count()
     active_consultations = consultant_cases.filter(status__in=[DecorConsultation.Status.ASSIGNED, DecorConsultation.Status.WORKING]).count()
-    priority_consultations = consultant_cases.filter(created_at__lte=timezone.now() - timedelta(days=2)).count()
+    waiting_consultations = consultant_cases.filter(status=DecorConsultation.Status.WAITING_CUSTOMER).count()
+    priority_queryset = consultant_cases.filter(
+        status__in=[DecorConsultation.Status.NEW, DecorConsultation.Status.ASSIGNED, DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER],
+        created_at__lte=timezone.now() - timedelta(days=2),
+    )
+    priority_consultations = priority_queryset.count()
+    proposal_revision_count = sum(
+        1 for case in consultant_cases.filter(status__in=[DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER], budget__isnull=False).iterator()
+        if _consultation_proposal_total(_saved_consultation_proposal(case.suggested_combo)) > case.budget
+    )
+    consultation_count = consultant_cases.count()
+    needs_customer_info_count = Order.objects.filter(status=Order.Status.PENDING).filter(
+        Q(customer__full_name="") | Q(customer__phone="") | Q(shipping_address="")
+    ).distinct().count() if role == "sales" else 0
     recent_orders = list(Order.objects.select_related("customer").order_by("-created_at")[:5]) if role in ("admin", "sales") else []
     top_customers = list(CustomerProfile.objects.annotate(
         order_count=Count("orders", filter=~Q(orders__status=Order.Status.CANCELLED), distinct=True),
         spend=Sum("orders__total", filter=Q(orders__status=Order.Status.COMPLETED, orders__payment_status=Order.PaymentStatus.PAID)),
     ).order_by("-spend")[:5]) if role == "admin" else []
-    demo_preview = bool(settings.ADMIN_DEMO_MODE and role in ("admin", "sales") and order_count == 0)
-    demo_products_preview = bool(settings.ADMIN_DEMO_MODE and role in ("admin", "sales") and not SanPham.objects.exists())
-    demo_consultation_count = DecorConsultation.objects.filter(status__in=["new", "assigned", "working"]).count()
+    # Sales dashboards must always represent actionable database rows, never the admin-only sample preview.
+    demo_preview = bool(settings.ADMIN_DEMO_MODE and role == "admin" and order_count == 0)
+    demo_products_preview = bool(settings.ADMIN_DEMO_MODE and role == "admin" and not SanPham.objects.exists())
+    demo_consultation_count = DecorConsultation.objects.filter(status__in=[
+        DecorConsultation.Status.NEW, DecorConsultation.Status.ASSIGNED,
+        DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER,
+    ]).count()
     if demo_preview:
         month_values = [8_000_000, 11_000_000, 9_000_000, 14_000_000, 12_000_000, 17_000_000, 15_000_000, 21_000_000, 19_000_000, 25_000_000, 22_000_000, 29_000_000]
         recent_orders = _demo_admin_orders()
         top_customers = [SimpleNamespace(full_name="Minh Anh", order_count=8, spend=4850000, user_id=1), SimpleNamespace(full_name="Gia Hân", order_count=6, spend=3260000, user_id=None), SimpleNamespace(full_name="Quốc Bảo", order_count=4, spend=2140000, user_id=2)]
         order_count, pending_orders, customer_count = 126, 8, 248
+        new_order_count, needs_attention_count = 2, 1
         if demo_products_preview:
             low_stock_products = _demo_admin_products()
             low_stock_count, stock_units = len(DEMO_ADMIN_PRODUCTS), sum(item["so_luong"] for item in DEMO_ADMIN_PRODUCTS)
@@ -594,14 +711,20 @@ def quan_tri_dashboard(request):
         "month_labels": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"],
         "revenue_total": sum(month_values), "order_count": order_count,
         "pending_orders": pending_orders,
+        "new_order_count": new_order_count,
+        "needs_attention_count": needs_attention_count,
+        "pending_review_count": pending_review_count,
         "cancelled_order_count": sum(order.status == Order.Status.CANCELLED for order in _demo_admin_orders()) if demo_preview else Order.objects.filter(status=Order.Status.CANCELLED).count(),
         "shipping_orders": shipping_orders,
         "preparing_orders": preparing_orders,
         "new_consultations": new_consultations,
         "active_consultations": active_consultations,
+        "waiting_consultations": waiting_consultations,
         "priority_consultations": priority_consultations,
+        "proposal_revision_count": proposal_revision_count,
+        "needs_customer_info_count": needs_customer_info_count,
         "recent_orders": recent_orders,
-        "consultation_count": demo_consultation_count,
+        "consultation_count": consultation_count if role == "consultant" else demo_consultation_count,
         "top_customers": top_customers,
         "role": role,
         "report_year": today.year,
@@ -689,30 +812,81 @@ def quan_tri_don_hang(request):
     orders = Order.objects.select_related("customer", "staff_assignee").prefetch_related("items").order_by("-created_at")
     status = request.GET.get("status", "")
     search_term = request.GET.get("q", "").strip()
+    payment_method = request.GET.get("payment", "")
+    date_from = request.GET.get("date_from", "")
+    date_to = request.GET.get("date_to", "")
+    try:
+        parsed_from = date.fromisoformat(date_from) if date_from else None
+        parsed_to = date.fromisoformat(date_to) if date_to else None
+    except ValueError:
+        parsed_from = parsed_to = None
+        messages.error(request, "Khoảng ngày lọc chưa hợp lệ.")
     all_orders = orders
     if status in Order.Status.values:
         orders = orders.filter(status=status)
+    if payment_method in Order.PaymentMethod.values:
+        orders = orders.filter(payment_method=payment_method)
+    if parsed_from:
+        orders = orders.filter(created_at__date__gte=parsed_from)
+    if parsed_to:
+        orders = orders.filter(created_at__date__lte=parsed_to)
     if search_term:
         orders = orders.filter(Q(code__icontains=search_term) | Q(customer__full_name__icontains=search_term) | Q(customer__phone__icontains=search_term))
-    demo_preview = bool(settings.ADMIN_DEMO_MODE and not Order.objects.exists())
+    needs_info = request.GET.get("needs_info") == "1"
+    if needs_info:
+        orders = orders.filter(Q(customer__full_name="") | Q(customer__phone="") | Q(shipping_address="")).distinct()
+    profile = getattr(request.user, "staff_profile", None)
+    role = "admin" if request.user.is_superuser else profile.role
+    demo_preview = bool(settings.ADMIN_DEMO_MODE and role == "admin" and not Order.objects.exists())
     if demo_preview:
         all_orders = _demo_admin_orders()
         orders = all_orders
         if status in Order.Status.values:
             orders = [order for order in orders if order.status == status]
+        if payment_method in Order.PaymentMethod.values:
+            orders = [order for order in orders if order.payment_method == payment_method]
+        if parsed_from:
+            orders = [order for order in orders if order.created_at.date() >= parsed_from]
+        if parsed_to:
+            orders = [order for order in orders if order.created_at.date() <= parsed_to]
         if search_term:
             needle = search_term.casefold()
             orders = [order for order in orders if needle in f"{order.code} {order.customer.full_name} {order.customer.phone}".casefold()]
+        if needs_info:
+            orders = [order for order in orders if not order.customer.full_name or not order.customer.phone or not order.shipping_address]
     for order in all_orders:
         order.needs_attention = (
             order.status == Order.Status.PENDING
             and order.created_at <= timezone.now() - timedelta(days=3)
         )
     cancelled_order_count = sum(order.status == Order.Status.CANCELLED for order in all_orders) if demo_preview else Order.objects.filter(status=Order.Status.CANCELLED).count()
+    sales_staff = StaffProfile.objects.filter(role=StaffProfile.Role.SALES, is_enabled=True).select_related("user") if role == "admin" else []
+    return render(request, "store/admin_orders.html", {
+        "orders": orders, "statuses": Order.Status.choices,
+        "payment_methods": Order.PaymentMethod.choices,
+        "selected_status": status, "selected_payment": payment_method,
+        "date_from": date_from, "date_to": date_to,
+        "sales_staff": sales_staff, "demo_preview": demo_preview,
+        "query": search_term, "cancelled_order_count": cancelled_order_count, "role": role,
+        "needs_info": needs_info,
+    })
+
+
+@_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
+def quan_tri_chi_tiet_don(request, order_id):
+    order = get_object_or_404(
+        Order.objects.select_related("customer", "staff_assignee")
+        .prefetch_related("items", "notifications", "inventory_events__product", "inventory_events__actor"),
+        pk=order_id,
+    )
     profile = getattr(request.user, "staff_profile", None)
     role = "admin" if request.user.is_superuser else profile.role
-    sales_staff = StaffProfile.objects.filter(role=StaffProfile.Role.SALES, is_enabled=True).select_related("user") if role == "admin" else []
-    return render(request, "store/admin_orders.html", {"orders": orders, "statuses": Order.Status.choices, "selected_status": status, "sales_staff": sales_staff, "demo_preview": demo_preview, "query": search_term, "cancelled_order_count": cancelled_order_count, "role": role})
+    return render(request, "store/admin_order_detail.html", {
+        "order": order,
+        "role": role,
+        "can_assign": role == StaffProfile.Role.ADMIN,
+        "inventory_events": order.inventory_events.all(),
+    })
 
 
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
@@ -754,7 +928,7 @@ def quan_tri_cap_nhat_don(request, order_id):
             OrderNotification.objects.create(order=order, message=notification_text)
     except ValidationError as exc:
         messages.error(request, "; ".join(exc.messages))
-    return redirect("quan_tri_don_hang")
+    return redirect("quan_tri_chi_tiet_don", order_id=order.pk)
 
 
 @_roles_required(StaffProfile.Role.ADMIN)
@@ -811,9 +985,12 @@ def quan_tri_duyet_voucher(request, voucher_id):
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
 def quan_tri_ton_kho(request):
     products = SanPham.objects.select_related("danh_muc").order_by("so_luong", "ten_san_pham")
-    demo_preview = bool(settings.ADMIN_DEMO_MODE and not SanPham.objects.exists())
+    profile = getattr(request.user, "staff_profile", None)
+    role = StaffProfile.Role.ADMIN if request.user.is_superuser else profile.role
+    can_adjust = role == StaffProfile.Role.ADMIN
+    demo_preview = bool(settings.ADMIN_DEMO_MODE and role == StaffProfile.Role.ADMIN and not SanPham.objects.exists())
     if request.method == "POST":
-        if not request.user.is_superuser and request.user.staff_profile.role != StaffProfile.Role.ADMIN:
+        if not can_adjust:
             return HttpResponseForbidden("Nhân viên bán hàng chỉ được tra cứu tồn kho.")
         if demo_preview:
             messages.info(request, "Đây là dữ liệu mẫu, chưa thể điều chỉnh tồn kho.")
@@ -838,12 +1015,34 @@ def quan_tri_ton_kho(request):
         return redirect("quan_tri_ton_kho")
     query = request.GET.get("q", "").strip()
     if query and not demo_preview:
-        products = products.filter(Q(ten_san_pham__icontains=query) | Q(danh_muc__ten_danh_muc__icontains=query))
+        matches = (
+            Q(ten_san_pham__icontains=query)
+            | Q(danh_muc__ten_danh_muc__icontains=query)
+            | Q(phan_loai__icontains=query)
+        )
+        product_number = query.strip().upper().removeprefix("SP-")
+        if product_number.isdigit():
+            matches |= Q(pk=int(product_number))
+        products = products.filter(matches)
     if demo_preview:
         products = _demo_admin_products()
         if query:
             products = [item for item in products if query.casefold() in f"{item.ten_san_pham} {item.danh_muc.ten_danh_muc}".casefold()]
-    return render(request, "store/admin_inventory.html", {"products": products, "events": InventoryAdjustment.objects.select_related("product", "actor").order_by("-created_at")[:20], "demo_preview": demo_preview, "query": query})
+    products = list(products)
+    product_ids = [product.pk for product in products if product.pk]
+    variant_rows = OrderItem.objects.filter(product_id__in=product_ids).exclude(variant="").values_list("product_id", "variant").distinct()
+    variant_map = {}
+    for product_id, variant in variant_rows:
+        variant_map.setdefault(product_id, []).append(variant)
+    for product in products:
+        product.display_code = f"SP-{product.pk:05d}" if product.pk else "Mẫu demo"
+        configured_variants = [value.strip() for value in (getattr(product, "phan_loai", "") or "").split(",") if value.strip()]
+        product.variant_summary = ", ".join(configured_variants or variant_map.get(product.pk, [])) or "Chưa cập nhật phân loại"
+    events = InventoryAdjustment.objects.select_related("product", "actor").order_by("-created_at")[:20]
+    return render(request, "store/admin_inventory.html", {
+        "products": products, "events": events, "demo_preview": demo_preview,
+        "query": query, "role": role, "can_adjust": can_adjust,
+    })
 
 
 @_roles_required(StaffProfile.Role.ADMIN)
@@ -880,29 +1079,235 @@ def quan_tri_nhan_vien(request):
 
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.CONSULTANT)
 def quan_tri_tu_van(request):
-    consultations = DecorConsultation.objects.select_related("customer", "assigned_to").order_by("-created_at")
-    if not request.user.is_superuser and request.user.staff_profile.role == StaffProfile.Role.CONSULTANT:
-        consultations = consultations.filter(assigned_to=request.user) | consultations.filter(assigned_to__isnull=True)
+    profile = getattr(request.user, "staff_profile", None)
+    role = StaffProfile.Role.ADMIN if request.user.is_superuser else profile.role
+    all_cases = DecorConsultation.objects.select_related("customer", "assigned_to").order_by("-created_at")
+    if role == StaffProfile.Role.CONSULTANT:
+        all_cases = all_cases.filter(Q(assigned_to=request.user) | Q(assigned_to__isnull=True))
+    status = request.GET.get("status", "")
+    query = request.GET.get("q", "").strip()
+    room_type = request.GET.get("room_type", "")
+    priority_only = request.GET.get("priority") == "1"
+    revision_only = request.GET.get("needs_revision") == "1"
+    cases = all_cases
+    if status in DecorConsultation.Status.values:
+        cases = cases.filter(status=status)
+    if query:
+        cases = cases.filter(Q(code__icontains=query) | Q(customer_name__icontains=query) | Q(contact__icontains=query))
+    if room_type:
+        cases = cases.filter(room_type=room_type)
+    if priority_only:
+        cases = cases.filter(
+            status__in=[DecorConsultation.Status.NEW, DecorConsultation.Status.ASSIGNED, DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER],
+            created_at__lte=timezone.now() - timedelta(days=2),
+        )
+    cases = list(cases)
+    for case in cases:
+        proposal = _saved_consultation_proposal(case.suggested_combo)
+        case.proposal_total = _consultation_proposal_total(proposal)
+        case.proposal_summary = ", ".join(row.get("name", "Sản phẩm") for row in proposal) or case.suggested_combo
+        case.needs_revision = bool(case.budget and case.proposal_total > case.budget)
+    if revision_only:
+        cases = [case for case in cases if case.needs_revision]
+    dashboard_cases = list(all_cases)
+    context = {
+        "consultations": cases,
+        "statuses": DecorConsultation.Status.choices,
+        "room_types": DecorConsultation.objects.order_by("room_type").values_list("room_type", flat=True).distinct(),
+        "selected_status": status,
+        "selected_room_type": room_type,
+        "query": query,
+        "priority_only": priority_only,
+        "revision_only": revision_only,
+        "new_count": sum(case.status == DecorConsultation.Status.NEW for case in dashboard_cases),
+        "working_count": sum(case.status in (DecorConsultation.Status.ASSIGNED, DecorConsultation.Status.WORKING) for case in dashboard_cases),
+        "waiting_count": sum(case.status == DecorConsultation.Status.WAITING_CUSTOMER for case in dashboard_cases),
+        "priority_count": sum(case.status in (DecorConsultation.Status.NEW, DecorConsultation.Status.ASSIGNED, DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER) and case.created_at <= timezone.now() - timedelta(days=2) for case in dashboard_cases),
+        "role": role,
+    }
+    return render(request, "store/admin_consultations.html", context)
+
+
+@_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.CONSULTANT)
+def quan_tri_chi_tiet_tu_van(request, case_id):
+    profile = getattr(request.user, "staff_profile", None)
+    role = StaffProfile.Role.ADMIN if request.user.is_superuser else profile.role
+    case = get_object_or_404(DecorConsultation.objects.select_related("customer", "assigned_to"), pk=case_id)
+    if role == StaffProfile.Role.CONSULTANT and case.assigned_to_id not in (None, request.user.pk):
+        return HttpResponseForbidden("Yêu cầu đang được nhân viên khác phụ trách.")
+
     if request.method == "POST":
-        case = get_object_or_404(DecorConsultation, pk=request.POST.get("case_id"))
-        if request.user.is_superuser or request.user.staff_profile.role == StaffProfile.Role.ADMIN or case.assigned_to_id in (None, request.user.pk):
-            case.assigned_to = request.user
-            if request.POST.get("status") in DecorConsultation.Status.values:
-                case.status = request.POST["status"]
-            case.save(update_fields=["assigned_to", "status"])
-            messages.success(request, "Đã cập nhật yêu cầu tư vấn.")
-        else:
-            return HttpResponseForbidden("Yêu cầu đang được nhân viên khác phụ trách.")
-        return redirect("quan_tri_tu_van")
-    return render(request, "store/admin_consultations.html", {"consultations": consultations, "statuses": DecorConsultation.Status.choices})
+        action = request.POST.get("action", "")
+        with transaction.atomic():
+            case = DecorConsultation.objects.select_for_update().select_related("assigned_to").get(pk=case_id)
+            if role == StaffProfile.Role.CONSULTANT and case.assigned_to_id not in (None, request.user.pk):
+                return HttpResponseForbidden("Yêu cầu vừa được nhân viên khác tiếp nhận.")
+
+            def log_update(note):
+                timestamp = timezone.localtime().strftime("%d/%m/%Y %H:%M")
+                line = f"[{timestamp}] {request.user.username}: {note}"
+                case.conversation_log = f"{case.conversation_log.rstrip()}\n{line}".strip()
+
+            if action == "assign":
+                if role != StaffProfile.Role.ADMIN:
+                    if case.assigned_to_id is None:
+                        case.assigned_to = request.user
+                        case.status = DecorConsultation.Status.ASSIGNED
+                        log_update("Đã nhận phụ trách yêu cầu.")
+                    else:
+                        messages.info(request, "Yêu cầu này đã được bạn tiếp nhận.")
+                        return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                else:
+                    assignee_id = request.POST.get("assignee_id", "").strip()
+                    if assignee_id and not assignee_id.isdigit():
+                        messages.error(request, "Nh\u00e2n vi\u00ean \u0111\u01b0\u1ee3c ch\u1ecdn kh\u00f4ng h\u1ee3p l\u1ec7.")
+                        return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                    if assignee_id:
+                        assignee = get_object_or_404(StaffProfile, pk=assignee_id, role=StaffProfile.Role.CONSULTANT, is_enabled=True)
+                        case.assigned_to = assignee.user
+                        if case.status == DecorConsultation.Status.NEW:
+                            case.status = DecorConsultation.Status.ASSIGNED
+                        log_update(f"Đã phân công cho {assignee.user.username}.")
+                    else:
+                        case.assigned_to = None
+                        if case.status == DecorConsultation.Status.ASSIGNED:
+                            case.status = DecorConsultation.Status.NEW
+                        log_update("Đã bỏ phân công yêu cầu.")
+                case.save(update_fields=["assigned_to", "status", "conversation_log"])
+                messages.success(request, "Đã cập nhật người phụ trách.")
+            elif action in ("save_proposal", "send_proposal"):
+                selected_ids = list(dict.fromkeys(request.POST.getlist("product_id")))
+                if any(not product_id.isdigit() for product_id in selected_ids):
+                    messages.error(request, "Danh s\u00e1ch s\u1ea3n ph\u1ea9m kh\u00f4ng h\u1ee3p l\u1ec7. T\u1ea3i l\u1ea1i trang r\u1ed3i ch\u1ecdn l\u1ea1i nh\u00e9.")
+                    return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                products = list(SanPham.objects.filter(pk__in=selected_ids, is_active=True).select_related("danh_muc")) if selected_ids else []
+                if len(products) != len(selected_ids):
+                    messages.error(request, "Một sản phẩm vừa bị ẩn hoặc không còn trong danh mục. Tải lại trang rồi chọn lại nha.")
+                    return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                proposal = []
+                for product in products:
+                    try:
+                        quantity = int(request.POST.get(f"quantity_{product.pk}", "1"))
+                    except (TypeError, ValueError):
+                        quantity = 0
+                    if quantity < 1 or quantity > 99:
+                        messages.error(request, f"Số lượng của {product.ten_san_pham} cần từ 1 đến 99.")
+                        return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                    proposal.append({
+                        "product_id": product.pk,
+                        "name": product.ten_san_pham,
+                        "unit_price": product.gia_ban,
+                        "quantity": quantity,
+                    })
+                if action == "send_proposal" and not proposal:
+                    messages.error(request, "Chọn ít nhất một sản phẩm trước khi gửi phương án.")
+                    return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                case.suggested_combo = json.dumps(proposal, ensure_ascii=False)
+                if role == StaffProfile.Role.CONSULTANT and case.assigned_to_id is None:
+                    case.assigned_to = request.user
+                case.status = DecorConsultation.Status.WAITING_CUSTOMER if action == "send_proposal" else DecorConsultation.Status.WORKING
+                total = _consultation_proposal_total(proposal)
+                log_update(
+                    f"Đã đánh dấu gửi phương án gồm {len(proposal)} sản phẩm, tổng {total:,}đ; chuyển sang chờ khách phản hồi."
+                    if action == "send_proposal" else f"Đã lưu bản nháp combo gồm {len(proposal)} sản phẩm, tổng {total:,}đ."
+                )
+                case.save(update_fields=["suggested_combo", "assigned_to", "status", "conversation_log"])
+                messages.success(request, "Đã lưu và chuyển trạng thái chờ khách phản hồi." if action == "send_proposal" else "Đã lưu bản nháp phương án decor.")
+            elif action == "update_status":
+                new_status = request.POST.get("status", "")
+                if new_status not in DecorConsultation.Status.values:
+                    messages.error(request, "Trạng thái yêu cầu không hợp lệ.")
+                    return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                old_status = case.get_status_display()
+                case.status = new_status
+                if role == StaffProfile.Role.CONSULTANT and case.assigned_to_id is None:
+                    case.assigned_to = request.user
+                log_update(f"Đổi trạng thái từ {old_status} sang {case.get_status_display()}.")
+                case.save(update_fields=["assigned_to", "status", "conversation_log"])
+                messages.success(request, "Đã cập nhật trạng thái tư vấn.")
+            elif action == "add_note":
+                note = request.POST.get("message", "").strip()[:1000]
+                if not note:
+                    messages.error(request, "Nhập nội dung trao đổi trước khi lưu.")
+                    return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+                log_update(note)
+                case.save(update_fields=["conversation_log"])
+                messages.success(request, "Đã thêm ghi chú vào lịch sử trao đổi.")
+            else:
+                messages.error(request, "Thao tác tư vấn không hợp lệ.")
+        return redirect("quan_tri_chi_tiet_tu_van", case_id=case.pk)
+
+    saved_proposal = _saved_consultation_proposal(case.suggested_combo)
+    saved_by_id = {int(row["product_id"]): row for row in saved_proposal}
+    products = list(SanPham.objects.filter(is_active=True).select_related("danh_muc").order_by("ten_san_pham"))
+    for product in products:
+        saved_row = saved_by_id.get(product.pk, {})
+        product.proposal_selected = bool(saved_row)
+        product.proposal_quantity = saved_row.get("quantity", 1)
+    saved_total = _consultation_proposal_total(saved_proposal)
+    legacy_proposal_note = case.suggested_combo if case.suggested_combo and not saved_proposal else ""
+    return render(request, "store/admin_consultation_detail.html", {
+        "case": case,
+        "products": products,
+        "saved_proposal": saved_proposal,
+        "saved_total": saved_total,
+        "legacy_proposal_note": legacy_proposal_note,
+        "proposal_over_budget": bool(case.budget and saved_total > case.budget),
+        "statuses": DecorConsultation.Status.choices,
+        "consultant_staff": StaffProfile.objects.filter(role=StaffProfile.Role.CONSULTANT, is_enabled=True).select_related("user"),
+        "role": role,
+    })
 
 
-@_roles_required(StaffProfile.Role.ADMIN)
+@_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
 def quan_tri_danh_gia(request):
     if request.method == "POST":
         review = get_object_or_404(ProductReview, pk=request.POST.get("review_id"))
-        review.is_visible = not review.is_visible
-        review.save(update_fields=["is_visible"])
+        action = request.POST.get("action")
+        if action == "approve":
+            review.is_visible, review.reported = True, False
+            review.save(update_fields=["is_visible", "reported"])
+            messages.success(request, "Đánh giá đã được duyệt và hiển thị trên sản phẩm.")
+        elif action == "hide":
+            review.is_visible = False
+            review.save(update_fields=["is_visible"])
+            messages.success(request, "Đánh giá đã được ẩn khỏi trang sản phẩm.")
+        elif action == "report":
+            review.reported = True
+            review.is_visible = False
+            review.save(update_fields=["reported", "is_visible"])
+            messages.success(request, "Đánh giá đã được gắn cờ và ẩn để kiểm tra.")
+        elif action == "clear_report":
+            review.reported = False
+            review.save(update_fields=["reported"])
+            messages.success(request, "Đã gỡ cờ báo cáo.")
+        else:
+            messages.error(request, "Thao tác đánh giá không hợp lệ.")
         return redirect("quan_tri_danh_gia")
     reviews = ProductReview.objects.select_related("customer", "order_item", "order_item__product").order_by("-created_at")
-    return render(request, "store/admin_reviews.html", {"reviews": reviews})
+    query = request.GET.get("q", "").strip()
+    visibility = request.GET.get("visibility", "")
+    reported = request.GET.get("reported", "")
+    if query:
+        reviews = reviews.filter(
+            Q(content__icontains=query)
+            | Q(customer__full_name__icontains=query)
+            | Q(order_item__product_name__icontains=query)
+            | Q(order_item__order__code__icontains=query)
+        )
+    if visibility == "visible":
+        reviews = reviews.filter(is_visible=True)
+    elif visibility == "pending":
+        reviews = reviews.filter(is_visible=False, reported=False)
+    elif visibility == "hidden":
+        reviews = reviews.filter(is_visible=False)
+    if reported == "yes":
+        reviews = reviews.filter(reported=True)
+    elif reported == "no":
+        reviews = reviews.filter(reported=False)
+    return render(request, "store/admin_reviews.html", {
+        "reviews": reviews, "query": query, "selected_visibility": visibility,
+        "selected_reported": reported,
+        "pending_review_count": ProductReview.objects.filter(is_visible=False, reported=False).count(),
+        "reported_review_count": ProductReview.objects.filter(reported=True).count(),
+    })

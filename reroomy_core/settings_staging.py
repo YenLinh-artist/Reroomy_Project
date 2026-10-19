@@ -21,6 +21,26 @@ def _required_environment_value(name):
 
 SECRET_KEY = _required_environment_value("DJANGO_SECRET_KEY")
 DEBUG = False
+# Keep detailed exceptions in the hosting logs while DEBUG stays disabled for
+# public requests. This makes staging 500s diagnosable without exposing traces
+# in the browser.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "level": "ERROR",
+        },
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
 ADMIN_DEMO_MODE = os.environ.get("ADMIN_DEMO_MODE", "true").lower() in {"1", "true", "yes", "on"}
 
 ALLOWED_HOSTS = [

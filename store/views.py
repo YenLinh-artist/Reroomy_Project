@@ -24,6 +24,21 @@ from .models import (CustomerProfile, DanhMuc, DecorConsultation, InventoryAdjus
 from .services import cancel_order, confirm_order, mark_cod_collected
 from .validators import validate_gmail_address
 
+from django.contrib.admin.views.decorators import staff_member_required
+from datetime import timedelta
+from django.db.models import F, Q, Sum, Value
+from django.db.models.functions import Coalesce
+from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
+from .forms import DanhMucForm, NhanVienCreationForm, NhanVienPasswordForm, SanPhamForm
+from .models import (
+    CustomerServiceConversation,
+    CustomerServiceMessage,
+    DanhMuc,
+    DeXuatSanPham,
+    HoSoNhanVien,
+    SanPham,
+)
+
 
 DEMO_PRODUCTS = [
     {"id": "lounger", "name": "Ghế lười", "category": "Đồ thư giãn", "price": 200000, "sold": "2.0K", "image": "product-lounger.jpg", "tag": "Bán chạy", "description": "Một góc ngồi mềm mại để đọc sách, xem phim hoặc nghỉ ngơi sau giờ học. Kích thước gọn, hợp với phòng trọ và căn hộ nhỏ."},
@@ -588,7 +603,7 @@ def dang_ky(request):
 
 def dang_nhap(request):
     if request.user.is_authenticated:
-        return redirect("trang_chu")
+        return redirect(_staff_landing(request.user))
     next_url = request.POST.get("next") or request.GET.get("next", "")
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
@@ -596,18 +611,11 @@ def dang_nhap(request):
         user = authenticate(request, username=username, password=password)
         if user is not None:
             login(request, user)
-            messages.success(request, "Bạn đã đăng nhập. Chào mừng trở lại!")
+            messages.success(request, "B\u1ea1n \u0111\u00e3 \u0111\u0103ng nh\u1eadp. Ch\u00e0o m\u1eebng tr\u1edf l\u1ea1i!")
             if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
                 return redirect(next_url)
-            if user.is_superuser:
-                return redirect("quan_tri_dashboard")
-            try:
-                if user.is_staff and user.staff_profile.is_enabled:
-                    return redirect("quan_tri_dashboard")
-            except StaffProfile.DoesNotExist:
-                pass
-            return redirect("trang_chu")
-        messages.error(request, "Tên đăng nhập hoặc mật khẩu chưa chính xác.")
+            return redirect(_staff_landing(user))
+        messages.error(request, "T\u00ean \u0111\u0103ng nh\u1eadp ho\u1eb7c m\u1eadt kh\u1ea9u ch\u01b0a ch\u00ednh x\u00e1c.")
     return render(request, "login.html", {"next": next_url})
 
 
@@ -632,7 +640,10 @@ def _roles_required(*roles):
 
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES, StaffProfile.Role.CONSULTANT)
 def quan_tri_dashboard(request):
-    profile = getattr(request.user, "staff_profile", None)
+    try:
+        profile = request.user.staff_profile
+    except StaffProfile.DoesNotExist:
+        profile = None
     role = "admin" if request.user.is_superuser else profile.role
     month_values = [0] * 12
     today = timezone.localdate()
@@ -1310,4 +1321,470 @@ def quan_tri_danh_gia(request):
         "selected_reported": reported,
         "pending_review_count": ProductReview.objects.filter(is_visible=False, reported=False).count(),
         "reported_review_count": ProductReview.objects.filter(reported=True).count(),
+    })
+
+
+
+
+def thong_bao_don_hang(request):
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    if not request.user.is_authenticated or request.user.is_staff:
+        return JsonResponse({"notifications": [], "unread": 0})
+    notifications = OrderNotification.objects.filter(
+        order__customer__user=request.user,
+        is_read=False,
+    ).select_related("order").order_by("-created_at")
+    if request.method == "POST":
+        try:
+            ids = json.loads(request.body).get("ids", [])
+            ids = [int(value) for value in ids]
+        except (ValueError, TypeError, json.JSONDecodeError, AttributeError):
+            return JsonResponse({"error": "Y\\u00eau c\\u1ea7u kh\\u00f4ng h\\u1ee3p l\\u1ec7."}, status=400)
+        notifications.filter(pk__in=ids).update(is_read=True)
+        return JsonResponse({"ok": True})
+    unread = notifications.count()
+    items = [{
+        "id": item.pk,
+        "order_id": item.order.code,
+        "message": item.message,
+        "created_at": item.created_at.isoformat(),
+    } for item in notifications[:10]]
+    return JsonResponse({"notifications": items, "unread": unread})
+
+
+def _staff_landing(user):
+    if user.is_superuser:
+        return "quan_tri_dashboard"
+    try:
+        profile = user.staff_profile
+        if profile.is_enabled and profile.role == StaffProfile.Role.ADMIN:
+            return "quan_tri_dashboard"
+    except StaffProfile.DoesNotExist:
+        pass
+    if _has_sales_access(user):
+        return "ban_hang_dashboard"
+    if _has_cskh_access(user):
+        return "cskh_hop_thu"
+    return "trang_chu"
+
+
+def _has_sales_access(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        profile = user.staff_profile
+        if profile.is_enabled and profile.user.is_active and profile.role in (StaffProfile.Role.SALES, StaffProfile.Role.ADMIN):
+            return True
+    except StaffProfile.DoesNotExist:
+        pass
+    try:
+        return user.is_active and user.ho_so_nhan_vien.bo_phan == HoSoNhanVien.BoPhan.BAN_HANG
+    except HoSoNhanVien.DoesNotExist:
+        return False
+
+
+def _has_cskh_access(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        profile = user.staff_profile
+        if profile.is_enabled and profile.user.is_active and profile.role in (StaffProfile.Role.CONSULTANT, StaffProfile.Role.ADMIN):
+            return True
+    except StaffProfile.DoesNotExist:
+        pass
+    try:
+        return user.is_active and user.ho_so_nhan_vien.bo_phan == HoSoNhanVien.BoPhan.CSKH
+    except HoSoNhanVien.DoesNotExist:
+        return False
+
+
+def cskh_dang_nhap(request):
+    return redirect("dang_nhap")
+
+
+@staff_member_required(login_url="dang_nhap")
+def cskh_hop_thu(request):
+    if not _has_cskh_access(request.user):
+        return HttpResponseForbidden("Tài khoản này không thuộc bộ phận CSKH.")
+    conversations = list(
+        CustomerServiceConversation.objects.select_related("customer", "assigned_to")
+        .order_by("-updated_at")
+    )
+    for conversation in conversations:
+        conversation.unread_count = conversation.messages.filter(
+            sender_role=CustomerServiceMessage.SenderRole.CUSTOMER,
+            is_read=False,
+        ).count()
+    selected_id = request.GET.get("cuoc_tro_chuyen")
+    selected = next((item for item in conversations if str(item.pk) == selected_id), None)
+    if selected:
+        selected.messages.filter(
+            sender_role=CustomerServiceMessage.SenderRole.CUSTOMER,
+            is_read=False,
+        ).update(is_read=True)
+        selected.assigned_to = selected.assigned_to or request.user
+        selected.save(update_fields=["assigned_to"])
+    return render(request, "store/cskh_inbox.html", {
+        "conversations": conversations,
+        "selected_conversation": selected,
+        "products": SanPham.objects.order_by("ten_san_pham"),
+        "pending_order_count": Order.objects.filter(status=Order.Status.PENDING).count(),
+    })
+
+
+def cskh_don_hang(request):
+    if not _has_cskh_access(request.user):
+        return HttpResponseForbidden("T\u00e0i kho\u1ea3n n\u00e0y kh\u00f4ng thu\u1ed9c b\u1ed9 ph\u1eadn CSKH.")
+    orders = Order.objects.select_related("customer").prefetch_related("items").order_by("-created_at")
+    return render(request, "store/cskh_orders.html", {
+        "orders": orders,
+        "pending_order_count": Order.objects.filter(status=Order.Status.PENDING).count(),
+    })
+
+
+def cskh_duyet_don_hang(request, order_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not _has_cskh_access(request.user):
+        return HttpResponseForbidden("T\u00e0i kho\u1ea3n n\u00e0y kh\u00f4ng thu\u1ed9c b\u1ed9 ph\u1eadn CSKH.")
+    messages.info(request, "Nh\u00e2n vi\u00ean CSKH tra c\u1ee9u h\u1ed3 s\u01a1; nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng ph\u1ee5 tr\u00e1ch duy\u1ec7t \u0111\u01a1n.")
+    return redirect("cskh_don_hang")
+
+
+def ban_hang_dashboard(request):
+    if not _has_sales_access(request.user):
+        return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    orders = Order.objects.select_related("customer").order_by("-created_at")
+    return render(request, "store/sales_dashboard.html", {
+        "product_count": SanPham.objects.filter(is_active=True).count(),
+        "new_order_count": orders.filter(status=Order.Status.PENDING).count(),
+        "orders_to_process": orders.filter(status=Order.Status.CONFIRMED).count(),
+        "orders_shipping": orders.filter(status=Order.Status.SHIPPING).count(),
+        "cancelled_orders": orders.filter(status=Order.Status.CANCELLED).count(),
+        "recent_orders": orders[:5],
+    })
+
+
+def ban_hang_don_hang(request):
+    if not _has_sales_access(request.user):
+        return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    orders = Order.objects.select_related("customer").prefetch_related("items").order_by("-created_at")
+    search = request.GET.get("q", "").strip()
+    status = request.GET.get("status", "")
+    payment = request.GET.get("payment", "")
+    if search:
+        orders = orders.filter(Q(code__icontains=search) | Q(customer__full_name__icontains=search) | Q(customer__phone__icontains=search))
+    if status in Order.Status.values:
+        orders = orders.filter(status=status)
+    if payment in Order.PaymentMethod.values:
+        orders = orders.filter(payment_method=payment)
+    return render(request, "store/sales_orders.html", {
+        "orders": orders,
+        "statuses": Order.Status.choices,
+        "payment_methods": Order.PaymentMethod.choices,
+        "selected_status": status,
+        "selected_payment": payment,
+        "search": search,
+    })
+
+
+def ban_hang_cap_nhat_don(request, order_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not _has_sales_access(request.user):
+        return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    order = get_object_or_404(Order, pk=order_id)
+    action = request.POST.get("action", "")
+    notification_text = None
+    try:
+        if action == "confirm":
+            confirm_order(order.pk, request.user)
+            notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c duy\u1ec7t. \u0110\u01a1n COD thanh to\u00e1n khi nh\u1eadn h\u00e0ng."
+        elif action == "cancel":
+            cancel_order(order.pk, request.user)
+            notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c h\u1ee7y."
+        elif action == "shipping" and order.status == Order.Status.CONFIRMED:
+            order.status = Order.Status.SHIPPING
+            order.save(update_fields=["status", "updated_at"])
+            notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111ang \u0111\u01b0\u1ee3c giao."
+        elif action == "complete" and order.status == Order.Status.SHIPPING:
+            order.status = Order.Status.COMPLETED
+            order.save(update_fields=["status", "updated_at"])
+            notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111\u00e3 giao th\u00e0nh c\u00f4ng."
+        elif action == "collect_cod":
+            mark_cod_collected(order.pk, request.user)
+            notification_text = f"Re:Room \u0111\u00e3 ghi nh\u1eadn thu COD cho \u0111\u01a1n {order.code}."
+        else:
+            raise ValidationError("Thao t\u00e1c kh\u00f4ng h\u1ee3p l\u1ec7 v\u1edbi tr\u1ea1ng th\u00e1i \u0111\u01a1n hi\u1ec7n t\u1ea1i.")
+        messages.success(request, "\u0110\u00e3 c\u1eadp nh\u1eadt \u0111\u01a1n h\u00e0ng.")
+        if notification_text:
+            OrderNotification.objects.create(order=order, message=notification_text)
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    return redirect("ban_hang_don_hang")
+
+
+@login_required(login_url="dang_nhap")
+def ho_tro_khach_hang(request):
+    if request.user.is_staff:
+        return redirect(_staff_landing(request.user))
+    conversation, _ = CustomerServiceConversation.objects.get_or_create(customer=request.user)
+    conversation.messages.filter(
+        sender_role=CustomerServiceMessage.SenderRole.STAFF,
+        is_read=False,
+    ).update(is_read=True)
+    return render(request, "store/customer_support.html", {"conversation": conversation})
+
+
+def _message_json(message):
+    product = message.suggested_product
+    return {
+        "id": message.pk,
+        "sender_role": message.sender_role,
+        "sender": message.sender.get_full_name() or message.sender.username,
+        "body": message.body,
+        "created_at": message.created_at.isoformat(),
+        "product": ({
+            "name": product.ten_san_pham,
+            "url": f"/san-pham/{product.pk}/",
+            "price": product.gia_ban,
+        } if product else None),
+    }
+
+
+@login_required(login_url="dang_nhap")
+def customer_support_api(request):
+    if request.user.is_staff:
+        return JsonResponse({"error": "Tài khoản nhân viên không dùng hộp thư khách hàng."}, status=403)
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    conversation, _ = CustomerServiceConversation.objects.get_or_create(customer=request.user)
+    if request.method == "GET":
+        conversation.messages.filter(
+            sender_role=CustomerServiceMessage.SenderRole.STAFF,
+            is_read=False,
+        ).update(is_read=True)
+        return JsonResponse({"messages": [
+            _message_json(message)
+            for message in conversation.messages.select_related("sender", "suggested_product")
+        ]})
+    try:
+        body = str(json.loads(request.body).get("body", "")).strip()
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({"error": "Nội dung tin nhắn không hợp lệ."}, status=400)
+    if not body or len(body) > 3000:
+        return JsonResponse({"error": "Tin nhắn cần có nội dung và không dài quá 3.000 ký tự."}, status=400)
+    message = CustomerServiceMessage.objects.create(
+        conversation=conversation,
+        sender=request.user,
+        sender_role=CustomerServiceMessage.SenderRole.CUSTOMER,
+        body=body,
+    )
+    return JsonResponse({"message": _message_json(message)})
+
+
+@staff_member_required(login_url="dang_nhap")
+def cskh_conversation_api(request, conversation_id):
+    if not _has_cskh_access(request.user):
+        return HttpResponseForbidden("Tài khoản này không thuộc bộ phận CSKH.")
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
+    conversation = get_object_or_404(
+        CustomerServiceConversation.objects.select_related("customer"), pk=conversation_id,
+    )
+    if request.method == "GET":
+        conversation.messages.filter(
+            sender_role=CustomerServiceMessage.SenderRole.CUSTOMER,
+            is_read=False,
+        ).update(is_read=True)
+        return JsonResponse({"messages": [
+            _message_json(message)
+            for message in conversation.messages.select_related("sender", "suggested_product")
+        ]})
+    try:
+        data = json.loads(request.body)
+        body = str(data.get("body", "")).strip()
+        product_id = data.get("product_id")
+    except (ValueError, TypeError, json.JSONDecodeError):
+        return JsonResponse({"error": "Nội dung tư vấn không hợp lệ."}, status=400)
+    if not body or len(body) > 3000:
+        return JsonResponse({"error": "Tin nhắn cần có nội dung và không dài quá 3.000 ký tự."}, status=400)
+    product = get_object_or_404(SanPham, pk=product_id) if product_id else None
+    conversation.assigned_to = conversation.assigned_to or request.user
+    conversation.save(update_fields=["assigned_to"])
+    message = CustomerServiceMessage.objects.create(
+        conversation=conversation,
+        sender=request.user,
+        sender_role=CustomerServiceMessage.SenderRole.STAFF,
+        body=body,
+        suggested_product=product,
+    )
+    return JsonResponse({"message": _message_json(message)})
+
+
+@staff_member_required(login_url="dang_nhap")
+def cskh_thong_bao_api(request):
+    if not _has_cskh_access(request.user):
+        return HttpResponseForbidden("Tài khoản này không thuộc bộ phận CSKH.")
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    unread = CustomerServiceMessage.objects.filter(
+        sender_role=CustomerServiceMessage.SenderRole.CUSTOMER,
+        is_read=False,
+    ).count()
+    return JsonResponse({"unread": unread})
+
+
+@staff_member_required(login_url="dang_nhap")
+def cskh_de_xuat_san_pham(request):
+    if request.user.is_superuser or not _has_cskh_access(request.user):
+        return HttpResponseForbidden("Trang này dành cho nhân viên CSKH.")
+    form = SanPhamForm(request.POST or None, request.FILES or None)
+    if request.method == "POST" and form.is_valid():
+        uploaded = request.FILES.get("hinh_anh")
+        if uploaded and not (uploaded.content_type or "").startswith("image/"):
+            form.add_error("hinh_anh", "Vui lòng chọn tệp ảnh.")
+        else:
+            proposed = form.save(commit=False)
+            DeXuatSanPham.objects.create(
+                ten_san_pham=proposed.ten_san_pham,
+                gia_ban=proposed.gia_ban,
+                danh_muc=proposed.danh_muc,
+                mo_ta=proposed.mo_ta,
+                so_luong=proposed.so_luong,
+                hinh_anh=uploaded or None,
+                nguoi_tao=request.user,
+            )
+            messages.success(request, "Bài đăng đã gửi admin duyệt. Sản phẩm sẽ vào kho và hiển thị sau khi được duyệt.")
+            return redirect("cskh_de_xuat_san_pham")
+    return render(request, "store/cskh_product_submissions.html", {
+        "form": form,
+        "submissions": DeXuatSanPham.objects.filter(nguoi_tao=request.user).select_related("danh_muc"),
+    })
+
+
+@staff_member_required(login_url="dang_nhap")
+def quan_tri_de_xuat_san_pham(request):
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
+    submissions = DeXuatSanPham.objects.select_related("danh_muc", "nguoi_tao")
+    return render(request, "store/admin_product_submissions.html", {
+        "submissions": submissions,
+        "pending_count": submissions.filter(trang_thai=DeXuatSanPham.TrangThai.CHO_DUYET).count(),
+    })
+
+
+@staff_member_required(login_url="dang_nhap")
+def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
+    with transaction.atomic():
+        submission = get_object_or_404(DeXuatSanPham.objects.select_for_update(), pk=submission_id)
+        if submission.trang_thai != DeXuatSanPham.TrangThai.CHO_DUYET:
+            messages.info(request, "Bài đăng này đã được xử lý trước đó.")
+            return redirect("quan_tri_de_xuat_san_pham")
+        product = SanPham.objects.select_for_update().filter(
+            ten_san_pham__iexact=submission.ten_san_pham,
+            danh_muc=submission.danh_muc,
+        ).first()
+        if product:
+            product.so_luong = F("so_luong") + submission.so_luong
+            product.gia_ban = submission.gia_ban
+            product.mo_ta = submission.mo_ta
+            if submission.hinh_anh:
+                product.hinh_anh = submission.hinh_anh.name
+            product.save(update_fields=["so_luong", "gia_ban", "mo_ta", "hinh_anh"])
+        else:
+            SanPham.objects.create(
+                ten_san_pham=submission.ten_san_pham,
+                gia_ban=submission.gia_ban,
+                danh_muc=submission.danh_muc,
+                mo_ta=submission.mo_ta,
+                so_luong=submission.so_luong,
+                hinh_anh=submission.hinh_anh.name if submission.hinh_anh else "",
+            )
+        submission.trang_thai = DeXuatSanPham.TrangThai.DA_DUYET
+        submission.nguoi_duyet = request.user
+        submission.duyet_luc = timezone.now()
+        submission.save(update_fields=["trang_thai", "nguoi_duyet", "duyet_luc"])
+    messages.success(request, "Đã duyệt bài đăng, cộng số lượng vào kho và hiển thị sản phẩm trên cửa hàng.")
+    return redirect("quan_tri_de_xuat_san_pham")
+
+
+@staff_member_required(login_url="dang_nhap")
+def quan_tri_tu_choi_de_xuat_san_pham(request, submission_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
+    updated = DeXuatSanPham.objects.filter(
+        pk=submission_id,
+        trang_thai=DeXuatSanPham.TrangThai.CHO_DUYET,
+    ).update(
+        trang_thai=DeXuatSanPham.TrangThai.TU_CHOI,
+        nguoi_duyet=request.user,
+        duyet_luc=timezone.now(),
+    )
+    messages.success(request, "Đã từ chối bài đăng; kho không thay đổi." if updated else "Bài đăng này đã được xử lý trước đó.")
+    return redirect("quan_tri_de_xuat_san_pham")
+
+
+@staff_member_required(login_url="dang_nhap")
+def quan_tri_trang_thai_nhan_vien(request, employee_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Chỉ quản trị viên cấp cao mới được đổi trạng thái nhân viên.")
+    employee = get_object_or_404(User, pk=employee_id, is_staff=True, is_superuser=False)
+    if employee.pk == request.user.pk:
+        messages.error(request, "Bạn không thể tự khóa tài khoản đang sử dụng.")
+    else:
+        employee.is_active = not employee.is_active
+        employee.save(update_fields=["is_active"])
+        state = "đang hoạt động" if employee.is_active else "đã khóa"
+        messages.success(request, f"Tài khoản {employee.username} hiện {state}.")
+    return redirect("quan_tri_nhan_vien")
+
+
+@staff_member_required(login_url="dang_nhap")
+def quan_tri_dat_lai_mat_khau_nhan_vien(request, employee_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not request.user.is_superuser:
+        return HttpResponseForbidden("Chỉ quản trị viên cấp cao mới được đặt lại mật khẩu nhân viên.")
+    employee = get_object_or_404(User, pk=employee_id, is_staff=True, is_superuser=False)
+    form = NhanVienPasswordForm(employee, request.POST)
+    if form.is_valid():
+        form.save()
+        messages.success(request, f"Đã cập nhật mật khẩu cho nhân viên {employee.username}.")
+    else:
+        errors = [str(error) for field_errors in form.errors.values() for error in field_errors]
+        messages.error(request, " ".join(errors))
+    return redirect("quan_tri_nhan_vien")
+
+
+
+
+def ban_hang_san_pham(request):
+    if not _has_sales_access(request.user):
+        return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    products = SanPham.objects.filter(is_active=True).select_related("danh_muc").order_by("so_luong", "ten_san_pham")
+    search = request.GET.get("q", "").strip()
+    if search:
+        products = products.filter(
+            Q(ten_san_pham__icontains=search)
+            | Q(danh_muc__ten_danh_muc__icontains=search)
+            | Q(phan_loai__icontains=search)
+        )
+    return render(request, "store/sales_products.html", {
+        "products": products,
+        "search": search,
+        "low_stock_count": SanPham.objects.filter(is_active=True, so_luong__lte=5).count(),
     })

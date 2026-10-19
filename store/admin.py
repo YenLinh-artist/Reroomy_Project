@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (CustomerProfile, DanhMuc, DecorConsultation, InventoryAdjustment,
-                     Order, OrderItem, ProductReview, SanPham, StaffProfile, Voucher)
+                     Order, OrderItem, ProductReview, SanPham, StaffProfile, Voucher, DeXuatSanPham)
 
 
 @admin.register(DanhMuc)
@@ -68,3 +68,15 @@ class InventoryAdjustmentAdmin(admin.ModelAdmin):
 class ProductReviewAdmin(admin.ModelAdmin):
     list_display = ("customer", "order_item", "rating", "is_visible", "reported", "created_at")
     list_filter = ("is_visible", "reported", "rating")
+
+
+
+
+
+
+@admin.register(DeXuatSanPham)
+class DeXuatSanPhamAdmin(admin.ModelAdmin):
+    list_display = ("ten_san_pham", "nguoi_tao", "so_luong", "trang_thai", "tao_luc")
+    list_filter = ("trang_thai", "tao_luc")
+    search_fields = ("ten_san_pham", "nguoi_tao__username")
+    readonly_fields = ("nguoi_tao", "nguoi_duyet", "tao_luc", "duyet_luc")

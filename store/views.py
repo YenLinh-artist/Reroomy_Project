@@ -21,7 +21,7 @@ import uuid
 from .forms import DanhMucForm, SanPhamForm, StaffAccountForm, VoucherForm
 from .models import (CustomerProfile, DanhMuc, DecorConsultation, InventoryAdjustment,
                      Order, OrderItem, OrderNotification, ProductReview, SanPham, StaffProfile, Voucher)
-from .services import cancel_order, confirm_order, mark_cod_collected
+from .services import cancel_order, confirm_order, expire_unconfirmed_cod_orders, mark_cod_collected
 from .validators import validate_gmail_address
 
 from django.contrib.admin.views.decorators import staff_member_required
@@ -143,6 +143,7 @@ def _database_product(item):
         "variant": variants[0],
         "variants": variants,
         "stock_status": f"Còn {item.so_luong} sản phẩm" if item.so_luong else "Tạm hết hàng",
+        "stock_quantity": item.so_luong,
         "is_demo": False,
         "sold_text": "Chưa có dữ liệu bán",
         "icon_url": _product_icon_url(item.danh_muc.ten_danh_muc, item.ten_san_pham),
@@ -266,7 +267,7 @@ def thanh_toan(request):
                     if not product:
                         raise ValueError("Có sản phẩm không còn được bán. Vui lòng cập nhật giỏ hàng.")
                     if product.so_luong < quantity:
-                        raise ValueError(f"{product.ten_san_pham} hiện không đủ số lượng trong kho.")
+                        raise ValueError(f"{product.ten_san_pham} đã hết hàng hoặc không đủ số lượng. Hiện còn {product.so_luong} sản phẩm.")
                     name, price = product.ten_san_pham, product.gia_ban
                 else:
                     raise ValueError("Giỏ hàng có sản phẩm không hợp lệ.")
@@ -279,12 +280,28 @@ def thanh_toan(request):
             note = request.POST.get("note", "").strip()[:500]
             if not full_name or not phone or not address:
                 raise ValueError("Vui lòng nhập họ tên, số điện thoại và địa chỉ giao hàng.")
+            if not phone.isdigit() or len(phone) != 10:
+                raise ValueError("Số điện thoại phải gồm đúng 10 chữ số.")
             payment = request.POST.get("payment", Order.PaymentMethod.COD)
             if payment != Order.PaymentMethod.COD:
                 raise ValueError("Hiện tại hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD).")
             code = request.POST.get("voucher_code", "").strip().upper()
             shipping = 0 if subtotal >= 500000 else (20000 if subtotal else 0)
             with transaction.atomic():
+                requested_stock = {}
+                for product, _, _, quantity, _ in clean_items:
+                    if product:
+                        requested_stock[product.pk] = requested_stock.get(product.pk, 0) + quantity
+                locked_products = {
+                    product.pk: product
+                    for product in SanPham.objects.select_for_update().filter(pk__in=requested_stock)
+                }
+                for product_id, quantity in requested_stock.items():
+                    product = locked_products.get(product_id)
+                    if not product or not product.is_active or product.so_luong < quantity:
+                        available = product.so_luong if product else 0
+                        name = product.ten_san_pham if product else "Sản phẩm"
+                        raise ValueError(f"{name} đã hết hàng hoặc không đủ số lượng. Hiện còn {available} sản phẩm.")
                 if code:
                     applied_voucher = Voucher.objects.select_for_update().filter(code=code).first()
                     if applied_voucher:
@@ -321,6 +338,20 @@ def thanh_toan(request):
                               quantity=quantity, variant=variant)
                     for product, name, price, quantity, variant in clean_items
                 ])
+                for product_id, quantity in requested_stock.items():
+                    product = locked_products[product_id]
+                    product.so_luong -= quantity
+                    product.save(update_fields=["so_luong"])
+                    InventoryAdjustment.objects.create(
+                        product=product,
+                        quantity_delta=-quantity,
+                        reason=f"Giữ hàng cho đơn {order.code}",
+                        actor=request.user if request.user.is_authenticated else None,
+                        order=order,
+                    )
+                if requested_stock:
+                    order.stock_reserved = True
+                    order.save(update_fields=["stock_reserved", "updated_at"])
                 OrderNotification.objects.create(
                     order=order,
                     message="Đơn hàng đã được tiếp nhận và đang chờ nhân viên bán hàng duyệt.",
@@ -557,6 +588,7 @@ def chi_tiet_san_pham(request, product_key):
         ]
     return render(request, "store/product_detail.html", {
         "product": item,
+        "stock_quantity": saved.so_luong if saved else None,
         "related_products": related,
         "reviews": reviews,
         "review_count": item["reviews_count"],
@@ -1459,6 +1491,7 @@ def cskh_duyet_don_hang(request, order_id):
 def ban_hang_dashboard(request):
     if not _has_sales_access(request.user):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    expire_unconfirmed_cod_orders()
     orders = Order.objects.select_related("customer").order_by("-created_at")
     return render(request, "store/sales_dashboard.html", {
         "product_count": SanPham.objects.filter(is_active=True).count(),
@@ -1473,6 +1506,7 @@ def ban_hang_dashboard(request):
 def ban_hang_don_hang(request):
     if not _has_sales_access(request.user):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    expire_unconfirmed_cod_orders()
     orders = Order.objects.select_related("customer").prefetch_related("items").order_by("-created_at")
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")

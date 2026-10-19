@@ -33,7 +33,7 @@
               {% if product.has_photo %}<img src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy">{% else %}<img class="success-product-icon" src="{{ product.icon_url }}" alt="">{% endif %}
             </a>
             <div class="success-product-info"><div><a href="{% url 'chi_tiet_san_pham' product.id %}">{{ product.name }}</a><strong>{{ product.display_price }}</strong></div><p>{{ product.category }}</p>
-              <button class="success-add-cart" type="button" data-id="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image_url }}">Thêm vào giỏ</button>
+              <button class="success-add-cart" type="button" data-id="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image_url }}" data-stock="{{ product.stock_quantity }}">Thêm vào giỏ</button>
             </div>
           </article>
         {% empty %}<p class="empty-note">Tụi mình sẽ sớm có thêm sản phẩm gợi ý cho bạn.</p>{% endfor %}

@@ -1,4 +1,4 @@
-﻿{% load static %}
+{% load static %}
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Thanh toán | Re:Room</title><link rel="stylesheet" href="{% static 'store/fonts.css' %}"><link rel="stylesheet" href="{% static 'store/site-chrome.css' %}"><link rel="stylesheet" href="{% static 'store/cart-flow.css' %}"></head><body>
 {% include 'store/partials/header.html' %}
 <main class="flow-wrap checkout-wrap">
@@ -8,7 +8,7 @@
 <div class="checkout-layout"><form id="orderForm" class="checkout-form" method="post">{% csrf_token %}<input type="hidden" name="cart_data" id="cartData"><input type="hidden" name="voucher_code" id="voucherCodeForOrder">
 <section class="form-card"><div class="section-heading"><span>01</span><div><h2>Thông tin nhận hàng</h2><p>Tụi mình dùng thông tin này để giao đơn.</p></div></div><div class="field-grid">
 <label>Họ và tên<input name="full_name" value="{{ checkout_defaults.full_name }}" required autocomplete="name" placeholder="Tên người nhận"></label>
-<label>Số điện thoại<input name="phone" value="{{ checkout_defaults.phone }}" required inputmode="tel" pattern="[0-9+() .-]{9,16}" autocomplete="tel" placeholder="09xx xxx xxx"></label>
+<label>Số điện thoại<input name="phone" value="{{ checkout_defaults.phone }}" required inputmode="tel" pattern="[0-9]{10}" maxlength="10" autocomplete="tel" placeholder="09xx xxx xxx"></label>
 <label class="field-wide">Email <span class="optional">(không bắt buộc)</span><input type="email" name="email" value="{{ checkout_defaults.email }}" autocomplete="email" placeholder="ban@email.com"></label>
 <label class="field-wide">Địa chỉ nhận hàng<textarea name="address" required autocomplete="street-address" rows="2" placeholder="Số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành">{{ checkout_defaults.address }}</textarea></label>
 <label class="field-wide">Ghi chú cho shop <span class="optional">(không bắt buộc)</span><textarea name="note" rows="3" placeholder="Dặn dò giao hàng nếu có"></textarea></label></div></section>

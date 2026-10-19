@@ -1,5 +1,7 @@
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
 
 from .models import InventoryAdjustment, Order, SanPham
 
@@ -9,8 +11,6 @@ def confirm_order(order_id, actor):
     order = Order.objects.select_for_update().get(pk=order_id)
     if order.status != Order.Status.PENDING:
         raise ValidationError("Chỉ xác nhận đơn đang chờ xử lý.")
-    if order.stock_reserved:
-        raise ValidationError("Kho cho đơn này đã được giữ trước đó, không thể trừ thêm lần nữa.")
     if order.payment_method == Order.PaymentMethod.ONLINE and order.payment_status != Order.PaymentStatus.PAID:
         raise ValidationError("Chưa nhận được xác nhận thanh toán online từ cổng thanh toán.")
     if not order.items.exists():
@@ -23,17 +23,17 @@ def confirm_order(order_id, actor):
             requested[item.product_id] = requested.get(item.product_id, 0) + item.quantity
     for product_id, quantity in requested.items():
         product = products.get(product_id)
-        if not product or product.so_luong < quantity:
+        if not product or (not order.stock_reserved and product.so_luong < quantity):
             product_name = next(i.product_name for i in items if i.product_id == product_id)
             raise ValidationError(f"Không đủ tồn kho cho {product_name}.")
     for item in items:
         product = products.get(item.product_id)
         if not product:
             raise ValidationError(f"Sản phẩm {item.product_name} không còn trong danh mục.")
-        product = products[item.product_id]
-        product.so_luong -= item.quantity
-        product.save(update_fields=["so_luong"])
-        InventoryAdjustment.objects.create(product=product, quantity_delta=-item.quantity, reason=f"Xác nhận đơn {order.code}", actor=actor, order=order)
+        if not order.stock_reserved:
+            product.so_luong -= item.quantity
+            product.save(update_fields=["so_luong"])
+            InventoryAdjustment.objects.create(product=product, quantity_delta=-item.quantity, reason=f"Xác nhận đơn {order.code}", actor=actor, order=order)
     order.stock_reserved = True
     order.status = Order.Status.CONFIRMED
     # Online payment can only be marked paid by a verified payment callback/action.
@@ -74,6 +74,28 @@ def mark_cod_collected(order_id, actor):
     order.payment_status = Order.PaymentStatus.PAID
     order.save(update_fields=["payment_status", "updated_at"])
     return order
+
+
+@transaction.atomic
+def expire_unconfirmed_cod_orders(now=None):
+    """Cancel COD orders left unconfirmed for three days after they enter the staff queue."""
+    now = now or timezone.now()
+    cutoff = now - timedelta(days=3)
+    expired = Order.objects.select_for_update().filter(
+        status=Order.Status.PENDING,
+        payment_method=Order.PaymentMethod.COD,
+        created_at__lte=cutoff,
+    )
+    count = 0
+    for order in expired:
+        cancel_order(order.pk, actor=None)
+        from .models import OrderNotification
+        OrderNotification.objects.create(
+            order=order,
+            message=f"Đơn hàng {order.code} đã tự hủy vì chưa được xác nhận sau 3 ngày.",
+        )
+        count += 1
+    return count
 
 
 def validate_voucher(voucher, order_total):

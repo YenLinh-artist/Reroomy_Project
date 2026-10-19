@@ -12,12 +12,13 @@
 <section><h2 class="related-head">Sản phẩm khác bạn có thể thích</h2><div class="related-grid">{% for item in related_products %}<a class="related-card" href="{% url 'chi_tiet_san_pham' item.id %}"><div class="related-photo">{% if item.image_url %}<img src="{{ item.image_url }}" alt="{{ item.name }}" style="width:100%;height:100%;object-fit:cover">{% else %}<img class="related-category-icon" src="{{ item.icon_url }}" alt="">{% endif %}</div><div class="related-info"><strong>{{ item.name }}</strong><span>{{ item.display_price }}</span></div></a>{% endfor %}</div></section></main>
 {% include 'store/partials/footer.html' %}<div class="toast" id="toast" role="status"></div>
 <script src="{% static 'store/cart.js' %}"></script><script>
-const product={id:'{{ product.id|escapejs }}',name:'{{ product.name|escapejs }}',price:{{ product.price }},image:'{{ product.image_url|escapejs }}',variant:'{{ product.variant|escapejs }}',variants:document.getElementById('productVariant').dataset.variants.split('|')};
+const product={stock:{{ product.stock_quantity|default_if_none:'null' }},id:'{{ product.id|escapejs }}',name:'{{ product.name|escapejs }}',price:{{ product.price }},image:'{{ product.image_url|escapejs }}',variant:'{{ product.variant|escapejs }}',variants:document.getElementById('productVariant').dataset.variants.split('|')};
 const toast=document.getElementById('toast');let timer;
 function say(text){toast.textContent=text;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2200)}
-function add(){window.storeCart.add(product,document.getElementById('productVariant').value);say('\u0110\u00e3 th\u00eam v\u00e0o gi\u1ecf h\u00e0ng')}
+function add(){const added=window.storeCart.add(product,document.getElementById('productVariant').value);if(added)say('\u0110\u00e3 th\u00eam v\u00e0o gi\u1ecf h\u00e0ng');return added}
 document.getElementById('addToCart').addEventListener('click',add);
-document.getElementById('buyNow').addEventListener('click',()=>{add();location.href='{% url 'gio_hang' %}'});
+document.getElementById('buyNow').addEventListener('click',()=>{if(add())location.href='{% url 'gio_hang' %}'});
+document.addEventListener('reroom-stock-error',e=>say(e.detail.stock<1?'Sản phẩm đã hết hàng':'Chỉ còn '+e.detail.stock+' sản phẩm'));
 const favorite=document.getElementById('favorite'),favKey='reroom-demo-faves';
 function updateFavorite(){const ids=new Set(JSON.parse(localStorage.getItem(favKey)||'[]'));favorite.classList.toggle('saved',ids.has(product.id));favorite.setAttribute('aria-pressed',ids.has(product.id))}
 favorite.addEventListener('click',()=>{const ids=new Set(JSON.parse(localStorage.getItem(favKey)||'[]'));ids.has(product.id)?ids.delete(product.id):ids.add(product.id);localStorage.setItem(favKey,JSON.stringify([...ids]));updateFavorite();say(ids.has(product.id)?'\u0110\u00e3 l\u01b0u s\u1ea3n ph\u1ea9m y\u00eau th\u00edch':'\u0110\u00e3 b\u1ecf kh\u1ecfi y\u00eau th\u00edch')});updateFavorite();

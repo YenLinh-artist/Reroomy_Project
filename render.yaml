@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: reroom-team-staging
+    runtime: python
+    plan: free
+    branch: reroom-team-staging
+    buildCommand: bash build.sh
+    startCommand: gunicorn reroomy_core.wsgi:application --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+    healthCheckPath: /
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.10.11
+      - key: DJANGO_SETTINGS_MODULE
+        value: reroomy_core.settings_staging
+      - key: DJANGO_SECRET_KEY
+        generateValue: true
+      - key: ADMIN_DEMO_MODE
+        value: "true"
+      - key: DATABASE_URL
+        sync: false
+      - key: CLOUDINARY_URL
+        sync: false

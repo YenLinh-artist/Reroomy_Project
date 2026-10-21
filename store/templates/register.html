@@ -1,7 +1,151 @@
 {% load static %}
-<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tạo tài khoản · Re:Room</title><link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Nunito:ital,wght@0,400;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet"><style>
-*{box-sizing:border-box}body{margin:0;font-family:'DM Sans','Nunito',sans-serif;color:#111;background:#fff}.auth-shell{min-height:100vh;display:grid;grid-template-columns:1.05fr .95fr;gap:0;padding:0 0 0 0}.auth-art{min-height:100vh;border-radius:0 48px 48px 0;overflow:hidden;position:relative;background:#f3e1cc}.auth-art img{width:100%;height:100%;position:absolute;inset:0;object-fit:cover}.auth-art:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,#34201808,#34201815)}.auth-content{display:flex;align-items:center;justify-content:center;padding:38px 42px}.auth-card{width:min(100%,560px)}.brand{font-weight:900;letter-spacing:-1.4px;color:#ff327e;font-size:29px;white-space:nowrap}.brand span{color:#bd245c}.auth-title{text-align:center;font-size:29px;line-height:1.2;font-weight:800;color:#ff6b51;margin:0 0 22px;letter-spacing:.3px}.auth-title b{color:#ff347f;margin-left:5px}.user-icon{width:68px;height:68px;margin:0 auto 25px;background:#ffb0c8;border-radius:50%;position:relative;display:block}.user-icon:before{content:'';width:25px;height:25px;border-radius:50%;background:#ff4384;position:absolute;left:22px;top:15px}.user-icon:after{content:'';position:absolute;width:42px;height:20px;background:#ff4384;border-radius:24px 24px 14px 14px;left:13px;bottom:0}.messages{display:grid;gap:8px;margin-bottom:15px}.message{font-size:14px;border-radius:10px;padding:10px 13px;background:#fff1ed;color:#c25452}.message.success{background:#eff8ed;color:#4f8654}.field{margin:0 0 19px}.field label{display:block;font-size:21px;font-weight:700;margin:0 0 10px 14px}.input-wrap{position:relative}.field input{width:100%;height:72px;border:1.3px solid #171717;border-radius:17px;padding:0 30px;background:white;outline:none;font-size:20px;color:#292323;transition:.2s}.field input::placeholder{color:#aaa;font-style:italic;font-weight:400}.field input:focus{border-color:#f94b9c;box-shadow:0 0 0 3px #f94b9c1c}.toggle-pass svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.toggle-pass{position:absolute;right:20px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:#555;font-size:19px}.input-wrap input[type=password],.input-wrap input[type=text]{padding-right:56px}.submit{width:74%;min-height:68px;display:block;margin:25px auto 0;border:0;border-radius:17px;background:#ffe0ca;color:#f044bf;font-size:27px;font-weight:800;transition:.2s}.submit:hover{background:#ffd3c0;transform:translateY(-2px);box-shadow:0 7px 18px #ee987230}.switch{margin:30px 0 0;text-align:center;font-size:20px;font-style:italic;font-weight:400;color:#dc54e8}.switch a{color:#d840ed;text-decoration:underline;text-underline-offset:3px}.back-home{display:block;width:max-content;margin:23px auto 0;color:#a38583;font-size:13px}.back-home:hover{color:#de4d8b}
-@media(max-width:850px){.auth-shell{grid-template-columns:.85fr 1.15fr}.auth-content{padding:28px}.auth-title{font-size:24px}.field input{height:64px}.field label{font-size:18px}}@media(max-width:620px){.auth-shell{display:block;padding:12px;min-height:100vh}.auth-art{display:none}.auth-content{min-height:calc(100vh - 24px);padding:30px 10px}.auth-card{max-width:470px}.auth-title{font-size:23px;margin:20px 0}.field{margin-bottom:15px}.field input{height:59px;border-radius:13px;padding-left:20px;font-size:17px}.field label{font-size:16px;margin-left:8px}.submit{min-height:58px;font-size:23px}.switch{font-size:17px}}
-.gmail-hint{display:block;margin:-12px 0 16px 14px;color:#9b8582;font-size:12px}</style><link rel="stylesheet" href="{% static 'store/fonts.css' %}"></head><body><main class="auth-shell"><div class="auth-art"><img src="{% static 'store/images/signup-room.jpg' %}" alt="Ph&#242;ng ng&#7911; nh&#7887; trang tr&#237; t&#244;ng pastel"></div><section class="auth-content"><div class="auth-card"><h1 class="auth-title">TẠO TÀI KHOẢN <b>RE:ROOM</b></h1><span class="user-icon" aria-hidden="true"></span>
-{% if messages %}<div class="messages">{% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}</div>{% endif %}
-<form method="post" novalidate>{% csrf_token %}<div class="field"><label for="username">TÊN ĐẦY ĐỦ</label><div class="input-wrap"><input id="username" name="username" type="text" placeholder="Tên đăng nhập" autocomplete="username" required value="{{ request.POST.username|default:'' }}"></div></div><div class="field"><label for="email">EMAIL</label><div class="input-wrap"><input id="email" name="email" type="email" pattern="[^@\s]+@gmail\.com" title="Vui l&#242;ng d&#249;ng &#273;&#7883;a ch&#7881; @gmail.com" placeholder="ten@gmail.com" autocomplete="email" required value="{{ request.POST.email|default:'' }}"></div><small class="gmail-hint">Ch&#7881; d&#249;ng &#273;&#7883;a ch&#7881; email @gmail.com.</small></div><div class="field"><label for="password">MẬT KHẨU</label><div class="input-wrap"><input id="password" name="password" type="password" placeholder="Tạo mật khẩu" autocomplete="new-password" minlength="8" required><button class="toggle-pass" type="button" aria-label="Hiện mật khẩu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg></button></div></div><div class="field"><div class="input-wrap"><input id="password-confirm" name="password_confirm" type="password" placeholder="Nhập lại mật khẩu" autocomplete="new-password" minlength="8" aria-label="Nhập lại mật khẩu" required><button class="toggle-pass" type="button" aria-label="Hiện mật khẩu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg></button></div></div><button class="submit" type="submit">Đăng ký</button></form><p class="switch">Có tài khoản? <a href="{% url 'dang_nhap' %}">Đăng nhập nhé</a></p><a class="back-home" href="{% url 'trang_chu' %}">← Quay về Re:Room</a></div></section></main><script>document.querySelectorAll('.toggle-pass').forEach(button=>button.addEventListener('click',()=>{const input=button.parentElement.querySelector('input');input.type=input.type==='password'?'text':'password';button.setAttribute('aria-label',input.type==='password'?'Hiện mật khẩu':'Ẩn mật khẩu')}));</script></body></html>
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#ffc0d2">
+  <title>Tạo tài khoản · Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <style>
+    *{box-sizing:border-box}
+    body{margin:0;background:#fff;color:#372d2a;font-family:var(--font-body,sans-serif)}
+    button,input{font:inherit}
+    .auth-shell{min-height:100vh;min-height:100svh;display:grid;grid-template-columns:minmax(0,.88fr) minmax(0,1.12fr)}
+    .auth-art{min-height:100vh;position:sticky;top:0;overflow:hidden;border-radius:0 38px 38px 0;background:#f3e1cc}
+    .auth-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+    .auth-art:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,#34201808,#34201820)}
+    .auth-content{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px clamp(22px,5vw,70px);overflow:auto}
+    .auth-card{width:min(100%,540px);padding:12px 0}
+    .auth-title{margin:0;text-align:center;color:#ff359a;font-family:var(--font-primary,sans-serif);font-size:clamp(24px,2.5vw,32px);line-height:1.2;font-weight:800}
+    .auth-title b{color:#bd245c}
+    .auth-intro{margin:8px 0 16px;text-align:center;color:#9b8582;font-size:14px;line-height:1.5}
+    .user-icon{width:54px;height:54px;margin:0 auto 16px;background:#ffb0c8;border-radius:50%;position:relative;display:block}
+    .user-icon:before{content:"";position:absolute;width:20px;height:20px;left:17px;top:10px;border-radius:50%;background:#ff4384}
+    .user-icon:after{content:"";position:absolute;width:36px;height:17px;left:9px;bottom:0;border-radius:22px 22px 12px 12px;background:#ff4384}
+    .messages{display:grid;gap:7px;margin:0 0 13px}
+    .message{padding:9px 12px;border-radius:10px;background:#fff1ed;color:#b84d49;font-size:13px;line-height:1.45}
+    .message.success{background:#eff8ed;color:#4f8654}
+    .field{margin:0 0 12px}
+    .field-label{display:flex;align-items:baseline;gap:7px;margin:0 0 6px 3px;font-family:var(--font-primary,sans-serif);font-size:15px;font-weight:700;color:#493c39}
+    .required-mark{color:#ed548d}
+    .optional-mark{font-family:var(--font-body,sans-serif);font-size:12px;font-weight:400;color:#9b8582}
+    .input-wrap{position:relative}
+    .field input{display:block;width:100%;height:52px;padding:0 16px;border:1px solid #decac7;border-radius:12px;background:#fff;color:#302725;font-size:15px;outline:none;transition:border-color .18s,box-shadow .18s}
+    .field input::placeholder{color:#a99b98}
+    .field input:focus{border-color:#f04b91;box-shadow:0 0 0 3px #f04b911c}
+    .field-hint{display:block;margin:5px 3px 0;color:#998783;font-size:11px;line-height:1.45}
+    .toggle-pass{position:absolute;top:50%;right:13px;transform:translateY(-50%);display:grid;place-items:center;width:32px;height:32px;border:0;border-radius:8px;background:transparent;color:#766562;cursor:pointer}
+    .toggle-pass:hover{background:#fff2f5;color:#df4b87}
+    .toggle-pass svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+    .password-input{padding-right:50px!important}
+    .submit{display:block;width:min(100%,360px);min-height:54px;margin:18px auto 0;border:0;border-radius:14px;background:#ffe0ca;color:#e845a1;font-family:var(--font-primary,sans-serif);font-size:22px;font-weight:800;cursor:pointer;transition:background .18s,transform .18s,box-shadow .18s}
+    .submit:hover{background:#ffd3c0;transform:translateY(-1px);box-shadow:0 7px 18px #ee987230}
+    .switch{margin:18px 0 0;text-align:center;color:#9b8582;font-size:14px}
+    .switch a{color:#d840a5;text-decoration:underline;text-underline-offset:3px;font-weight:700}
+    .back-home{display:block;width:max-content;margin:14px auto 0;color:#a38583;font-size:12px;text-decoration:none}
+    .back-home:hover{color:#de4d8b}
+    @media(max-width:780px){
+      .auth-shell{display:block}
+      .auth-art{display:none}
+      .auth-content{min-height:100vh;min-height:100svh;padding:30px 20px;background:linear-gradient(145deg,#fff9f6,#fff)}
+      .auth-card{max-width:500px}
+    }
+    @media(max-width:420px){
+      .auth-content{padding:24px 16px}
+      .auth-title{font-size:25px}
+      .field input{height:50px}
+      .submit{font-size:20px}
+    }
+  </style>
+</head>
+<body>
+  <main class="auth-shell">
+    <div class="auth-art">
+      <img src="{% static 'store/images/signup-room.jpg' %}" alt="Phòng ngủ nhỏ trang trí tông pastel">
+    </div>
+    <section class="auth-content" aria-labelledby="registerTitle">
+      <div class="auth-card">
+        <h1 class="auth-title" id="registerTitle">Tạo tài khoản <b>Re:Room</b></h1>
+        <p class="auth-intro">Tạo tài khoản để lưu lại những góc decor bạn yêu thích.</p>
+        <span class="user-icon" aria-hidden="true"></span>
+
+        {% if messages %}
+          <div class="messages" aria-live="polite">
+            {% for message in messages %}
+              <div class="message {{ message.tags }}" role="status">{{ message }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        <form id="registrationForm" method="post">
+          {% csrf_token %}
+          <div class="field">
+            <label class="field-label" for="full-name">Họ và tên <span class="required-mark" aria-hidden="true">*</span></label>
+            <input id="full-name" name="full_name" type="text" autocomplete="name" maxlength="150" placeholder="Ví dụ: Nguyễn Minh Anh" required value="{{ request.POST.full_name|default:'' }}">
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="username">Tên đăng nhập <span class="required-mark" aria-hidden="true">*</span></label>
+            <input id="username" name="username" type="text" autocomplete="username" maxlength="150" pattern="[A-Za-z0-9_]{1,150}" title="Chỉ dùng chữ không dấu, số và dấu gạch dưới (_); không có khoảng trắng." aria-describedby="username-hint" placeholder="Ví dụ: minh_anh01" required value="{{ request.POST.username|default:'' }}">
+            <small class="field-hint" id="username-hint">Không dấu, không khoảng trắng; dùng chữ cái, số và dấu gạch dưới (_).</small>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="email">Email <span class="optional-mark">(không bắt buộc)</span></label>
+            <input id="email" name="email" type="email" autocomplete="email" maxlength="254" aria-describedby="email-hint" placeholder="ban@email.com" value="{{ request.POST.email|default:'' }}">
+            <small class="field-hint" id="email-hint">Có thể thêm sau trong hồ sơ để tiện khôi phục mật khẩu.</small>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="password">Mật khẩu <span class="required-mark" aria-hidden="true">*</span></label>
+            <div class="input-wrap">
+              <input class="password-input" id="password" name="password" type="password" autocomplete="new-password" minlength="8" placeholder="Tạo mật khẩu" required>
+              <button class="toggle-pass" type="button" aria-label="Hiện mật khẩu" aria-controls="password">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+              </button>
+            </div>
+            <small class="field-hint">Mật khẩu cần có ít nhất 8 ký tự.</small>
+          </div>
+
+          <div class="field">
+            <label class="field-label" for="password-confirm">Nhập lại mật khẩu <span class="required-mark" aria-hidden="true">*</span></label>
+            <div class="input-wrap">
+              <input class="password-input" id="password-confirm" name="password_confirm" type="password" autocomplete="new-password" minlength="8" placeholder="Nhập lại mật khẩu" required>
+              <button class="toggle-pass" type="button" aria-label="Hiện mật khẩu" aria-controls="password-confirm">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12s3.3-6 9.5-6 9.5 6 9.5 6-3.3 6-9.5 6-9.5-6-9.5-6Z"/><circle cx="12" cy="12" r="2.7"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <button class="submit" type="submit">Đăng ký</button>
+        </form>
+
+        <p class="switch">Đã có tài khoản? <a href="{% url 'dang_nhap' %}">Đăng nhập nhé</a></p>
+        <a class="back-home" href="{% url 'trang_chu' %}">← Quay về Re:Room</a>
+      </div>
+    </section>
+  </main>
+  <script>
+    document.querySelectorAll('.toggle-pass').forEach(button => {
+      button.addEventListener('click', () => {
+        const input = document.getElementById(button.getAttribute('aria-controls'));
+        input.type = input.type === 'password' ? 'text' : 'password';
+        button.setAttribute('aria-label', input.type === 'password' ? 'Hiện mật khẩu' : 'Ẩn mật khẩu');
+      });
+    });
+
+    const password = document.getElementById('password');
+    const confirmation = document.getElementById('password-confirm');
+    const syncPasswordConfirmation = () => {
+      confirmation.setCustomValidity(
+        confirmation.value && confirmation.value !== password.value
+          ? 'Mật khẩu nhập lại không khớp.'
+          : ''
+      );
+    };
+    password.addEventListener('input', syncPasswordConfirmation);
+    confirmation.addEventListener('input', syncPasswordConfirmation);
+  </script>
+</body>
+</html>

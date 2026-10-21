@@ -5,7 +5,8 @@ from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
-from django.db import transaction
+from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
 from django.db.models import Sum, Count, Q, F, Avg
 from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -17,13 +18,13 @@ from functools import wraps
 from types import SimpleNamespace
 from datetime import date, timedelta
 import json
+import re
 import uuid
 
 from .forms import DanhMucForm, SanPhamForm, StaffAccountForm, VoucherForm
 from .models import (CustomerProfile, DanhMuc, DecorConsultation, InventoryAdjustment,
                      Order, OrderItem, OrderNotification, ProductReview, SanPham, StaffProfile, Voucher)
 from .services import cancel_order, confirm_order, mark_cod_collected
-from .validators import validate_gmail_address
 
 from django.contrib.admin.views.decorators import staff_member_required
 from datetime import timedelta
@@ -439,7 +440,7 @@ def tai_khoan(request):
         email_valid = True
         if email:
             try:
-                email = validate_gmail_address(email)
+                validate_email(email)
             except ValidationError:
                 email_valid = False
         if not full_name or not re.fullmatch(r"[0-9+() .-]{9,16}", phone):
@@ -596,36 +597,64 @@ def dang_ky(request):
     if request.user.is_authenticated:
         return redirect("trang_chu")
     if request.method == "POST":
-        username = request.POST.get("username", "").strip()
+        full_name = " ".join(request.POST.get("full_name", "").split())[:150]
+        username = request.POST.get("username", "").strip().lower()
         email = request.POST.get("email", "").strip()
         password = request.POST.get("password", "")
         password_confirm = request.POST.get("password_confirm", "")
-        if not username or not email or not password:
-            messages.error(request, "B?n ?i?n ??y ?? th?ng tin gi?p m?nh nh?.")
+        errors = []
+
+        if not full_name:
+            errors.append("Vui lòng nhập họ và tên.")
+        if not username:
+            errors.append("Vui lòng nhập tên đăng nhập.")
+        elif not re.fullmatch(r"[a-z0-9_]{1,150}", username):
+            errors.append("Tên đăng nhập chỉ gồm chữ không dấu, số và dấu gạch dưới (_), không có khoảng trắng.")
+        elif User.objects.filter(username__iexact=username).exists():
+            errors.append("Tên đăng nhập đã tồn tại. Bạn thử tên khác nhé.")
+
+        if email:
+            try:
+                validate_email(email)
+            except ValidationError as exc:
+                errors.extend(exc.messages)
+            else:
+                if len(email) > 254:
+                    errors.append("Email không được dài quá 254 ký tự.")
+                elif User.objects.filter(email__iexact=email).exists():
+                    errors.append("Email này đã được dùng cho một tài khoản Re:Room rồi.")
+
+        if not password:
+            errors.append("Vui lòng nhập mật khẩu.")
+        elif password != password_confirm:
+            errors.append("Mật khẩu nhập lại không khớp.")
         else:
             try:
-                email = validate_gmail_address(email)
+                validate_password(password, User(username=username, email=email, first_name=full_name))
             except ValidationError as exc:
-                for error in exc.messages:
-                    messages.error(request, error)
+                errors.extend(exc.messages)
+
+        if errors:
+            for error in errors:
+                messages.error(request, error)
+        else:
+            try:
+                # Only persist registration data after every field has passed validation.
+                # Keep the account and its customer profile atomic so failures leave no partial records.
+                with transaction.atomic():
+                    user = User.objects.create_user(
+                        username=username,
+                        email=email,
+                        first_name=full_name,
+                        password=password,
+                    )
+                    CustomerProfile.objects.create(user=user, full_name=full_name, email=email)
+            except IntegrityError:
+                messages.error(request, "Tên đăng nhập hoặc email vừa được sử dụng. Bạn thử lại nhé.")
             else:
-                if User.objects.filter(username__iexact=username).exists():
-                    messages.error(request, "T?n ??ng nh?p n?y ?? ???c s? d?ng r?i.")
-                elif User.objects.filter(email__iexact=email).exists():
-                    messages.error(request, "Email n?y ?? c? t?i kho?n Re:Room r?i.")
-                elif password != password_confirm:
-                    messages.error(request, "Hai m?t kh?u ch?a kh?p nhau.")
-                else:
-                    try:
-                        validate_password(password, User(username=username, email=email))
-                    except ValidationError as exc:
-                        for error in exc.messages:
-                            messages.error(request, error)
-                    else:
-                        user = User.objects.create_user(username=username, email=email, password=password)
-                        login(request, user)
-                        messages.success(request, "T?o t?i kho?n th?nh c?ng. Ch?o m?ng b?n ??n Re:Room!")
-                        return redirect("trang_chu")
+                login(request, user)
+                messages.success(request, "Tạo tài khoản thành công. Chào mừng bạn đến Re:Room!")
+                return redirect("trang_chu")
     return render(request, "register.html")
 
 

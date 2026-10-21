@@ -1,9 +1,88 @@
+import calendar
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q, Sum
 from django.utils import timezone
-from datetime import timedelta
+from datetime import datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
-from .models import InventoryAdjustment, Order, SanPham
+from .models import (
+    CustomerProfile,
+    InventoryAdjustment,
+    MonthlyVoucherRewardBatch,
+    Order,
+    SanPham,
+    SignupVoucherGrant,
+)
+
+
+MONTHLY_VOUCHER_MINIMUM_SPEND = 10_000_000
+MONTHLY_VOUCHER_DISCOUNT = 20
+MONTHLY_VOUCHER_MINIMUM_ORDER = 1_000_000
+MONTHLY_VOUCHER_NAME = "Thankyou"
+BUSINESS_TIME_ZONE = ZoneInfo("Asia/Ho_Chi_Minh")
+
+
+def _add_one_calendar_month(value):
+    month = value.month % 12 + 1
+    year = value.year + (1 if value.month == 12 else 0)
+    last_day = calendar.monthrange(year, month)[1]
+    return value.replace(year=year, month=month, day=min(value.day, last_day))
+
+
+@transaction.atomic
+def issue_month_vouchers(reward_month, now=None):
+    """Reward eligible registered customers for one completed calendar month."""
+    now = now or timezone.now()
+    local_now = timezone.localtime(now, BUSINESS_TIME_ZONE)
+    reward_month = reward_month.replace(day=1)
+    current_month_start = (reward_month.replace(day=28) + timedelta(days=4)).replace(day=1)
+    start = datetime.combine(reward_month, time.min).replace(tzinfo=BUSINESS_TIME_ZONE)
+    end = datetime.combine(current_month_start, time.min).replace(tzinfo=BUSINESS_TIME_ZONE)
+
+    batch, created = MonthlyVoucherRewardBatch.objects.get_or_create(month_start=reward_month)
+    if not created:
+        return batch.recipient_count
+
+    qualified_users = list(
+        CustomerProfile.objects.filter(
+            user__isnull=False, user__is_active=True, user__is_staff=False, user__is_superuser=False,
+        )
+        .annotate(month_spend=Sum(
+            "orders__total",
+            filter=Q(
+                orders__created_at__gte=start,
+                orders__created_at__lt=end,
+                orders__status=Order.Status.COMPLETED,
+                orders__payment_status=Order.PaymentStatus.PAID,
+            ),
+        ))
+        .filter(month_spend__gte=MONTHLY_VOUCHER_MINIMUM_SPEND)
+        .order_by("user_id")
+        .values_list("user_id", flat=True)
+    )
+
+    code = f"THANKYOU-{reward_month:%Y%m}"
+    expires_at = _add_one_calendar_month(local_now)
+    SignupVoucherGrant.objects.bulk_create([
+        SignupVoucherGrant(
+            user_id=user_id,
+            code=code,
+            display_name=MONTHLY_VOUCHER_NAME,
+            discount_value=MONTHLY_VOUCHER_DISCOUNT,
+            minimum_order=MONTHLY_VOUCHER_MINIMUM_ORDER,
+            grant_type=SignupVoucherGrant.GrantType.MONTHLY,
+            reward_month=reward_month,
+            issued_at=now,
+            expires_at=expires_at,
+        )
+        for user_id in qualified_users
+    ], ignore_conflicts=True)
+
+    batch.recipient_count = len(qualified_users)
+    batch.processed_at = now
+    batch.save(update_fields=["recipient_count", "processed_at"])
+    return len(qualified_users)
 
 
 @transaction.atomic
@@ -69,6 +148,21 @@ def mark_cod_collected(order_id, actor):
         raise ValidationError("Chỉ ghi nhận thu tiền mặt cho đơn COD.")
     if order.status != Order.Status.COMPLETED:
         raise ValidationError("Chỉ ghi nhận COD sau khi giao hàng thành công.")
+    if order.payment_status == Order.PaymentStatus.PAID:
+        raise ValidationError("Đơn này đã được ghi nhận thanh toán.")
+    order.payment_status = Order.PaymentStatus.PAID
+    order.save(update_fields=["payment_status", "updated_at"])
+    return order
+
+
+@transaction.atomic
+def mark_online_payment_received(order_id, actor):
+    """Manual payment confirmation for the simulated VietQR checkout flow."""
+    order = Order.objects.select_for_update().get(pk=order_id)
+    if order.payment_method != Order.PaymentMethod.ONLINE:
+        raise ValidationError("Chỉ xác nhận chuyển khoản cho đơn VietQR.")
+    if order.status == Order.Status.CANCELLED:
+        raise ValidationError("Không thể xác nhận thanh toán cho đơn đã hủy.")
     if order.payment_status == Order.PaymentStatus.PAID:
         raise ValidationError("Đơn này đã được ghi nhận thanh toán.")
     order.payment_status = Order.PaymentStatus.PAID

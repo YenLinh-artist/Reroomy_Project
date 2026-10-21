@@ -16,9 +16,25 @@
       <div class="success-check" aria-hidden="true"><svg viewBox="0 0 64 64"><circle cx="32" cy="32" r="26"></circle><path d="m19 32 9 9 19-21"></path></svg></div>
       <p class="success-kicker">Chốt đơn thật xinh</p>
       <h1 id="successTitle">ĐẶT HÀNG THÀNH CÔNG</h1>
+      {% if order.payment_method == "online" %}
+      <p class="success-caption">Đơn <strong class="success-order-code">{{ order.code }}</strong> đã được ghi nhận và đang chờ chuyển khoản.</p>
+      <section class="qr-payment-card">
+        <h2>Chuyển khoản VietQR</h2>
+        {% if vietqr_bank_id and vietqr_account_no and vietqr_account_name %}
+        <img class="order-vietqr" id="orderVietQr" alt="Mã QR chuyển khoản cho đơn hàng {{ order.code }}" data-bank-id="{{ vietqr_bank_id }}" data-account-no="{{ vietqr_account_no }}" data-account-name="{{ vietqr_account_name_qr }}" data-amount="{{ order.total|floatformat:0 }}" data-memo="{{ order.code }}">
+        <p>Ngân hàng: <strong>Vietcombank</strong></p>
+        <p>Số tài khoản: <strong>{{ vietqr_account_no }}</strong></p>
+        <p>Chủ tài khoản hiển thị: <strong>{{ vietqr_account_name }}</strong></p>
+        <p>Số tiền: <strong>{{ order.total|floatformat:0 }}đ</strong></p>
+        <p>Nội dung chuyển khoản: <strong id="orderTransferMemo"></strong></p>
+        {% else %}<p>Chưa cấu hình tài khoản nhận chuyển khoản.</p>{% endif %}
+        <p class="qr-payment-note">Website chưa tự xác nhận giao dịch ngân hàng. Đơn hàng sẽ được xác nhận thanh toán sau khi shop kiểm tra giao dịch.</p>
+      </section>
+      {% else %}
       <p class="success-caption">Đơn <strong class="success-order-code">{{ order.code }}</strong> đã được ghi nhận. Nhân viên bán hàng sẽ kiểm tra tồn kho và duyệt đơn sớm nha.</p>
+      {% endif %}
       <a class="success-track-button" href="{% url 'theo_doi_don_hang' order.tracking_token %}">Theo dõi đơn hàng <span aria-hidden="true">→</span></a>
-      <p class="success-payment-note">Đơn COD chỉ được ghi nhận đã thanh toán sau khi bạn nhận hàng.</p>
+      <p class="success-payment-note">{% if order.payment_method == "online" %}Đơn chuyển khoản chỉ được xác nhận đã thanh toán sau khi shop kiểm tra giao dịch.{% else %}Đơn COD chỉ được ghi nhận đã thanh toán sau khi bạn nhận hàng.{% endif %}</p>
       {% if user.is_authenticated and not user.is_staff %}<a class="success-account-link" href="{% url 'tai_khoan' %}#orders">Xem đơn trong tài khoản</a>{% endif %}
     </section>
 
@@ -44,5 +60,15 @@
   {% include 'store/partials/footer.html' %}
   <script src="{% static 'store/cart.js' %}"></script>
   <script src="{% static 'store/order-success.js' %}"></script>
+  <script>
+    const orderQr = document.getElementById('orderVietQr');
+    if (orderQr) {
+      const transferMemo = orderQr.dataset.memo.replace(/[^A-Za-z0-9]/g, '');
+      document.getElementById('orderTransferMemo').textContent = transferMemo;
+      const qrUrl = new URL(`https://img.vietqr.io/image/${encodeURIComponent(orderQr.dataset.bankId)}-${encodeURIComponent(orderQr.dataset.accountNo)}-compact2.png`);
+      qrUrl.search = new URLSearchParams({ amount: orderQr.dataset.amount, addInfo: transferMemo, accountName: orderQr.dataset.accountName }).toString();
+      orderQr.src = qrUrl.toString();
+    }
+  </script>
 </body>
 </html>

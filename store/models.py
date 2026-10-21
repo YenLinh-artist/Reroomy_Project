@@ -135,6 +135,7 @@ class Voucher(models.Model):
         PENDING = "pending", "Chờ duyệt"
         APPROVED = "approved", "Đã duyệt"
         REJECTED = "rejected", "Từ chối"
+        CANCELLED = "cancelled", "Đã hủy"
         EXPIRED = "expired", "Hết hạn"
 
     class DiscountType(models.TextChoices):
@@ -170,6 +171,64 @@ class Voucher(models.Model):
     def save(self, *args, **kwargs):
         self.full_clean()
         return super().save(*args, **kwargs)
+
+
+class SignupVoucherGrant(models.Model):
+    """A one-use voucher assigned directly to a registered account."""
+    class GrantType(models.TextChoices):
+        SIGNUP = "signup", "Tặng khi đăng ký"
+        MONTHLY = "monthly", "Thưởng tháng"
+
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="signup_voucher_grants")
+    code = models.CharField(max_length=32)
+    display_name = models.CharField(max_length=32)
+    discount_value = models.PositiveIntegerField()
+    minimum_order = models.PositiveBigIntegerField()
+    grant_type = models.CharField(max_length=12, choices=GrantType.choices, default=GrantType.SIGNUP)
+    reward_month = models.DateField(null=True, blank=True)
+    issued_at = models.DateTimeField(default=timezone.now)
+    expires_at = models.DateTimeField()
+    used_at = models.DateTimeField(null=True, blank=True)
+    is_read = models.BooleanField(default=False)
+    redeemed_order = models.ForeignKey(Order, null=True, blank=True, on_delete=models.SET_NULL, related_name="signup_voucher_grants")
+
+    class Meta:
+        ordering = ["-issued_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "code"], name="unique_signup_voucher_per_user"),
+        ]
+
+    def __str__(self):
+        return f"{self.display_name} · {self.user}"
+
+
+class MonthlyVoucherRewardBatch(models.Model):
+    month_start = models.DateField(unique=True)
+    recipient_count = models.PositiveIntegerField(default=0)
+    processed_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ["-month_start"]
+
+    def __str__(self):
+        return f"Voucher tháng {self.month_start:%m/%Y} · {self.recipient_count} khách"
+
+
+class VoucherNotification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="voucher_notifications")
+    voucher = models.ForeignKey(Voucher, on_delete=models.CASCADE, related_name="notifications")
+    message = models.CharField(max_length=240)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "voucher"], name="unique_voucher_notification_per_user"),
+        ]
+
+    def __str__(self):
+        return f"{self.voucher.code}: {self.user}"
 
 
 class DecorConsultation(models.Model):

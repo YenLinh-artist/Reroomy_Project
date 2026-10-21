@@ -22,6 +22,11 @@
     @media(max-width:410px){.tools{gap:4px}.icon-btn:nth-child(3){display:none}.login-cta{padding:8px 10px}.hero h1{font-size:36px}.product-image{height:150px}.product-tag{font-size:9px;padding:5px 7px}.heart{width:30px;height:30px}}
   </style>
   <link rel="stylesheet" href="{% static 'store/fonts.css' %}"><link rel="stylesheet" href="{% static 'store/cart-flow.css' %}">
+  <style>
+    /* Keep the shared navigation visible during touch scrolling (including Safari). */
+    .topbar{position:-webkit-sticky;position:sticky;top:0;z-index:100;isolation:isolate;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+    .benefit:nth-child(4) strong{color:#ec7355;font-size:15px;font-weight:700}
+  </style>
 </head>
 <body>
   {% include 'store/partials/header.html' %}

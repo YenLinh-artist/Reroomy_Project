@@ -105,6 +105,14 @@ class VoucherForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         for name in ("starts_at", "ends_at"):
             self.fields[name].input_formats = ["%Y-%m-%dT%H:%M"]
+
+    def clean_code(self):
+        code = self.cleaned_data["code"].strip().upper()
+        if code in {"ROOM25", "XINH"}:
+            raise ValidationError("Mã này được dành riêng cho voucher tặng khi đăng ký tài khoản.")
+        if code.startswith("THANKYOU-"):
+            raise ValidationError("Mã này được dành riêng cho voucher thưởng cuối tháng.")
+        return code
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from .models import DanhMuc, HoSoNhanVien, SanPham

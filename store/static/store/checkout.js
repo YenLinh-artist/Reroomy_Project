@@ -1,7 +1,7 @@
 (()=>{
  const c=window.storeCart,form=document.getElementById('orderForm');if(!c||!form)return;
  const input=document.getElementById('voucherCode'),msg=document.getElementById('voucherMessage'),hiddenCode=document.getElementById('voucherCodeForOrder'),cartData=document.getElementById('cartData');
- let code=String(localStorage.getItem(c.voucherKey)||'').trim().toUpperCase();
+ let code=c.vouchers.length?String(localStorage.getItem(c.voucherKey)||'').trim().toUpperCase():'';if(!c.vouchers.length)localStorage.removeItem(c.voucherKey);
  function selected(){return c.read().filter(p=>p.selected)}
  if(code&&!c.quote(selected(),code).valid){code='';localStorage.removeItem(c.voucherKey);msg.textContent='M\u00e3 \u01b0u \u0111\u00e3i kh\u00f4ng c\u00f2n \u00e1p d\u1ee5ng cho c\u00e1c m\u00f3n \u0111ang ch\u1ecdn.';msg.className='voucher-message error'}else if(code){const initial=c.quote(selected(),code);msg.textContent=`\u0110\u00e3 \u00e1p d\u1ee5ng ${code} \u00b7 ti\u1ebft ki\u1ec7m ${c.money(initial.discount)}.`;msg.className='voucher-message success'}
  input.value=code;

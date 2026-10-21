@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth import authenticate, login, logout, update_session_auth_hash
+from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.password_validation import validate_password
 from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
@@ -390,7 +391,19 @@ def tai_khoan(request):
         defaults={"full_name": request.user.get_full_name() or request.user.username, "email": request.user.email},
     )
     if request.method == "POST":
-        if request.POST.get("action") == "submit_review":
+        action = request.POST.get("action", "save_profile")
+        if action == "change_password":
+            password_form = PasswordChangeForm(user=request.user, data=request.POST)
+            if password_form.is_valid():
+                user = password_form.save()
+                update_session_auth_hash(request, user)
+                messages.success(request, "Mật khẩu đã được cập nhật.")
+            else:
+                for errors in password_form.errors.values():
+                    for error in errors:
+                        messages.error(request, error)
+            return redirect(f"{request.path}#settings")
+        if action == "submit_review":
             order_item = get_object_or_404(
                 OrderItem.objects.select_related("order", "product"),
                 pk=request.POST.get("order_item_id"),
@@ -417,6 +430,8 @@ def tai_khoan(request):
                 )
                 messages.success(request, "Đánh giá đã lưu và đang chờ nhân viên duyệt trước khi hiển thị.")
             return redirect("tai_khoan")
+        if action != "save_profile":
+            return redirect("tai_khoan")
         full_name = request.POST.get("full_name", "").strip()[:160]
         email = request.POST.get("email", "").strip()[:254]
         phone = request.POST.get("phone", "").strip()[:30]
@@ -440,10 +455,23 @@ def tai_khoan(request):
             messages.success(request, "Đã lưu thông tin tài khoản.")
             return redirect("tai_khoan")
     products = _products_for_homepage()
-    orders = Order.objects.filter(customer=customer).prefetch_related("items__review").order_by("-created_at")[:10]
+    order_queryset = Order.objects.filter(customer=customer).prefetch_related("items__review", "items__product").order_by("-created_at")
+    orders = order_queryset[:10]
+    reviews = ProductReview.objects.filter(customer=customer).select_related("order_item", "order_item__product").order_by("-created_at")[:20]
     notifications = OrderNotification.objects.filter(order__customer=customer).select_related("order")[:20]
-    last_order = orders[0] if orders else None
-    return render(request, "store/account.html", {"customer": customer, "products": products, "orders": orders, "last_order": last_order, "order_notifications": notifications})
+    available_vouchers, _ = _active_checkout_vouchers()
+    return render(request, "store/account.html", {
+        "customer": customer,
+        "products": products,
+        "orders": orders,
+        "orders_count": order_queryset.count(),
+        "reviews": reviews,
+        "reviews_count": ProductReview.objects.filter(customer=customer).count(),
+        "order_notifications": notifications,
+        "unread_notifications_count": OrderNotification.objects.filter(order__customer=customer, is_read=False).count(),
+        "available_vouchers": available_vouchers,
+        "password_form": PasswordChangeForm(user=request.user),
+    })
 
 
 def goi_y_combo(request):

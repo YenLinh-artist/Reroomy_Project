@@ -1,1 +1,66 @@
-{% extends 'store/admin_base.html' %}{% block title %}Voucher{% endblock %}{% block content %}<div class="page-heading"><div><span class="eyebrow">KHUYẾN MÃI</span><h1>Voucher</h1><p>Mã mới ở trạng thái chờ duyệt; chỉ voucher đã duyệt, đúng hạn và đủ điều kiện mới sử dụng được.</p></div></div><div class="two-column"><section class="form-panel"><div class="panel-title"><div><h2>Tạo voucher</h2><p>Voucher sẽ chờ admin duyệt trước khi xuất bản.</p></div></div><form method="post">{% csrf_token %}<div class="form-grid">{% for field in form %}<div class="field {% if field.name == 'code' or field.name == 'minimum_order' or field.name == 'starts_at' or field.name == 'ends_at' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% for error in field.errors %}<span class="form-errors">{{ error }}</span>{% endfor %}</div>{% endfor %}</div>{% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}<button class="btn">Lưu & gửi duyệt</button></form></section><section class="table-panel"><div class="panel-title"><div><h2>Danh sách voucher</h2><p>Kiểm duyệt và theo dõi lượt dùng.</p></div></div><div class="table-wrap"><table class="admin-table"><thead><tr><th>MÃ</th><th>GIẢM</th><th>THỜI HẠN</th><th>LƯỢT DÙNG</th><th>TRẠNG THÁI</th><th></th></tr></thead><tbody>{% for voucher in vouchers %}<tr><td><strong>{{ voucher.code }}</strong><div class="subtle">Đơn tối thiểu {{ voucher.minimum_order|floatformat:0 }} ₫</div></td><td>{{ voucher.discount_value }}{% if voucher.discount_type == 'percent' %}%{% else %} ₫{% endif %}</td><td>{{ voucher.starts_at|date:'d/m/y' }} – {{ voucher.ends_at|date:'d/m/y' }}</td><td>{{ voucher.used_count }}/{{ voucher.usage_limit }}</td><td><span class="tag {% if voucher.status == 'approved' %}ok{% elif voucher.status == 'pending' %}warn{% endif %}">{{ voucher.get_status_display }}</span></td><td>{% if voucher.status == 'pending' %}<form method="post" action="{% url 'quan_tri_duyet_voucher' voucher.pk %}">{% csrf_token %}<button class="btn btn-small">Duyệt</button></form>{% endif %}</td></tr>{% empty %}<tr><td colspan="6"><div class="empty-state">Chưa có voucher.</div></td></tr>{% endfor %}</tbody></table></div></section></div>{% endblock %}
+{% extends 'store/admin_base.html' %}
+{% block title %}Quản lý voucher{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">KHUYẾN MÃI</span>
+    <h1>{% if role == 'sales' %}Voucher của tôi{% else %}Duyệt voucher{% endif %}</h1>
+    <p>{% if role == 'sales' %}Tạo voucher và theo dõi trạng thái xử lý của quản trị viên.{% else %}Xem các voucher nhân viên gửi, sau đó duyệt, từ chối hoặc hủy.{% endif %}</p>
+  </div>
+</div>
+
+<div class="{% if role == 'sales' %}two-column{% endif %}">
+  {% if role == 'sales' %}
+  <section class="form-panel">
+    <div class="panel-title"><div><h2>Tạo voucher</h2><p>Voucher sẽ ở trạng thái chờ duyệt cho đến khi quản trị viên xử lý.</p></div></div>
+    <form method="post">{% csrf_token %}
+      <div class="form-grid">
+        {% for field in form %}
+        <div class="field {% if field.name == 'code' or field.name == 'minimum_order' or field.name == 'starts_at' or field.name == 'ends_at' %}wide{% endif %}">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}<span class="form-errors">{{ error }}</span>{% endfor %}
+        </div>
+        {% endfor %}
+      </div>
+      {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+      <button class="btn" type="submit">Lưu và gửi duyệt</button>
+    </form>
+  </section>
+  {% endif %}
+
+  <section class="table-panel">
+    <div class="panel-title"><div><h2>{% if role == 'sales' %}Danh sách voucher đã tạo{% else %}Danh sách chờ xử lý và đã duyệt{% endif %}</h2><p>{% if role == 'sales' %}Chỉ bạn xem được các voucher do mình tạo.{% else %}Voucher đã duyệt sẽ được thông báo đến tài khoản khách hàng và xuất hiện ở phần thanh toán.{% endif %}</p></div></div>
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>Mã</th>{% if role == 'admin' %}<th>Nhân viên tạo</th>{% endif %}<th>Mức giảm</th><th>Thời hạn</th><th>Lượt dùng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+        <tbody>
+          {% for voucher in vouchers %}
+          <tr>
+            <td><strong>{{ voucher.code }}</strong><div class="subtle">Đơn tối thiểu {{ voucher.minimum_order|floatformat:0 }} ₫</div></td>
+            {% if role == 'admin' %}<td>{{ voucher.created_by.username|default:'Hệ thống' }}</td>{% endif %}
+            <td>{{ voucher.discount_value }}{% if voucher.discount_type == 'percent' %}%{% else %} ₫{% endif %}</td>
+            <td>{{ voucher.starts_at|date:'d/m/Y' }} – {{ voucher.ends_at|date:'d/m/Y' }}</td>
+            <td>{{ voucher.used_count }}/{{ voucher.usage_limit }}</td>
+            <td><span class="tag {% if voucher.status == 'approved' and voucher.ends_at <= now %}warn{% elif voucher.status == 'approved' %}ok{% elif voucher.status == 'pending' %}warn{% endif %}">{% if voucher.status == 'approved' and voucher.ends_at <= now %}Hết hạn{% else %}{{ voucher.get_status_display }}{% endif %}</span></td>
+            <td>
+              {% if role == 'admin' %}
+                {% if voucher.status == 'pending' or voucher.status == 'approved' %}
+                <form method="post" action="{% url 'quan_tri_duyet_voucher' voucher.pk %}" class="inline-actions">{% csrf_token %}
+                  {% if voucher.status == 'pending' and voucher.ends_at > now %}<button class="btn btn-small" type="submit" name="action" value="approve">Duyệt</button>{% endif %}
+                  {% if voucher.status == 'pending' %}<button class="btn btn-small" type="submit" name="action" value="reject">Từ chối</button>{% endif %}
+                  <button class="btn btn-small" type="submit" name="action" value="cancel">Hủy</button>
+                </form>
+                {% else %}<span class="subtle">—</span>{% endif %}
+              {% else %}<span class="subtle">Chờ quản trị viên xử lý</span>{% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="{% if role == 'admin' %}7{% else %}6{% endif %}"><div class="empty-state">{% if role == 'sales' %}Bạn chưa tạo voucher nào.{% else %}Chưa có voucher nào được gửi.{% endif %}</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>
+{% endblock %}

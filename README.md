@@ -59,6 +59,8 @@ Khách hàng có thể tạo tài khoản tại <http://127.0.0.1:8000/dang-ky/>
 
 Trong cấu hình demo hiện tại, thanh toán được hỗ trợ là COD. Khi chưa có sản phẩm trong cơ sở dữ liệu, website dùng danh sách sản phẩm minh họa. Hai mã demo `ROOM25` và `XINH10` chỉ có sẵn khi chế độ demo được bật.
 
+Các đơn COD chờ xác nhận quá 3 ngày được tự hủy và thông báo cho khách khi tác vụ `python manage.py expire_unconfirmed_orders` chạy. Trang dashboard và danh sách đơn bán hàng cũng tự chạy bước rà soát này khi nhân viên mở trang. Khi chạy demo liên tục, hãy đặt tác vụ lặp hằng ngày bằng Task Scheduler trên Windows hoặc cron trên Linux.
+
 ## Dữ liệu và lệnh kiểm tra
 
 - Django dùng SQLite tại `db.sqlite3`; dữ liệu được giữ lại giữa các lần chạy. Không xóa file này nếu muốn giữ dữ liệu demo hiện có.

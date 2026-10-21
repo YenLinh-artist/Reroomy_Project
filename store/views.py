@@ -18,11 +18,14 @@ from types import SimpleNamespace
 from datetime import date, timedelta
 import json
 import uuid
+import unicodedata
 
 from .forms import DanhMucForm, SanPhamForm, StaffAccountForm, VoucherForm
 from .models import (CustomerProfile, DanhMuc, DecorConsultation, InventoryAdjustment,
-                     Order, OrderItem, OrderNotification, ProductReview, SanPham, StaffProfile, Voucher)
-from .services import cancel_order, confirm_order, mark_cod_collected
+                     MonthlyVoucherRewardBatch, Order, OrderItem, OrderNotification, ProductReview, SanPham, SignupVoucherGrant,
+                     StaffProfile, Voucher, VoucherNotification)
+from .services import (cancel_order, confirm_order, expire_unconfirmed_cod_orders,
+                       mark_cod_collected, mark_online_payment_received)
 from .validators import validate_gmail_address
 
 from django.contrib.admin.views.decorators import staff_member_required
@@ -57,8 +60,12 @@ DEMO_ADMIN_PRODUCTS = [
     {"ten_san_pham": "Gối tựa hoa kem", "category": "Chăn gối", "gia_ban": 159000, "so_luong": 2},
 ]
 DEMO_VOUCHERS = (
-    {"code": "ROOM25", "discount_type": Voucher.DiscountType.PERCENT, "discount_value": 25, "minimum_order": 0, "usage_limit": 1000, "cap_amount": 50000},
     {"code": "XINH10", "discount_type": Voucher.DiscountType.PERCENT, "discount_value": 10, "minimum_order": 0, "usage_limit": 1000, "cap_amount": 30000},
+)
+
+SIGNUP_VOUCHERS = (
+    {"code": "ROOM25", "display_name": "Room25", "discount_value": 15, "minimum_order": 500000},
+    {"code": "XINH", "display_name": "xinh", "discount_value": 10, "minimum_order": 200000},
 )
 for item in DEMO_PRODUCTS:
     item["display_price"] = f"{item['price'] // 1000}k"
@@ -144,6 +151,7 @@ def _database_product(item):
         "variant": variants[0],
         "variants": variants,
         "stock_status": f"Còn {item.so_luong} sản phẩm" if item.so_luong else "Tạm hết hàng",
+        "stock_quantity": item.so_luong,
         "is_demo": False,
         "sold_text": "Chưa có dữ liệu bán",
         "icon_url": _product_icon_url(item.danh_muc.ten_danh_muc, item.ten_san_pham),
@@ -195,12 +203,13 @@ def _consultation_proposal_total(rows):
     return total
 
 
-def _active_checkout_vouchers():
+def _active_checkout_vouchers(user=None):
     now = timezone.now()
     vouchers = list(Voucher.objects.filter(
         status=Voucher.Status.APPROVED, starts_at__lte=now, ends_at__gt=now,
         used_count__lt=F("usage_limit"),
-    ).order_by("ends_at"))
+    ).exclude(code__in=[item["code"] for item in SIGNUP_VOUCHERS])
+        .exclude(code__startswith="THANKYOU-").order_by("ends_at"))
     if settings.ADMIN_DEMO_MODE:
         demo_codes = [item["code"] for item in DEMO_VOUCHERS]
         saved_codes = set(Voucher.objects.filter(code__in=demo_codes).values_list("code", flat=True))
@@ -208,8 +217,22 @@ def _active_checkout_vouchers():
             SimpleNamespace(**item, used_count=0)
             for item in DEMO_VOUCHERS if item["code"] not in saved_codes
         )
+    if user is not None and user.is_authenticated:
+        grants = SignupVoucherGrant.objects.filter(user=user, used_at__isnull=True, expires_at__gt=now)
+        vouchers.extend(SimpleNamespace(
+            code=grant.code,
+            display_name=grant.display_name,
+            discount_type=Voucher.DiscountType.PERCENT,
+            discount_value=grant.discount_value,
+            minimum_order=grant.minimum_order,
+            usage_limit=1,
+            used_count=0,
+            cap_amount=None,
+            ends_at=grant.expires_at,
+        ) for grant in grants)
     preview = [{
         "code": item.code,
+        "display_code": getattr(item, "display_name", item.code),
         "discount_type": item.discount_type,
         "discount_value": item.discount_value,
         "minimum_order": item.minimum_order,
@@ -227,7 +250,9 @@ def trang_chu(request):
 
 
 def gio_hang(request):
-    _, voucher_preview = _active_checkout_vouchers()
+    _, voucher_preview = _active_checkout_vouchers(request.user)
+    if not request.user.is_authenticated:
+        voucher_preview = []
     return render(request, "store/cart.html", {"voucher_preview": voucher_preview})
 
 
@@ -244,6 +269,7 @@ def thanh_toan(request):
         try:
             # Keep the optional voucher value defined even when no code was submitted.
             applied_voucher = None
+            applied_signup_grant = None
             discount = 0
             submitted = json.loads(request.POST.get("cart_data", "[]"))
             if not isinstance(submitted, list) or not submitted:
@@ -267,7 +293,7 @@ def thanh_toan(request):
                     if not product:
                         raise ValueError("Có sản phẩm không còn được bán. Vui lòng cập nhật giỏ hàng.")
                     if product.so_luong < quantity:
-                        raise ValueError(f"{product.ten_san_pham} hiện không đủ số lượng trong kho.")
+                        raise ValueError(f"{product.ten_san_pham} đã hết hàng hoặc không đủ số lượng. Hiện còn {product.so_luong} sản phẩm.")
                     name, price = product.ten_san_pham, product.gia_ban
                 else:
                     raise ValueError("Giỏ hàng có sản phẩm không hợp lệ.")
@@ -280,26 +306,57 @@ def thanh_toan(request):
             note = request.POST.get("note", "").strip()[:500]
             if not full_name or not phone or not address:
                 raise ValueError("Vui lòng nhập họ tên, số điện thoại và địa chỉ giao hàng.")
+            if not phone.isdigit() or len(phone) != 10:
+                raise ValueError("Số điện thoại phải gồm đúng 10 chữ số.")
             payment = request.POST.get("payment", Order.PaymentMethod.COD)
-            if payment != Order.PaymentMethod.COD:
-                raise ValueError("Hiện tại hệ thống chỉ hỗ trợ thanh toán khi nhận hàng (COD).")
+            if payment not in Order.PaymentMethod.values:
+                raise ValueError("Phương thức thanh toán không hợp lệ.")
             code = request.POST.get("voucher_code", "").strip().upper()
+            if code and not request.user.is_authenticated:
+                raise ValueError("Vui lòng đăng nhập để sử dụng mã voucher.")
             shipping = 0 if subtotal >= 500000 else (20000 if subtotal else 0)
             with transaction.atomic():
+                requested_stock = {}
+                for product, _, _, quantity, _ in clean_items:
+                    if product:
+                        requested_stock[product.pk] = requested_stock.get(product.pk, 0) + quantity
+                locked_products = {
+                    product.pk: product
+                    for product in SanPham.objects.select_for_update().filter(pk__in=requested_stock)
+                }
+                for product_id, quantity in requested_stock.items():
+                    product = locked_products.get(product_id)
+                    if not product or not product.is_active or product.so_luong < quantity:
+                        available = product.so_luong if product else 0
+                        name = product.ten_san_pham if product else "Sản phẩm"
+                        raise ValueError(f"{name} đã hết hàng hoặc không đủ số lượng. Hiện còn {available} sản phẩm.")
                 if code:
-                    applied_voucher = Voucher.objects.select_for_update().filter(code=code).first()
-                    if applied_voucher:
-                        if not applied_voucher.is_usable(subtotal):
-                            raise ValueError("Voucher không còn hiệu lực hoặc đơn hàng chưa đạt giá trị tối thiểu.")
-                        if applied_voucher.discount_type == Voucher.DiscountType.PERCENT:
-                            discount = (subtotal * applied_voucher.discount_value + 50) // 100
-                        else:
-                            discount = min(subtotal, applied_voucher.discount_value)
+                    applied_signup_grant = SignupVoucherGrant.objects.select_for_update().filter(
+                        user=request.user, code=code,
+                    ).first()
+                    if applied_signup_grant:
+                        if (applied_signup_grant.used_at
+                                or applied_signup_grant.expires_at <= timezone.now()):
+                            raise ValueError("Voucher cá nhân này đã dùng hoặc đã hết hạn.")
+                        if subtotal < applied_signup_grant.minimum_order:
+                            raise ValueError(f"Đơn hàng cần đạt tối thiểu {applied_signup_grant.minimum_order:,}đ để dùng voucher này.")
+                        discount = (subtotal * applied_signup_grant.discount_value + 50) // 100
+                    elif code in {item["code"] for item in SIGNUP_VOUCHERS} or code.startswith("THANKYOU-"):
+                        raise ValueError("Voucher cá nhân không thuộc tài khoản này hoặc đã hết hạn.")
                     else:
-                        demo_voucher = next((item for item in DEMO_VOUCHERS if item["code"] == code), None)
-                        if not (settings.ADMIN_DEMO_MODE and demo_voucher):
-                            raise ValueError("Mã voucher không hợp lệ hoặc chưa được duyệt.")
-                        discount = min((subtotal * demo_voucher["discount_value"] + 50) // 100, demo_voucher["cap_amount"])
+                        applied_voucher = Voucher.objects.select_for_update().filter(code=code).first()
+                        if applied_voucher:
+                            if not applied_voucher.is_usable(subtotal):
+                                raise ValueError("Voucher không còn hiệu lực hoặc đơn hàng chưa đạt giá trị tối thiểu.")
+                            if applied_voucher.discount_type == Voucher.DiscountType.PERCENT:
+                                discount = (subtotal * applied_voucher.discount_value + 50) // 100
+                            else:
+                                discount = min(subtotal, applied_voucher.discount_value)
+                        else:
+                            demo_voucher = next((item for item in DEMO_VOUCHERS if item["code"] == code), None)
+                            if not (settings.ADMIN_DEMO_MODE and demo_voucher):
+                                raise ValueError("Mã voucher không hợp lệ hoặc chưa được duyệt.")
+                            discount = min((subtotal * demo_voucher["discount_value"] + 50) // 100, demo_voucher["cap_amount"])
                 if request.user.is_authenticated:
                     customer, _ = CustomerProfile.objects.get_or_create(
                         user=request.user,
@@ -311,7 +368,7 @@ def thanh_toan(request):
                     customer = CustomerProfile.objects.create(full_name=full_name, email=email, phone=phone)
                 order = Order.objects.create(
                     code=f"RR-{uuid.uuid4().hex[:10].upper()}", customer=customer,
-                    payment_method=Order.PaymentMethod.COD,
+                    payment_method=payment,
                     payment_status=Order.PaymentStatus.PENDING,
                     total=max(0, subtotal - discount) + shipping,
                     voucher_code=code if code else "",
@@ -322,6 +379,20 @@ def thanh_toan(request):
                               quantity=quantity, variant=variant)
                     for product, name, price, quantity, variant in clean_items
                 ])
+                for product_id, quantity in requested_stock.items():
+                    product = locked_products[product_id]
+                    product.so_luong -= quantity
+                    product.save(update_fields=["so_luong"])
+                    InventoryAdjustment.objects.create(
+                        product=product,
+                        quantity_delta=-quantity,
+                        reason=f"Giữ hàng cho đơn {order.code}",
+                        actor=request.user if request.user.is_authenticated else None,
+                        order=order,
+                    )
+                if requested_stock:
+                    order.stock_reserved = True
+                    order.save(update_fields=["stock_reserved", "updated_at"])
                 OrderNotification.objects.create(
                     order=order,
                     message="Đơn hàng đã được tiếp nhận và đang chờ nhân viên bán hàng duyệt.",
@@ -329,14 +400,23 @@ def thanh_toan(request):
                 if applied_voucher:
                     applied_voucher.used_count += 1
                     applied_voucher.save(update_fields=["used_count"])
+                if applied_signup_grant:
+                    applied_signup_grant.used_at = timezone.now()
+                    applied_signup_grant.redeemed_order = order
+                    applied_signup_grant.save(update_fields=["used_at", "redeemed_order"])
             request.session["reroom_last_order_id"] = order.pk
             return redirect("dat_hang_thanh_cong")
         except (ValueError, TypeError, json.JSONDecodeError) as exc:
             messages.error(request, str(exc))
-    active_vouchers, voucher_preview = _active_checkout_vouchers()
+    active_vouchers, voucher_preview = _active_checkout_vouchers(request.user)
+    if not request.user.is_authenticated:
+        active_vouchers, voucher_preview = [], []
+    expired_signup_vouchers = SignupVoucherGrant.objects.filter(
+        user=request.user, used_at__isnull=True, expires_at__lte=timezone.now(),
+    ) if request.user.is_authenticated else SignupVoucherGrant.objects.none()
     return render(request, "store/checkout.html", {
         "checkout_defaults": defaults, "active_vouchers": active_vouchers,
-        "voucher_preview": voucher_preview,
+        "voucher_preview": voucher_preview, "expired_signup_vouchers": expired_signup_vouchers,
     })
 
 
@@ -352,7 +432,15 @@ def dat_hang_thanh_cong(request):
         if product["id"] not in purchased_ids
         and product["name"].casefold() not in purchased_names
     ][:4]
-    return render(request, "store/order_success.html", {"order": order, "suggestions": suggestions})
+    account_name = settings.VIETQR_ACCOUNT_NAME
+    account_name_qr = unicodedata.normalize("NFKD", account_name).encode("ascii", "ignore").decode("ascii").upper()
+    return render(request, "store/order_success.html", {
+        "order": order, "suggestions": suggestions,
+        "vietqr_bank_id": settings.VIETQR_BANK_ID,
+        "vietqr_account_no": settings.VIETQR_ACCOUNT_NO,
+        "vietqr_account_name": account_name,
+        "vietqr_account_name_qr": account_name_qr,
+    })
 
 
 def theo_doi_don_hang(request, tracking_token):
@@ -459,7 +547,29 @@ def tai_khoan(request):
     orders = order_queryset[:10]
     reviews = ProductReview.objects.filter(customer=customer).select_related("order_item", "order_item__product").order_by("-created_at")[:20]
     notifications = OrderNotification.objects.filter(order__customer=customer).select_related("order")[:20]
-    available_vouchers, _ = _active_checkout_vouchers()
+    voucher_notifications = list(
+        VoucherNotification.objects.filter(user=request.user).select_related("voucher").order_by("-created_at")[:20]
+    )
+    unread_voucher_notification_count = VoucherNotification.objects.filter(user=request.user, is_read=False).count()
+    if unread_voucher_notification_count:
+        VoucherNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    current_time = timezone.now()
+    voucher_grant_notifications = list(
+        SignupVoucherGrant.objects.filter(
+            user=request.user, is_read=False, expires_at__gt=current_time,
+        ).order_by("-issued_at")[:20]
+    )
+    unread_voucher_grant_count = SignupVoucherGrant.objects.filter(
+        user=request.user, is_read=False, expires_at__gt=current_time,
+    ).count()
+    if unread_voucher_grant_count:
+        SignupVoucherGrant.objects.filter(
+            user=request.user, is_read=False, expires_at__gt=current_time,
+        ).update(is_read=True)
+    available_vouchers, _ = _active_checkout_vouchers(request.user)
+    expired_signup_vouchers = SignupVoucherGrant.objects.filter(
+        user=request.user, used_at__isnull=True, expires_at__lte=current_time,
+    ).order_by("-expires_at")
     return render(request, "store/account.html", {
         "customer": customer,
         "products": products,
@@ -468,7 +578,14 @@ def tai_khoan(request):
         "reviews": reviews,
         "reviews_count": ProductReview.objects.filter(customer=customer).count(),
         "order_notifications": notifications,
-        "unread_notifications_count": OrderNotification.objects.filter(order__customer=customer, is_read=False).count(),
+        "voucher_notifications": voucher_notifications,
+        "voucher_grant_notifications": voucher_grant_notifications,
+        "expired_signup_vouchers": expired_signup_vouchers,
+        "unread_notifications_count": (
+            OrderNotification.objects.filter(order__customer=customer, is_read=False).count()
+            + unread_voucher_notification_count
+            + unread_voucher_grant_count
+        ),
         "available_vouchers": available_vouchers,
         "password_form": PasswordChangeForm(user=request.user),
     })
@@ -585,6 +702,7 @@ def chi_tiet_san_pham(request, product_key):
         ]
     return render(request, "store/product_detail.html", {
         "product": item,
+        "stock_quantity": saved.so_luong if saved else None,
         "related_products": related,
         "reviews": reviews,
         "review_count": item["reviews_count"],
@@ -622,7 +740,21 @@ def dang_ky(request):
                         for error in exc.messages:
                             messages.error(request, error)
                     else:
-                        user = User.objects.create_user(username=username, email=email, password=password)
+                        with transaction.atomic():
+                            user = User.objects.create_user(username=username, email=email, password=password)
+                            issued_at = timezone.now()
+                            SignupVoucherGrant.objects.bulk_create([
+                                SignupVoucherGrant(
+                                    user=user,
+                                    code=item["code"],
+                                    display_name=item["display_name"],
+                                    discount_value=item["discount_value"],
+                                    minimum_order=item["minimum_order"],
+                                    issued_at=issued_at,
+                                    expires_at=issued_at + timedelta(days=2),
+                                )
+                                for item in SIGNUP_VOUCHERS
+                            ])
                         login(request, user)
                         messages.success(request, "T?o t?i kho?n th?nh c?ng. Ch?o m?ng b?n ??n Re:Room!")
                         return redirect("trang_chu")
@@ -960,6 +1092,9 @@ def quan_tri_cap_nhat_don(request, order_id):
         elif action == "collect_cod":
             mark_cod_collected(order.pk, request.user)
             notification_text = f"Re:Room đã ghi nhận thanh toán COD cho đơn hàng {order.code}."
+        elif action == "confirm_online_payment":
+            mark_online_payment_received(order.pk, request.user)
+            notification_text = f"Đã ghi nhận chuyển khoản cho đơn hàng {order.code}."
         else:
             raise ValidationError("Thao tác không hợp lệ với trạng thái đơn hiện tại.")
         messages.success(request, "Đã cập nhật đơn hàng.")
@@ -977,8 +1112,14 @@ def quan_tri_khach_hang(request):
         spend=Sum("orders__total", filter=Q(orders__status=Order.Status.COMPLETED, orders__payment_status=Order.PaymentStatus.PAID)),
     ).order_by("-spend")
     query = request.GET.get("q", "").strip()
+    signup_grants = SignupVoucherGrant.objects.select_related("user", "redeemed_order").order_by("-issued_at")
+    monthly_reward_batches = MonthlyVoucherRewardBatch.objects.order_by("-month_start")[:6]
     if query:
         customers = customers.filter(Q(full_name__icontains=query) | Q(email__icontains=query) | Q(phone__icontains=query))
+        signup_grants = signup_grants.filter(
+            Q(user__username__icontains=query) | Q(user__email__icontains=query)
+            | Q(code__icontains=query) | Q(display_name__icontains=query)
+        )
     demo_preview = bool(settings.ADMIN_DEMO_MODE and not customers.exists())
     if demo_preview:
         customers = [
@@ -990,34 +1131,91 @@ def quan_tri_khach_hang(request):
         if query:
             needle = query.casefold()
             customers = [customer for customer in customers if needle in " ".join((customer.full_name, customer.email, customer.phone)).casefold()]
-    return render(request, "store/admin_customers.html", {"customers": customers, "query": query, "demo_preview": demo_preview})
+    return render(request, "store/admin_customers.html", {
+        "customers": customers, "query": query, "demo_preview": demo_preview,
+        "signup_grants": signup_grants, "monthly_reward_batches": monthly_reward_batches,
+        "now": timezone.now(),
+    })
 
 
-@_roles_required(StaffProfile.Role.ADMIN)
+@_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
 def quan_tri_vouchers(request):
+    role = StaffProfile.Role.ADMIN if request.user.is_superuser else request.user.staff_profile.role
     form = VoucherForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        voucher = form.save(commit=False)
-        voucher.created_by = request.user
-        voucher.status = Voucher.Status.PENDING
-        voucher.save()
-        messages.success(request, "Voucher đã tạo và đang chờ duyệt.")
-        return redirect("quan_tri_vouchers")
-    return render(request, "store/admin_vouchers.html", {"form": form, "vouchers": Voucher.objects.order_by("-starts_at")})
+    if request.method == "POST":
+        if role != StaffProfile.Role.SALES:
+            return HttpResponseForbidden("Chỉ nhân viên bán hàng được gửi voucher để duyệt.")
+        if form.is_valid():
+            voucher = form.save(commit=False)
+            voucher.created_by = request.user
+            voucher.status = Voucher.Status.PENDING
+            voucher.save()
+            messages.success(request, "Voucher đã gửi admin duyệt.")
+            return redirect("quan_tri_vouchers")
+    vouchers = Voucher.objects.select_related("created_by").order_by("-pk")
+    if role == StaffProfile.Role.SALES:
+        vouchers = vouchers.filter(created_by=request.user)
+    else:
+        vouchers = vouchers.filter(created_by__staff_profile__role=StaffProfile.Role.SALES)
+    return render(request, "store/admin_vouchers.html", {
+        "form": form,
+        "vouchers": vouchers,
+        "role": role,
+        "now": timezone.now(),
+    })
 
 
 @_roles_required(StaffProfile.Role.ADMIN)
 def quan_tri_duyet_voucher(request, voucher_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    voucher = get_object_or_404(Voucher, pk=voucher_id)
-    if voucher.status != Voucher.Status.PENDING or voucher.ends_at <= timezone.now():
-        messages.error(request, "Chỉ duyệt voucher đang chờ và còn hạn.")
-    else:
-        voucher.status = Voucher.Status.APPROVED
-        voucher.approved_by = request.user
-        voucher.save(update_fields=["status", "approved_by"])
-        messages.success(request, "Voucher đã được duyệt.")
+    action = request.POST.get("action", "approve")
+    with transaction.atomic():
+        voucher = get_object_or_404(
+            Voucher.objects.select_for_update(), pk=voucher_id,
+            created_by__staff_profile__role=StaffProfile.Role.SALES,
+        )
+        now = timezone.now()
+        if action == "approve":
+            if voucher.status != Voucher.Status.PENDING or voucher.ends_at <= now:
+                messages.error(request, "Chỉ duyệt voucher đang chờ và còn hạn.")
+            else:
+                voucher.status = Voucher.Status.APPROVED
+                voucher.approved_by = request.user
+                voucher.save(update_fields=["status", "approved_by"])
+                customers = User.objects.filter(is_active=True, is_staff=False, is_superuser=False)
+                customer_ids = customers.exclude(staff_profile__isnull=False).values_list("pk", flat=True)
+                VoucherNotification.objects.bulk_create([
+                    VoucherNotification(
+                        user_id=user_id,
+                        voucher=voucher,
+                        message=f"Voucher {voucher.code} đã được duyệt và có thể sử dụng khi thanh toán.",
+                    ) for user_id in customer_ids
+                ], ignore_conflicts=True)
+                messages.success(request, "Voucher đã duyệt và thông báo đã gửi đến tài khoản khách hàng.")
+        elif action == "reject":
+            if voucher.status != Voucher.Status.PENDING:
+                messages.error(request, "Chỉ từ chối được voucher đang chờ duyệt.")
+            else:
+                voucher.status = Voucher.Status.REJECTED
+                voucher.approved_by = request.user
+                voucher.save(update_fields=["status", "approved_by"])
+                messages.success(request, "Đã từ chối voucher.")
+        elif action == "cancel":
+            if voucher.status not in (Voucher.Status.PENDING, Voucher.Status.APPROVED):
+                messages.error(request, "Voucher này không thể hủy ở trạng thái hiện tại.")
+            else:
+                was_approved = voucher.status == Voucher.Status.APPROVED
+                voucher.status = Voucher.Status.CANCELLED
+                voucher.save(update_fields=["status"])
+                if was_approved:
+                    VoucherNotification.objects.filter(voucher=voucher).update(
+                        message=f"Voucher {voucher.code} đã bị hủy và không thể sử dụng nữa.",
+                        is_read=False,
+                    )
+                messages.success(request, "Đã hủy voucher.")
+        else:
+            messages.error(request, "Thao tác voucher không hợp lệ.")
     return redirect("quan_tri_vouchers")
 
 
@@ -1487,6 +1685,7 @@ def cskh_duyet_don_hang(request, order_id):
 def ban_hang_dashboard(request):
     if not _has_sales_access(request.user):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    expire_unconfirmed_cod_orders()
     orders = Order.objects.select_related("customer").order_by("-created_at")
     return render(request, "store/sales_dashboard.html", {
         "product_count": SanPham.objects.filter(is_active=True).count(),
@@ -1501,6 +1700,7 @@ def ban_hang_dashboard(request):
 def ban_hang_don_hang(request):
     if not _has_sales_access(request.user):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
+    expire_unconfirmed_cod_orders()
     orders = Order.objects.select_related("customer").prefetch_related("items").order_by("-created_at")
     search = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
@@ -1547,6 +1747,9 @@ def ban_hang_cap_nhat_don(request, order_id):
         elif action == "collect_cod":
             mark_cod_collected(order.pk, request.user)
             notification_text = f"Re:Room \u0111\u00e3 ghi nh\u1eadn thu COD cho \u0111\u01a1n {order.code}."
+        elif action == "confirm_online_payment":
+            mark_online_payment_received(order.pk, request.user)
+            notification_text = f"\u0110\u00e3 ghi nh\u1eadn chuy\u1ec3n kho\u1ea3n m\u00f4 ph\u1ecfng cho \u0111\u01a1n {order.code}."
         else:
             raise ValidationError("Thao t\u00e1c kh\u00f4ng h\u1ee3p l\u1ec7 v\u1edbi tr\u1ea1ng th\u00e1i \u0111\u01a1n hi\u1ec7n t\u1ea1i.")
         messages.success(request, "\u0110\u00e3 c\u1eadp nh\u1eadt \u0111\u01a1n h\u00e0ng.")
@@ -1781,13 +1984,17 @@ def quan_tri_trang_thai_nhan_vien(request, employee_id):
     return redirect("quan_tri_nhan_vien")
 
 
-@staff_member_required(login_url="dang_nhap")
+@_roles_required(StaffProfile.Role.ADMIN)
 def quan_tri_dat_lai_mat_khau_nhan_vien(request, employee_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    if not request.user.is_superuser:
-        return HttpResponseForbidden("Chỉ quản trị viên cấp cao mới được đặt lại mật khẩu nhân viên.")
-    employee = get_object_or_404(User, pk=employee_id, is_staff=True, is_superuser=False)
+    employee_profile = get_object_or_404(
+        StaffProfile.objects.select_related("user"),
+        user_id=employee_id,
+        user__is_staff=True,
+        user__is_superuser=False,
+    )
+    employee = employee_profile.user
     form = NhanVienPasswordForm(employee, request.POST)
     if form.is_valid():
         form.save()

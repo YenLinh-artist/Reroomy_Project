@@ -7,7 +7,7 @@
 .topbar .cart-count{right:-8px;top:-5px;min-width:19px;height:19px;padding:0 4px;align-items:center;justify-content:center;border:2px solid #ffc1d5;border-radius:999px;background:#fa653e;color:#fff;font:700 10px/1 var(--font-primary);white-space:nowrap;z-index:2}
 .cart-drawer #checkoutButton{font-family:var(--font-primary);font-size:16px;font-weight:700;letter-spacing:normal;text-transform:none}
 
-.topbar{position:sticky;top:0;z-index:20;background:#ffc1d5ed;backdrop-filter:blur(14px);border-bottom:1px solid #ffe0e5}
+.topbar{position:-webkit-sticky;position:sticky;top:0;z-index:100;isolation:isolate;background:#ffc1d5ed;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid #ffe0e5}
 .topbar .nav{height:72px;max-width:1380px;margin:auto;padding:0 28px;display:flex;align-items:center;gap:32px}
 .topbar .brand{font-family:Phudu,sans-serif;font-size:25px;font-weight:800;color:#ff2879;white-space:nowrap;transition:transform .2s,color .2s}
 .topbar .brand:hover{color:#e52b70;transform:translateY(-1px)}

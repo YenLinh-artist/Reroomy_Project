@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -25,6 +26,11 @@ SECRET_KEY = 'django-insecure-di)6$b-6rdmg_rh3$h1_epc+al&a)cqpp-tkw^fwvi$c*@vz4a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 ADMIN_DEMO_MODE = DEBUG
+
+# VietQR demo recipient details; override these values through environment variables.
+VIETQR_BANK_ID = os.environ.get("VIETQR_BANK_ID") or "970436"
+VIETQR_ACCOUNT_NO = os.environ.get("VIETQR_ACCOUNT_NO") or "23050126"
+VIETQR_ACCOUNT_NAME = os.environ.get("VIETQR_ACCOUNT_NAME") or "Công Ty TNHH nội thất Reroomy"
 
 ALLOWED_HOSTS = []
 

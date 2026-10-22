@@ -5,3 +5,33 @@
 .room-plan-canvas-scroll{max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}.room-plan-canvas-scroll canvas{display:block;max-width:100%;height:auto}
 .room-plan-canvas-scroll{width:100%;max-width:100%;overflow-x:auto;overscroll-behavior-x:contain}.profile-order-demo-note{margin:18px 0 8px;color:#9a827c;font-size:12px}.profile-order-demo{border-style:dashed;background:#fffdfb}@media(max-width:600px){.room-plan-canvas-scroll canvas{width:720px;max-width:none;height:auto}}
 .order-image-placeholder{position:relative;overflow:hidden}.order-image-placeholder>img{display:block;width:100%;height:100%;object-fit:cover}.order-image-placeholder.has-image>span,.order-image-placeholder.has-image>small{display:none}
+
+/* Re:Room account typography and line icon polish. */
+.account-body{--account-ink:#3f3340;--account-text:#65545f;--account-muted:#88767e;--account-soft:#a28d92;--account-pink:#d6537c;--account-pink-deep:#a93f67;--account-coral:#d87c68;--account-border:#efd9dc;margin:0;padding-top:0;background:#fffaf8;color:var(--account-text);font-family:var(--font-body),'Pathway Extreme',sans-serif}
+.account-body>.topbar{top:0;margin:0}
+.account-body .profile-identity h1,.account-body .panel-heading h2,.account-body .order-item-details h3{font-family:var(--font-primary),'Phudu',sans-serif;color:var(--account-ink)}
+.account-body .profile-kicker,.account-body .account-eyebrow{font-family:var(--font-accent),'Playfair Display',serif;font-style:italic;font-weight:600;letter-spacing:.08em;color:var(--account-pink)}
+.account-body .profile-member,.account-body .panel-subtitle{color:var(--account-muted)}
+.account-body .profile-email,.account-body .shortcut-card small,.account-body .account-sidebar-help p{color:var(--account-soft)}
+.account-body .account-sidebar-title{color:#9b7f83}
+.account-body .account-nav-link{color:#6e5a64}
+.account-body .account-nav-link:hover,.account-body .account-nav-link.is-active{color:var(--account-pink-deep)}
+.account-body .account-nav-link.is-active{background:#fff0f3}
+.account-body .account-nav-icon{font-size:0;color:#cf6682}
+.account-nav-icon svg,.shortcut-icon svg,.shortcut-arrow svg,.account-sidebar-help>span svg,.profile-edit-link svg,.payment-method-icon svg{display:block;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.account-nav-icon svg{width:19px;height:19px}
+.account-sidebar-help>span svg{width:19px;height:19px}
+.profile-edit-link svg{width:16px;height:16px}
+.shortcut-icon svg{width:19px;height:19px}
+.shortcut-arrow svg{width:15px;height:15px}
+.payment-method-icon svg{width:21px;height:21px}
+.account-body .shortcut-icon{color:#d6537c}
+.account-body .shortcut-voucher .shortcut-icon{color:#cf7e55}
+.account-body .shortcut-arrow{display:grid;place-items:center;color:#b89092}
+.account-body .account-messages .success{color:#4f8069}
+.account-body .profile-edit-link{background:#ffedf1;color:var(--account-pink-deep)}
+.account-body .account-panel,.account-body .profile-hero,.account-body .shortcut-card{border-color:var(--account-border)}
+.account-body .text-link,.account-body .account-sidebar-help a,.account-body .profile-order-foot>a{color:var(--account-pink-deep)}
+.account-body .room-plan-caption button{display:grid;place-items:center;cursor:pointer}
+.account-body .room-plan-caption button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.account-body :focus-visible{outline:3px solid #d6537c55;outline-offset:3px}

@@ -19,14 +19,14 @@
     <aside class="account-sidebar" aria-label="Điều hướng tài khoản">
       <p class="account-sidebar-title">TÀI KHOẢN CỦA BẠN</p>
       <nav class="account-side-nav">
-        <a class="account-nav-link is-active" href="#overview" data-account-nav><span class="account-nav-icon" aria-hidden="true">⌂</span>Trang cá nhân</a>
-        <a class="account-nav-link" href="#orders" data-account-nav><span class="account-nav-icon" aria-hidden="true">▤</span>Đơn hàng của tôi <b>{{ orders_count }}</b></a>
-        <a class="account-nav-link" href="#payments" data-account-nav><span class="account-nav-icon" aria-hidden="true">▣</span>Thanh toán</a>
-        <a class="account-nav-link" href="#notifications" data-account-nav><span class="account-nav-icon" aria-hidden="true">♧</span>Thông báo{% if unread_notifications_count %}<b>{{ unread_notifications_count }}</b>{% endif %}</a>
-        <a class="account-nav-link" href="#settings" data-account-nav><span class="account-nav-icon" aria-hidden="true">⚙</span>Cài đặt</a>
+        <a class="account-nav-link is-active" href="#overview" data-account-nav><span class="account-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m3 10 9-7 9 7"/><path d="M5 9v12h14V9M9 21v-7h6v7"/></svg></span>Trang cá nhân</a>
+        <a class="account-nav-link" href="#orders" data-account-nav><span class="account-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h7M9 12h7M9 16h5"/></svg></span>Đơn hàng của tôi <b>{{ orders_count }}</b></a>
+        <a class="account-nav-link" href="#payments" data-account-nav><span class="account-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span>Thanh toán</a>
+        <a class="account-nav-link" href="#notifications" data-account-nav><span class="account-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M18 9a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/><path d="M10 21h4"/></svg></span>Thông báo{% if unread_notifications_count %}<b>{{ unread_notifications_count }}</b>{% endif %}</a>
+        <a class="account-nav-link" href="#settings" data-account-nav><span class="account-nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.8 3.1-.2-.1a1.7 1.7 0 0 0-1.8.2l-.2.1h-3.6l-.1-.2a1.7 1.7 0 0 0-1.5-1.1 1.7 1.7 0 0 0-1.6.8l-.1.2-3.1-1.8.1-.2a1.7 1.7 0 0 0-.2-1.8l-.1-.2v-3.6l.2-.1a1.7 1.7 0 0 0 1.1-1.5 1.7 1.7 0 0 0-.8-1.6l-.2-.1 1.8-3.1.2.1a1.7 1.7 0 0 0 1.8-.2l.2-.1h3.6l.1.2a1.7 1.7 0 0 0 1.5 1.1 1.7 1.7 0 0 0 1.6-.8l.1-.2 3.1 1.8-.1.2a1.7 1.7 0 0 0 .2 1.8l.1.2v3.6z"/></svg></span>Cài đặt</a>
       </nav>
       <div class="account-sidebar-help">
-        <span aria-hidden="true">♡</span>
+        <span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.8 8.8c0 5-8.8 11-8.8 11s-8.8-6-8.8-11A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z"/><path d="M8 12h2l1-2 2 4 1-2h2"/></svg></span>
         <strong>Cần tụi mình hỗ trợ?</strong>
         <p>Re:Room luôn sẵn sàng giúp bạn chọn món decor hợp với căn phòng.</p>
         <a href="{% url 'ho_tro_khach_hang' %}">Nhắn tụi mình <span aria-hidden="true">→</span></a>
@@ -45,15 +45,15 @@
           <p class="profile-member">Thành viên Re:Room <span>✦</span></p>
           <p class="profile-email">{{ request.user.email|default:customer.email|default:"Thêm email để nhận cập nhật đơn hàng" }}</p>
         </div>
-        <a class="profile-edit-link" href="#personal-info"><span aria-hidden="true">✎</span> Chỉnh sửa hồ sơ</a>
+        <a class="profile-edit-link" href="#personal-info"><span aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m15 5 4 4M4 20l4.5-1 11-11a2.1 2.1 0 0 0-3-3l-11 11L4 20Z"/></svg></span> Chỉnh sửa hồ sơ</a>
       </section>
 
       <nav class="account-shortcuts" aria-label="Truy cập nhanh">
-        <a class="shortcut-card shortcut-voucher" href="#vouchers"><span class="shortcut-icon" aria-hidden="true">♧</span><span><b>Kho ưu đãi</b><small>{{ available_vouchers|length }} mã có thể dùng</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></a>
-        <a class="shortcut-card" href="#favorites"><span class="shortcut-icon" aria-hidden="true">♥</span><span><b>Đã lưu</b><small>Món decor yêu thích</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></a>
-        <a class="shortcut-card" href="#reviews"><span class="shortcut-icon" aria-hidden="true">★</span><span><b>Đánh giá</b><small>{{ reviews_count }} đánh giá</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></a>
-        <a class="shortcut-card" href="#personal-info"><span class="shortcut-icon" aria-hidden="true">◎</span><span><b>Thông tin cá nhân</b><small>Hồ sơ nhận hàng</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></a>
-        <a class="shortcut-card" href="#my-room"><span class="shortcut-icon" aria-hidden="true">⌂</span><span><b>Độ rộng phòng</b><small>Phác thảo không gian</small></span><span class="shortcut-arrow" aria-hidden="true">→</span></a>
+        <a class="shortcut-card shortcut-voucher" href="#vouchers"><span class="shortcut-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 7h18v4a2 2 0 0 0 0 4v4H3v-4a2 2 0 0 0 0-4V7Z"/><path d="M13 8v2M13 14v2"/></svg></span><span><b>Kho ưu đãi</b><small>{{ available_vouchers|length }} mã có thể dùng</small></span><span class="shortcut-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+        <a class="shortcut-card" href="#favorites"><span class="shortcut-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M20.8 8.8c0 5-8.8 11-8.8 11s-8.8-6-8.8-11A4.8 4.8 0 0 1 12 6.2a4.8 4.8 0 0 1 8.8 2.6Z"/></svg></span><span><b>Đã lưu</b><small>Món decor yêu thích</small></span><span class="shortcut-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+        <a class="shortcut-card" href="#reviews"><span class="shortcut-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6.1.9-4.4 4.3 1 6.1-5.4-2.9-5.4 2.9 1-6.1-4.4-4.3 6.1-.9L12 3Z"/></svg></span><span><b>Đánh giá</b><small>{{ reviews_count }} đánh giá</small></span><span class="shortcut-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+        <a class="shortcut-card" href="#personal-info"><span class="shortcut-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 21v-2a7 7 0 0 1 14 0v2H5Z"/></svg></span><span><b>Thông tin cá nhân</b><small>Hồ sơ nhận hàng</small></span><span class="shortcut-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
+        <a class="shortcut-card" href="#my-room"><span class="shortcut-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 20V5h16v15M8 20v-5h8v5M4 10h5M15 10h5"/></svg></span><span><b>Độ rộng phòng</b><small>Phác thảo không gian</small></span><span class="shortcut-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></a>
       </nav>
 
       <section class="account-panel room-panel" id="my-room">
@@ -76,7 +76,7 @@
           <button class="primary-link" type="submit">Lưu bản phác thảo</button>
         </form>
         <div class="room-plan-wrap">
-          <div class="room-plan-caption"><span><b>Sơ đồ bố trí tham khảo</b><small>Kéo giường, bàn, tủ hoặc thảm để thử vị trí</small></span><button id="expandPlan" type="button" aria-label="Mở sơ đồ toàn màn hình">⛶</button></div>
+          <div class="room-plan-caption"><span><b>Sơ đồ bố trí tham khảo</b><small>Kéo giường, bàn, tủ hoặc thảm để thử vị trí</small></span><button id="expandPlan" type="button" aria-label="Mở sơ đồ toàn màn hình"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5M16 3h5v5M3 16v5h5M21 16v5h-5"/></svg></button></div>
           <div class="room-plan-canvas-scroll"><canvas id="roomPlan" width="900" height="540" aria-label="Bản vẽ mặt bằng phòng trọ 2D có thể kéo thả nội thất"></canvas></div>
           <div class="room-plan-footer"><span class="room-save-state" id="roomSaveState" aria-live="polite">Kích thước mẫu được điền sẵn để bạn bắt đầu nhanh.</span><div class="room-plan-actions"><button id="exportPlan" type="button" class="secondary-link">Tải sơ đồ PNG</button><a id="roomComboLink" class="secondary-link" href="{% url 'goi_y_combo' %}?width=3&amp;depth=4">Gợi ý decor theo phòng</a></div></div>
         </div>
@@ -139,7 +139,7 @@
 
       <section class="account-panel" id="payments">
         <div class="panel-heading"><div><p class="account-eyebrow">PHƯƠNG THỨC THANH TOÁN</p><h2>Thanh toán</h2><p class="panel-subtitle">Theo dõi tình trạng thanh toán của các đơn đã đặt.</p></div></div>
-        <div class="payment-method-card"><span class="payment-method-icon" aria-hidden="true">▣</span><div><strong>Thanh toán khi nhận hàng (COD)</strong><p>Bạn thanh toán trực tiếp khi đơn được giao đến.</p></div><span class="payment-active">Đang hỗ trợ</span></div>
+        <div class="payment-method-card"><span class="payment-method-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M7 15h4"/></svg></span><div><strong>Thanh toán khi nhận hàng (COD)</strong><p>Bạn thanh toán trực tiếp khi đơn được giao đến.</p></div><span class="payment-active">Đang hỗ trợ</span></div>
         {% if orders %}<div class="payment-history"><h3>Lịch sử thanh toán gần đây</h3>{% for order in orders %}<article><span><b>{{ order.code }}</b><small>{{ order.created_at|date:"d/m/Y" }} · {{ order.get_payment_method_display }}</small></span><strong>{{ order.total|floatformat:0 }}₫</strong><em class="payment-status status-{{ order.payment_status }}">{{ order.get_payment_status_display }}</em></article>{% endfor %}</div>{% else %}<p class="account-empty-note">Lịch sử thanh toán sẽ hiển thị tại đây sau đơn hàng đầu tiên.</p>{% endif %}
       </section>
 
@@ -167,7 +167,6 @@
 
   {% include 'store/partials/footer.html' %}
   {{ products|json_script:"account-products-json" }}
-  <script src="{% static 'store/site-chrome.js' %}"></script>
   <script src="{% static 'store/customer-account.js' %}"></script>
 </body>
 </html>

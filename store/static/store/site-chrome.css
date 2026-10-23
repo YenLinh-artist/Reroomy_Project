@@ -1,5 +1,6 @@
 /* Shared customer navigation and footer for Re:Room pages. */
 /* Keep the shared navigation consistent on every route. */
+html,body{margin:0;padding:0}
 .topbar a{color:inherit;text-decoration:none}
 .account-body .topbar #searchToggle,
 .account-body .topbar #notifyToggle,
@@ -93,3 +94,13 @@ footer#about .copyright{max-width:1280px;margin:35px auto 0;color:#9d766b;font-s
 .topbar .account-menu{top:calc(100% + 18px)}
 .topbar .account.is-open .avatar{box-shadow:0 0 0 3px #fff,0 0 0 5px #df7292}
 .topbar .searchbar.open{padding-top:8px}
+
+/* Match the image icons to the inline heart and keep every control equally easy to tap. */
+.topbar .icon-btn{width:40px;height:40px;color:#ec6d38}
+.topbar .icon-btn img,.topbar .icon-btn svg{width:24px;height:24px;max-width:24px;max-height:24px}
+.topbar .icon-btn img{filter:invert(57%) sepia(71%) saturate(870%) hue-rotate(331deg) brightness(96%) contrast(92%)}
+.topbar .icon-btn:hover img{filter:invert(28%) sepia(53%) saturate(1370%) hue-rotate(295deg) brightness(92%)}
+.topbar .icon-btn[aria-expanded="true"] img{filter:invert(28%) sepia(53%) saturate(1370%) hue-rotate(295deg) brightness(92%)}
+.topbar .icon-btn svg{stroke-width:2}
+@media(max-width:700px){.topbar .icon-btn{width:36px;height:36px}}
+@media(max-width:430px){.topbar .icon-btn img,.topbar .icon-btn svg{width:21px;height:21px;max-width:21px;max-height:21px}}

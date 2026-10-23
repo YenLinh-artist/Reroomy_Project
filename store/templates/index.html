@@ -27,6 +27,33 @@
     .topbar{position:-webkit-sticky;position:sticky;top:0;z-index:100;isolation:isolate;-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
     .benefit:nth-child(4) strong{color:#ec7355;font-size:15px;font-weight:700}
   </style>
+  <style>
+    /* Keep homepage header icons aligned with the shared customer navigation. */
+    html,body{margin:0;padding:0}
+    .topbar{top:0;margin:0}
+    .topbar .icon-btn{width:40px;height:40px;border-radius:12px;color:#ec6d38;cursor:pointer;-webkit-tap-highlight-color:transparent}
+    .topbar .icon-btn img,.topbar .icon-btn svg{display:block;width:24px;height:24px;max-width:24px;max-height:24px;object-fit:contain}
+    .topbar .icon-btn img{filter:invert(57%) sepia(71%) saturate(870%) hue-rotate(331deg) brightness(96%) contrast(92%)}
+    .topbar .icon-btn:hover img{filter:invert(28%) sepia(53%) saturate(1370%) hue-rotate(295deg) brightness(92%)}
+    .topbar .icon-btn[aria-expanded="true"] img{filter:invert(28%) sepia(53%) saturate(1370%) hue-rotate(295deg) brightness(92%)}
+    .topbar .icon-btn svg{stroke-width:2}
+    .topbar .icon-btn:focus-visible{outline:3px solid #d94f7b66;outline-offset:3px}
+    .topbar .icon-btn:active{transform:scale(.94)}
+    .drawer-backdrop{position:fixed;inset:var(--cart-drawer-top,77px) 0 0;background:#1d13144a;z-index:101;opacity:0;visibility:hidden;transition:opacity .25s,visibility .25s}
+    .drawer-backdrop.open{opacity:1;visibility:visible}
+    .cart-drawer{position:fixed;right:0;top:var(--cart-drawer-top,77px);height:calc(100dvh - var(--cart-drawer-top,77px));width:min(420px,100vw);max-height:calc(100dvh - var(--cart-drawer-top,77px));box-sizing:border-box;overflow:hidden;background:#fffaf6;z-index:102;padding:22px 24px 24px;transform:translateX(105%);transition:transform .3s cubic-bezier(.2,.75,.25,1);box-shadow:-18px 0 40px #24131620;display:flex;flex-direction:column;border-left:1px solid #f3ded8}
+    .cart-drawer.open{transform:translateX(0)}
+    .drawer-head{flex:none;gap:16px;padding-bottom:16px;border-bottom:1px solid #f0e3df}
+    .drawer-head h2{font:700 23px 'Playfair Display',Georgia,serif;color:#d65c82}
+    .drawer-close{width:38px;height:38px;display:grid;place-items:center;border-radius:50%;font:400 25px/1 'DM Sans',sans-serif;color:#8d7772;transition:background .18s,color .18s,transform .18s}
+    .drawer-close:hover{background:#fff0f3;color:#c84d78;transform:rotate(90deg)}
+    .cart-list{min-height:0;padding:14px 2px;overscroll-behavior:contain}
+    .cart-empty{min-height:100%;display:grid;place-content:center;padding:34px 14px;color:#a68e86;line-height:1.55}
+    .cart-total{flex:none;margin-top:auto;padding:16px 0;border-top:1px solid #efdfda;color:#463633}
+    .cart-drawer #checkoutButton{flex:none;width:100%;min-height:52px;display:flex;justify-content:center;align-items:center;text-align:center;border-radius:13px}
+    @media(max-width:760px){.topbar .icon-btn{width:36px;height:36px}.topbar .icon-btn img,.topbar .icon-btn svg{width:22px;height:22px;max-width:22px;max-height:22px}.cart-drawer{padding:18px 18px 20px}}
+    @media(max-width:430px){.topbar .icon-btn img,.topbar .icon-btn svg{width:21px;height:21px;max-width:21px;max-height:21px}.cart-drawer{padding:16px 16px 18px}}
+  </style>
 </head>
 <body>
   {% include 'store/partials/header.html' %}

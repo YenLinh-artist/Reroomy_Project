@@ -1,0 +1,71 @@
+{% load static %}<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Đề xuất sản phẩm · Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'store/staff-typography.css' %}">
+  <link rel="stylesheet" href="{% static 'store/staff-proposals.css' %}">
+</head>
+<body class="staff-typography staff-proposals-shell">
+  <header class="staff-proposals-topbar">
+    <a class="staff-proposals-brand" href="{{ workspace_url }}">RE:ROOM <span>TEAM SPACE</span></a>
+    <nav aria-label="Điều hướng nhân viên">
+      <a href="{{ workspace_url }}">{{ workspace_label }}</a>
+      {% if role == 'sales' %}
+        <a href="{% url 'ban_hang_san_pham' %}">Tra cứu sản phẩm</a>
+        <a href="{% url 'ban_hang_don_hang' %}">Đơn hàng</a>
+      {% else %}
+        <a href="{% url 'cskh_don_hang' %}">Tra cứu đơn hàng</a>
+      {% endif %}
+      <a href="{% url 'staff_chat' %}">Chat nội bộ</a>
+      <a class="active" href="{% if role == 'sales' %}{% url 'ban_hang_de_xuat_san_pham' %}{% else %}{% url 'cskh_de_xuat_san_pham' %}{% endif %}">Đề xuất sản phẩm</a>
+    </nav>
+    <div class="staff-proposals-identity">{{ request.user.get_full_name|default:request.user.username }}<small>{{ staff_role }}</small></div>
+  </header>
+  <main class="staff-proposals-main">
+    <section class="staff-proposals-heading">
+      <div><span class="staff-proposals-eyebrow">GỬI ADMIN XEM XÉT</span><h1>Đề xuất sản phẩm</h1><p>Gửi mặt hàng mới để admin kiểm tra trước khi thêm vào kho và cửa hàng.</p></div>
+      <div class="staff-proposals-review"><strong>Quy trình duyệt</strong><span>Chưa được duyệt thì kho và cửa hàng vẫn giữ nguyên.</span></div>
+    </section>
+    {% if messages %}{% for message in messages %}<div class="staff-proposals-alert {{ message.tags }}">{{ message }}</div>{% endfor %}{% endif %}
+    <section class="staff-proposals-form-card">
+      <div class="staff-proposals-card-heading"><span class="staff-proposals-step">01</span><div><h2>Thông tin mặt hàng</h2><p>Nhập thông tin rõ ràng để admin duyệt nhanh hơn.</p></div></div>
+      <form method="post" enctype="multipart/form-data" class="staff-proposals-form">
+        {% csrf_token %}
+        <div class="staff-proposals-fields">
+          {% for field in form %}
+            <div class="staff-proposals-field{% if field.name == 'mo_ta' or field.name == 'hinh_anh' %} wide{% endif %}">
+              {{ field.label_tag }}{{ field }}
+              {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+              {% for error in field.errors %}<span class="field-error">{{ error }}</span>{% endfor %}
+            </div>
+          {% endfor %}
+        </div>
+        {% if form.non_field_errors %}<div class="field-error">{{ form.non_field_errors }}</div>{% endif %}
+        <div class="staff-proposals-form-footer"><p>Số lượng chỉ được cộng vào kho sau khi admin duyệt.</p><button type="submit">Gửi admin duyệt <span aria-hidden="true">→</span></button></div>
+      </form>
+    </section>
+    <section class="staff-proposals-history">
+      <div class="staff-proposals-card-heading"><span class="staff-proposals-step pale">02</span><div><h2>Đề xuất của tôi</h2><p>Theo dõi trạng thái những mặt hàng đã gửi.</p></div></div>
+      <div class="staff-proposals-table-wrap"><table>
+        <thead><tr><th>Sản phẩm</th><th>Danh mục & phân loại</th><th>Giá / số lượng</th><th>Ngày gửi</th><th>Trạng thái</th></tr></thead>
+        <tbody>
+          {% for item in submissions %}
+            <tr>
+              <td><strong>{{ item.ten_san_pham }}</strong><small>{{ item.mo_ta|default:'Chưa có mô tả' }}</small></td>
+              <td>{{ item.danh_muc.ten_danh_muc }}<small>{{ item.phan_loai|default:'Chưa có phân loại' }}</small></td>
+              <td><strong>{{ item.gia_ban }}₫</strong><small>{{ item.so_luong }} sản phẩm đề xuất nhập</small></td>
+              <td>{{ item.tao_luc|date:'d/m/Y H:i' }}</td>
+              <td><span class="submission-status {{ item.trang_thai }}">{{ item.get_trang_thai_display }}</span>{% if item.duyet_luc %}<small>{{ item.duyet_luc|date:'d/m/Y H:i' }}</small>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="staff-proposals-empty">Chưa có đề xuất nào. Mặt hàng mới gửi sẽ xuất hiện tại đây.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table></div>
+    </section>
+  </main>
+</body>
+</html>

@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.core.exceptions import ValidationError
 from functools import wraps
 from types import SimpleNamespace
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 import json
 import re
 import uuid
@@ -40,6 +40,7 @@ from .models import (
     VoucherNotification,
 )
 from .services import (
+    BUSINESS_TIME_ZONE,
     cancel_order,
     confirm_order,
     expire_unconfirmed_cod_orders,
@@ -50,7 +51,7 @@ from .services import (
 from django.contrib.admin.views.decorators import staff_member_required
 from datetime import timedelta
 from django.db.models import F, Q, Sum, Value
-from django.db.models.functions import Coalesce
+from django.db.models.functions import Coalesce, TruncMonth
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
 from .forms import DanhMucForm, DeXuatSanPhamForm, NhanVienCreationForm, NhanVienPasswordForm, SanPhamForm
 from .models import (
@@ -850,12 +851,22 @@ def quan_tri_dashboard(request):
         profile = None
     role = "admin" if request.user.is_superuser else profile.role
     month_values = [0] * 12
-    today = timezone.localdate()
+    today = timezone.localtime(timezone.now(), BUSINESS_TIME_ZONE).date()
+    year_start = timezone.make_aware(datetime.combine(date(today.year, 1, 1), time.min), BUSINESS_TIME_ZONE)
+    next_year_start = timezone.make_aware(datetime.combine(date(today.year + 1, 1, 1), time.min), BUSINESS_TIME_ZONE)
     revenue_by_month = (Order.objects.filter(status=Order.Status.COMPLETED, payment_status=Order.PaymentStatus.PAID,
-                                               created_at__year=today.year)
-                        .values_list("created_at__month").annotate(total=Sum("total"))) if role == "admin" else []
+                                               paid_at__gte=year_start, paid_at__lt=next_year_start)
+                        .annotate(month=TruncMonth("paid_at", tzinfo=BUSINESS_TIME_ZONE))
+                        .values_list("month").annotate(total=Sum("total"))) if role == "admin" else []
     for month, total in revenue_by_month:
-        month_values[month - 1] = int(total or 0)
+        month_values[month.month - 1] = int(total or 0)
+    monthly_paid_orders = [0] * 12
+    paid_order_counts = (Order.objects.filter(status=Order.Status.COMPLETED, payment_status=Order.PaymentStatus.PAID,
+                                               paid_at__gte=year_start, paid_at__lt=next_year_start)
+                         .annotate(month=TruncMonth("paid_at", tzinfo=BUSINESS_TIME_ZONE))
+                         .values_list("month").annotate(total=Count("id"))) if role == "admin" else []
+    for month, total in paid_order_counts:
+        monthly_paid_orders[month.month - 1] = int(total or 0)
     products = list(SanPham.objects.select_related("danh_muc").order_by("so_luong", "ten_san_pham")[:5]) if role == "admin" else []
     order_count = Order.objects.count() if role in ("admin", "sales") else 0
     pending_orders = Order.objects.filter(status=Order.Status.PENDING).count() if role in ("admin", "sales") else 0
@@ -906,15 +917,16 @@ def quan_tri_dashboard(request):
         DecorConsultation.Status.WORKING, DecorConsultation.Status.WAITING_CUSTOMER,
     ]).count()
     if demo_preview:
-        month_values = [8_000_000, 11_000_000, 9_000_000, 14_000_000, 12_000_000, 17_000_000, 15_000_000, 21_000_000, 19_000_000, 25_000_000, 22_000_000, 29_000_000]
+        month_values = [0] * 12
+        month_values[7], month_values[8], month_values[9] = 1_500_000_000, 1_650_000_000, 700_000_000
+        monthly_paid_orders = [0] * 12
+        monthly_paid_orders[7], monthly_paid_orders[8], monthly_paid_orders[9] = 2_000, 2_500, 1_000
         recent_orders = _demo_admin_orders()
         top_customers = [SimpleNamespace(full_name="Minh Anh", order_count=8, spend=4850000, user_id=1), SimpleNamespace(full_name="Gia Hân", order_count=6, spend=3260000, user_id=None), SimpleNamespace(full_name="Quốc Bảo", order_count=4, spend=2140000, user_id=2)]
-        order_count, pending_orders, customer_count = 126, 8, 248
+        order_count, pending_orders, customer_count = 5_508, 8, 248
         new_order_count, needs_attention_count = 2, 1
-        if demo_products_preview:
-            low_stock_products = _demo_admin_products()
-            low_stock_count, stock_units = len(DEMO_ADMIN_PRODUCTS), sum(item["so_luong"] for item in DEMO_ADMIN_PRODUCTS)
         demo_consultation_count = max(demo_consultation_count, 5)
+    latest_revenue_month = max((index for index, amount in enumerate(month_values) if amount), default=None)
     return render(request, "store/admin_dashboard.html", {
         "product_count": (len(DEMO_ADMIN_PRODUCTS) if demo_products_preview else SanPham.objects.count()) if role == "admin" else 0,
         "category_count": DanhMuc.objects.count() if role == "admin" else 0,
@@ -923,6 +935,11 @@ def quan_tri_dashboard(request):
         "stock_units": stock_units,
         "low_stock_products": low_stock_products,
         "chart_data": month_values,
+        "monthly_paid_orders": monthly_paid_orders,
+        "latest_revenue_month": latest_revenue_month,
+        "latest_revenue_label": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"][latest_revenue_month] if latest_revenue_month is not None else "",
+        "latest_revenue_amount": month_values[latest_revenue_month] if latest_revenue_month is not None else 0,
+        "latest_revenue_order_count": monthly_paid_orders[latest_revenue_month] if latest_revenue_month is not None else 0,
         "month_labels": ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8", "T9", "T10", "T11", "T12"],
         "revenue_total": sum(month_values), "order_count": order_count,
         "pending_orders": pending_orders,

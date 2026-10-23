@@ -78,10 +78,6 @@ DEMO_ADMIN_PRODUCTS = [
     {"ten_san_pham": "Kệ gỗ để bàn", "category": "Góc học tập", "gia_ban": 249000, "so_luong": 4},
     {"ten_san_pham": "Gối tựa hoa kem", "category": "Chăn gối", "gia_ban": 159000, "so_luong": 2},
 ]
-DEMO_VOUCHERS = (
-    {"code": "XINH10", "discount_type": Voucher.DiscountType.PERCENT, "discount_value": 10, "minimum_order": 0, "usage_limit": 1000, "cap_amount": 30000},
-)
-
 SIGNUP_VOUCHERS = (
     {"code": "ROOM25", "display_name": "Room25", "discount_value": 15, "minimum_order": 500000},
     {"code": "XINH", "display_name": "xinh", "discount_value": 10, "minimum_order": 200000},
@@ -229,13 +225,6 @@ def _active_checkout_vouchers(user=None):
         used_count__lt=F("usage_limit"),
     ).exclude(code__in=[item["code"] for item in SIGNUP_VOUCHERS])
         .exclude(code__startswith="THANKYOU-").order_by("ends_at"))
-    if settings.ADMIN_DEMO_MODE:
-        demo_codes = [item["code"] for item in DEMO_VOUCHERS]
-        saved_codes = set(Voucher.objects.filter(code__in=demo_codes).values_list("code", flat=True))
-        vouchers.extend(
-            SimpleNamespace(**item, used_count=0)
-            for item in DEMO_VOUCHERS if item["code"] not in saved_codes
-        )
     if user is not None and user.is_authenticated:
         grants = SignupVoucherGrant.objects.filter(user=user, used_at__isnull=True, expires_at__gt=now)
         vouchers.extend(SimpleNamespace(
@@ -261,9 +250,20 @@ def _active_checkout_vouchers(user=None):
     return vouchers, preview
 
 
+def _unread_notifications_count(user):
+    if not user.is_authenticated or user.is_staff or user.is_superuser:
+        return 0
+    return (
+        OrderNotification.objects.filter(order__customer__user=user, is_read=False).count()
+        + VoucherNotification.objects.filter(user=user, is_read=False).count()
+        + SignupVoucherGrant.objects.filter(user=user, is_read=False).count()
+    )
+
+
 def trang_chu(request):
     return render(request, "index.html", {
         "san_pham_list": _products_for_homepage(),
+        "unread_notifications_count": _unread_notifications_count(request.user),
         "categories": ["Phổ biến", "Combo chăn ấm - gối êm", "Giấy dán tường", "Đèn ngủ - học tập", "Gương tường"],
     })
 
@@ -372,10 +372,7 @@ def thanh_toan(request):
                             else:
                                 discount = min(subtotal, applied_voucher.discount_value)
                         else:
-                            demo_voucher = next((item for item in DEMO_VOUCHERS if item["code"] == code), None)
-                            if not (settings.ADMIN_DEMO_MODE and demo_voucher):
-                                raise ValueError("Mã voucher không hợp lệ hoặc chưa được duyệt.")
-                            discount = min((subtotal * demo_voucher["discount_value"] + 50) // 100, demo_voucher["cap_amount"])
+                            raise ValueError("Mã voucher không hợp lệ hoặc chưa được duyệt.")
                 if request.user.is_authenticated:
                     customer, _ = CustomerProfile.objects.get_or_create(
                         user=request.user,
@@ -1603,25 +1600,65 @@ def thong_bao_don_hang(request):
         return HttpResponseNotAllowed(["GET", "POST"])
     if not request.user.is_authenticated or request.user.is_staff:
         return JsonResponse({"notifications": [], "unread": 0})
-    notifications = OrderNotification.objects.filter(
+    order_notifications = OrderNotification.objects.filter(
         order__customer__user=request.user,
         is_read=False,
     ).select_related("order").order_by("-created_at")
+    voucher_notifications = VoucherNotification.objects.filter(
+        user=request.user, is_read=False,
+    ).select_related("voucher").order_by("-created_at")
+    voucher_grants = SignupVoucherGrant.objects.filter(
+        user=request.user, is_read=False,
+    ).order_by("-issued_at")
     if request.method == "POST":
         try:
             ids = json.loads(request.body).get("ids", [])
-            ids = [int(value) for value in ids]
+            grouped_ids = {"order": [], "voucher": [], "grant": []}
+            for value in ids:
+                if isinstance(value, int):
+                    grouped_ids["order"].append(value)
+                    continue
+                kind, separator, raw_id = str(value).partition(":")
+                if separator and kind in grouped_ids and raw_id.isdigit():
+                    grouped_ids[kind].append(int(raw_id))
         except (ValueError, TypeError, json.JSONDecodeError, AttributeError):
             return JsonResponse({"error": "Y\\u00eau c\\u1ea7u kh\\u00f4ng h\\u1ee3p l\\u1ec7."}, status=400)
-        notifications.filter(pk__in=ids).update(is_read=True)
+        OrderNotification.objects.filter(
+            pk__in=grouped_ids["order"], order__customer__user=request.user, is_read=False,
+        ).update(is_read=True)
+        VoucherNotification.objects.filter(
+            pk__in=grouped_ids["voucher"], user=request.user, is_read=False,
+        ).update(is_read=True)
+        SignupVoucherGrant.objects.filter(
+            pk__in=grouped_ids["grant"], user=request.user, is_read=False,
+        ).update(is_read=True)
         return JsonResponse({"ok": True})
-    unread = notifications.count()
     items = [{
-        "id": item.pk,
-        "order_id": item.order.code,
+        "id": f"order:{item.pk}",
+        "category": "Tr\u1ea1ng th\u00e1i \u0111\u01a1n h\u00e0ng",
         "message": item.message,
         "created_at": item.created_at.isoformat(),
-    } for item in notifications[:10]]
+    } for item in order_notifications[:20]]
+    items.extend({
+        "id": f"voucher:{item.pk}",
+        "category": "\u01afu \u0111\u00e3i gi\u1ea3m gi\u00e1",
+        "message": item.message,
+        "created_at": item.created_at.isoformat(),
+    } for item in voucher_notifications[:20])
+    now = timezone.now()
+    items.extend({
+        "id": f"grant:{item.pk}",
+        "category": "Voucher c\u1ee7a b\u1ea1n",
+        "message": (
+            f"Voucher {item.display_name} \u0111\u00e3 h\u1ebft h\u1ea1n s\u1eed d\u1ee5ng."
+            if item.expires_at <= now and item.used_at is None
+            else f"B\u1ea1n nh\u1eadn \u0111\u01b0\u1ee3c voucher {item.display_name}, gi\u1ea3m {item.discount_value}% cho \u0111\u01a1n t\u1eeb {item.minimum_order:,}\u20ab."
+        ),
+        "created_at": item.issued_at.isoformat(),
+    } for item in voucher_grants[:20])
+    items.sort(key=lambda item: item["created_at"], reverse=True)
+    unread = order_notifications.count() + voucher_notifications.count() + voucher_grants.count()
+    items = items[:10]
     return JsonResponse({"notifications": items, "unread": unread})
 
 

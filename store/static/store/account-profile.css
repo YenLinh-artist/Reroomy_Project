@@ -35,3 +35,5 @@
 .account-body .room-plan-caption button{display:grid;place-items:center;cursor:pointer}
 .account-body .room-plan-caption button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .account-body :focus-visible{outline:3px solid #d6537c55;outline-offset:3px}
+.account-nav-icon img,.account-empty>span img{display:block;width:20px;height:20px;filter:invert(61%) sepia(29%) saturate(840%) hue-rotate(293deg) brightness(98%) contrast(93%)}
+.account-empty>span img{width:24px;height:24px}

@@ -51,8 +51,8 @@ def issue_month_vouchers(reward_month, now=None):
         .annotate(month_spend=Sum(
             "orders__total",
             filter=Q(
-                orders__created_at__gte=start,
-                orders__created_at__lt=end,
+                orders__paid_at__gte=start,
+                orders__paid_at__lt=end,
                 orders__status=Order.Status.COMPLETED,
                 orders__payment_status=Order.PaymentStatus.PAID,
             ),
@@ -151,7 +151,8 @@ def mark_cod_collected(order_id, actor):
     if order.payment_status == Order.PaymentStatus.PAID:
         raise ValidationError("Đơn này đã được ghi nhận thanh toán.")
     order.payment_status = Order.PaymentStatus.PAID
-    order.save(update_fields=["payment_status", "updated_at"])
+    order.paid_at = timezone.now()
+    order.save(update_fields=["payment_status", "paid_at", "updated_at"])
     return order
 
 
@@ -166,7 +167,8 @@ def mark_online_payment_received(order_id, actor):
     if order.payment_status == Order.PaymentStatus.PAID:
         raise ValidationError("Đơn này đã được ghi nhận thanh toán.")
     order.payment_status = Order.PaymentStatus.PAID
-    order.save(update_fields=["payment_status", "updated_at"])
+    order.paid_at = timezone.now()
+    order.save(update_fields=["payment_status", "paid_at", "updated_at"])
     return order
 
 

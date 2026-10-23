@@ -73,6 +73,7 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
     payment_method = models.CharField(max_length=12, choices=PaymentMethod.choices, default=PaymentMethod.COD)
     payment_status = models.CharField(max_length=12, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
+    paid_at = models.DateTimeField(null=True, blank=True, db_index=True)
     total = models.PositiveBigIntegerField(default=0)
     voucher_code = models.CharField(max_length=32, blank=True)
     shipping_address = models.TextField(blank=True)

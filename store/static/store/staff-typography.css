@@ -1,0 +1,112 @@
+/* Shared type scale for staff workspaces. */
+body.staff-typography,
+body.admin-shell {
+  font-family: var(--font-body, "Pathway Extreme", Arial, sans-serif);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+.staff-typography h1,
+.staff-typography h2,
+.staff-typography h3,
+.staff-typography .brand,
+.admin-shell .admin-logo,
+.admin-shell .page-heading h1,
+.admin-shell .panel-title h2,
+.admin-shell .panel h2 {
+  font-family: var(--font-primary, "Phudu", sans-serif);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
+}
+
+.staff-typography button,
+.staff-typography input,
+.staff-typography select,
+.staff-typography textarea {
+  font-family: var(--font-body, "Pathway Extreme", Arial, sans-serif);
+}
+
+.staff-typography .top-link,
+.staff-typography .button,
+.staff-typography .submit,
+.staff-typography .pill,
+.staff-typography .logout {
+  font-family: var(--font-body, "Pathway Extreme", Arial, sans-serif);
+  font-weight: 600;
+}
+
+.admin-shell .admin-sidebar nav a {
+  font-size: 14px;
+  letter-spacing: 0.005em;
+}
+
+.admin-shell .admin-table td {
+  line-height: 1.55;
+}
+
+.submission-review-table {
+  min-width: 910px;
+}
+
+.submission-review-table td > small {
+  display: block;
+  margin-top: 4px;
+}
+
+.submission-product-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 245px;
+}
+
+.submission-product-cell img,
+.submission-image-placeholder {
+  width: 58px;
+  height: 58px;
+  flex: none;
+  border-radius: 9px;
+  object-fit: cover;
+  background: #fff3f2;
+}
+
+.submission-image-placeholder {
+  display: grid;
+  place-items: center;
+  color: #b7999f;
+  font-size: 10px;
+}
+
+.submission-product-cell strong,
+.submission-product-cell small {
+  display: block;
+}
+
+.submission-product-cell small {
+  margin-top: 3px;
+  color: #96868c;
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+
+.submission-review-actions {
+  display: grid;
+  justify-items: start;
+  gap: 6px;
+}
+
+.submission-review-actions form {
+  margin: 0;
+}
+
+.submission-reject {
+  color: #ad5658 !important;
+  border-color: #f3d7d8;
+}
+
+.tag.reject {
+  background: #fff0ef;
+  color: #ad5658;
+}

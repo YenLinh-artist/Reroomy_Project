@@ -3,7 +3,7 @@ from django.contrib.auth import password_validation
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from .models import DanhMuc, HoSoNhanVien, SanPham, Voucher
+from .models import DanhMuc, DeXuatSanPham, HoSoNhanVien, SanPham, Voucher
 from .models import StaffProfile
 from .validators import validate_gmail_address
 
@@ -77,6 +77,29 @@ class SanPhamForm(forms.ModelForm):
         # Stock edits must go through the inventory ledger page.
         if self.instance and self.instance.pk:
             self.fields.pop("so_luong", None)
+
+
+class DeXuatSanPhamForm(forms.ModelForm):
+    class Meta:
+        model = DeXuatSanPham
+        fields = ("ten_san_pham", "danh_muc", "gia_ban", "phan_loai", "mo_ta", "so_luong", "hinh_anh")
+        labels = {
+            "ten_san_pham": "Tên sản phẩm",
+            "danh_muc": "Danh mục",
+            "gia_ban": "Giá bán (₫)",
+            "phan_loai": "Phân loại",
+            "mo_ta": "Mô tả",
+            "so_luong": "Số lượng đề xuất nhập",
+            "hinh_anh": "Ảnh sản phẩm",
+        }
+        widgets = {
+            "ten_san_pham": forms.TextInput(attrs={"placeholder": "Ví dụ: Đèn ngủ mây nhỏ"}),
+            "gia_ban": forms.NumberInput(attrs={"min": 0}),
+            "phan_loai": forms.TextInput(attrs={"placeholder": "Màu kem, màu trắng, size S"}),
+            "mo_ta": forms.Textarea(attrs={"rows": 4, "placeholder": "Chất liệu, kích thước, công dụng..."}),
+            "so_luong": forms.NumberInput(attrs={"min": 0}),
+            "hinh_anh": forms.ClearableFileInput(attrs={"accept": "image/*"}),
+        }
 
 
 class DanhMucForm(forms.ModelForm):

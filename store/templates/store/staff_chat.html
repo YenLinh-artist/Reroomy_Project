@@ -1,0 +1,40 @@
+{% load static %}<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Chat nội bộ · Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'store/staff-typography.css' %}">
+  <link rel="stylesheet" href="{% static 'store/staff-chat.css' %}">
+</head>
+<body class="staff-typography staff-chat-shell">
+  <header class="staff-chat-topbar">
+    <a class="staff-chat-brand" href="{{ workspace_url }}">RE:ROOM <span>TEAM SPACE</span></a>
+    <div class="staff-chat-user"><span class="staff-chat-avatar">{{ request.user.username|first|upper }}</span><span>{{ request.user.get_full_name|default:request.user.username }}<small>{{ staff_role }}</small></span></div>
+    <a class="staff-chat-back" href="{{ workspace_url }}">{{ workspace_label }} ↗</a>
+  </header>
+  <main class="staff-chat-main">
+    <section class="staff-chat-intro">
+      <div><span class="staff-chat-eyebrow">KÊNH TRAO ĐỔI CHUNG</span><h1>Chat nội bộ</h1><p>Bán hàng, chăm sóc khách hàng và quản trị viên có thể trao đổi tại đây.</p></div>
+      <span class="staff-chat-live"><i></i> Đang hoạt động</span>
+    </section>
+    <section class="staff-chat-card" data-api="{% url 'staff_chat_api' %}">
+      <header class="staff-chat-room-head"><span class="staff-chat-room-icon"><img src="{% static 'store/icons/message-circle.svg' %}" alt="" aria-hidden="true"></span><div><strong>Phòng nhân viên Re:Room</strong><small>Tin nhắn được lưu để mọi người xem lại</small></div></header>
+      <button class="staff-chat-older" id="staffChatOlder" type="button" hidden>Tải tin nhắn cũ hơn</button>
+      <div class="staff-chat-messages" id="staffChatMessages" aria-live="polite" aria-relevant="additions">
+        <p class="staff-chat-empty" id="staffChatEmpty">Đang tải tin nhắn…</p>
+      </div>
+      <p class="staff-chat-error" id="staffChatError" role="status" hidden></p>
+      <form class="staff-chat-compose" id="staffChatForm">
+        {% csrf_token %}
+        <label class="visually-hidden" for="staffChatBody">Nội dung tin nhắn</label>
+        <textarea id="staffChatBody" name="body" maxlength="2000" rows="2" placeholder="Nhắn cho cả nhóm… (Enter để gửi, Shift + Enter xuống dòng)" required></textarea>
+        <button type="submit"><img src="{% static 'store/icons/arrow-right.svg' %}" alt="" aria-hidden="true"><span>Gửi tin</span></button>
+      </form>
+      <p class="staff-chat-footnote">Tin nhắn chỉ dành cho nhân viên đã đăng nhập.</p>
+    </section>
+  </main>
+  <script src="{% static 'store/staff-chat.js' %}" defer></script>
+</body>
+</html>

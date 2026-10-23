@@ -288,6 +288,7 @@ class DeXuatSanPham(models.Model):
     ten_san_pham = models.CharField(max_length=200)
     gia_ban = models.PositiveIntegerField()
     danh_muc = models.ForeignKey(DanhMuc, on_delete=models.PROTECT)
+    phan_loai = models.CharField(max_length=300, blank=True)
     mo_ta = models.TextField(blank=True)
     so_luong = models.PositiveIntegerField(default=0)
     hinh_anh = models.FileField(upload_to="product_submissions/", blank=True)
@@ -313,6 +314,22 @@ class DeXuatSanPham(models.Model):
 
     def __str__(self):
         return f"{self.ten_san_pham} ({self.get_trang_thai_display()})"
+
+
+class StaffChatMessage(models.Model):
+    sender = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        related_name="staff_chat_messages",
+        on_delete=models.CASCADE,
+    )
+    body = models.TextField(max_length=2000)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ("created_at", "pk")
+
+    def __str__(self):
+        return f"{self.sender}: {self.body[:50]}"
 
 
 class HoSoNhanVien(models.Model):

@@ -1,0 +1,34 @@
+{% extends 'store/admin_base.html' %}
+{% block title %}Duyệt đề xuất sản phẩm{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><span class="eyebrow">SẢN PHẨM CỘNG TÁC</span><h1>Duyệt đề xuất sản phẩm</h1><p>Kiểm tra nội dung trước khi mặt hàng được cộng kho và đưa lên cửa hàng.</p></div>
+  <span class="tag warn">{{ pending_count }} chờ duyệt</span>
+</div>
+<section class="table-panel submission-review-panel">
+  <div class="table-wrap"><table class="admin-table submission-review-table">
+    <thead><tr><th>Sản phẩm</th><th>Người đề xuất</th><th>Giá & số lượng</th><th>Trạng thái</th><th>Thao tác</th></tr></thead>
+    <tbody>
+      {% for item in submissions %}
+        <tr>
+          <td><div class="submission-product-cell">
+            {% if item.hinh_anh %}<img src="{{ item.hinh_anh.url }}" alt="Ảnh {{ item.ten_san_pham }}">{% else %}<span class="submission-image-placeholder">Ảnh</span>{% endif %}
+            <div><strong>{{ item.ten_san_pham }}</strong><small>{{ item.danh_muc.ten_danh_muc }}{% if item.phan_loai %} · {{ item.phan_loai }}{% endif %}</small><small>{{ item.mo_ta|default:'Chưa có mô tả' }}</small></div>
+          </div></td>
+          <td>{{ item.nguoi_tao|default:'Tài khoản đã xóa' }}<small class="subtle">{{ item.tao_luc|date:'d/m/Y H:i' }}</small></td>
+          <td><strong>{{ item.gia_ban }}₫</strong><small class="subtle">Đề xuất nhập {{ item.so_luong }}</small></td>
+          <td><span class="tag{% if item.trang_thai == 'approved' %} ok{% elif item.trang_thai == 'rejected' %} reject{% else %} warn{% endif %}">{{ item.get_trang_thai_display }}</span>{% if item.duyet_luc %}<small class="subtle">{{ item.duyet_luc|date:'d/m/Y H:i' }}</small>{% endif %}</td>
+          <td>{% if item.trang_thai == 'pending' %}
+            <div class="submission-review-actions">
+              <form method="post" action="{% url 'quan_tri_duyet_de_xuat_san_pham' item.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">Duyệt & cộng kho</button></form>
+              <form method="post" action="{% url 'quan_tri_tu_choi_de_xuat_san_pham' item.pk %}">{% csrf_token %}<button class="btn btn-small btn-soft submission-reject" type="submit">Từ chối</button></form>
+            </div>
+          {% else %}<span class="subtle">Đã xử lý</span>{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="5"><div class="empty-state"><strong>Chưa có đề xuất sản phẩm</strong>Đề xuất từ bán hàng và CSKH sẽ hiện ở đây.</div></td></tr>
+      {% endfor %}
+    </tbody>
+  </table></div>
+</section>
+{% endblock %}

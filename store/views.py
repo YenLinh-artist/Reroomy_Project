@@ -52,7 +52,7 @@ from datetime import timedelta
 from django.db.models import F, Q, Sum, Value
 from django.db.models.functions import Coalesce
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
-from .forms import DanhMucForm, NhanVienCreationForm, NhanVienPasswordForm, SanPhamForm
+from .forms import DanhMucForm, DeXuatSanPhamForm, NhanVienCreationForm, NhanVienPasswordForm, SanPhamForm
 from .models import (
     CustomerServiceConversation,
     CustomerServiceMessage,
@@ -60,6 +60,7 @@ from .models import (
     DeXuatSanPham,
     HoSoNhanVien,
     SanPham,
+    StaffChatMessage,
 )
 
 
@@ -1712,6 +1713,72 @@ def _has_cskh_access(user):
         return False
 
 
+def _has_admin_access(user):
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    try:
+        profile = user.staff_profile
+    except StaffProfile.DoesNotExist:
+        return False
+    return bool(
+        user.is_active
+        and user.is_staff
+        and profile.is_enabled
+        and profile.role == StaffProfile.Role.ADMIN
+    )
+
+
+def _internal_staff_kind(user):
+    if not user.is_authenticated or not user.is_active:
+        return None
+    if user.is_superuser:
+        return "admin"
+    try:
+        profile = user.staff_profile
+    except StaffProfile.DoesNotExist:
+        profile = None
+    if profile is not None:
+        if not user.is_staff or not profile.is_enabled:
+            return None
+        return profile.role if profile.role in StaffProfile.Role.values else None
+    if not user.is_staff:
+        return None
+    try:
+        department = user.ho_so_nhan_vien.bo_phan
+    except HoSoNhanVien.DoesNotExist:
+        return None
+    if department == HoSoNhanVien.BoPhan.BAN_HANG:
+        return "sales"
+    if department == HoSoNhanVien.BoPhan.CSKH:
+        return "consultant"
+    return None
+
+
+def _has_internal_chat_access(user):
+    return _internal_staff_kind(user) is not None
+
+
+def _staff_role_label(user):
+    if user.is_superuser:
+        return "Quản trị viên"
+    try:
+        profile = user.staff_profile
+        if profile.is_enabled:
+            return {
+                StaffProfile.Role.ADMIN: "Quản trị viên",
+                StaffProfile.Role.SALES: "Bán hàng",
+                StaffProfile.Role.CONSULTANT: "Chăm sóc khách hàng",
+            }.get(profile.role, "Nhân viên")
+    except StaffProfile.DoesNotExist:
+        pass
+    try:
+        return user.ho_so_nhan_vien.get_bo_phan_display()
+    except HoSoNhanVien.DoesNotExist:
+        return "Nhân viên"
+
+
 def cskh_dang_nhap(request):
     return redirect("dang_nhap")
 
@@ -1956,40 +2023,42 @@ def cskh_thong_bao_api(request):
 
 @staff_member_required(login_url="dang_nhap")
 def cskh_de_xuat_san_pham(request):
-    if request.user.is_superuser or not _has_cskh_access(request.user):
-        return HttpResponseForbidden("Trang này dành cho nhân viên CSKH.")
-    form = SanPhamForm(request.POST or None, request.FILES or None)
+    staff_kind = _internal_staff_kind(request.user)
+    if request.user.is_superuser or staff_kind not in ("admin", "sales", "consultant"):
+        return HttpResponseForbidden("Trang này dành cho nhân viên bán hàng và chăm sóc khách hàng.")
+    is_sales = staff_kind in ("admin", "sales")
+    form = DeXuatSanPhamForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         uploaded = request.FILES.get("hinh_anh")
         if uploaded and not (uploaded.content_type or "").startswith("image/"):
             form.add_error("hinh_anh", "Vui lòng chọn tệp ảnh.")
         else:
             proposed = form.save(commit=False)
-            DeXuatSanPham.objects.create(
-                ten_san_pham=proposed.ten_san_pham,
-                gia_ban=proposed.gia_ban,
-                danh_muc=proposed.danh_muc,
-                mo_ta=proposed.mo_ta,
-                so_luong=proposed.so_luong,
-                hinh_anh=uploaded or None,
-                nguoi_tao=request.user,
-            )
+            proposed.nguoi_tao = request.user
+            proposed.save()
             messages.success(request, "Bài đăng đã gửi admin duyệt. Sản phẩm sẽ vào kho và hiển thị sau khi được duyệt.")
-            return redirect("cskh_de_xuat_san_pham")
-    return render(request, "store/cskh_product_submissions.html", {
+            return redirect("ban_hang_de_xuat_san_pham" if is_sales else "cskh_de_xuat_san_pham")
+    role = "sales" if is_sales else "consultant"
+    return render(request, "store/staff_product_submissions.html", {
         "form": form,
         "submissions": DeXuatSanPham.objects.filter(nguoi_tao=request.user).select_related("danh_muc"),
+        "staff_role": _staff_role_label(request.user),
+        "workspace_url": "/ban-hang/" if is_sales else "/cskh/",
+        "workspace_label": "Không gian bán hàng" if is_sales else "Hộp thư CSKH",
+        "role": role,
     })
 
 
 @staff_member_required(login_url="dang_nhap")
 def quan_tri_de_xuat_san_pham(request):
-    if not request.user.is_superuser:
+    if not _has_admin_access(request.user):
         return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
     submissions = DeXuatSanPham.objects.select_related("danh_muc", "nguoi_tao")
-    return render(request, "store/admin_product_submissions.html", {
+    role = StaffProfile.Role.ADMIN if request.user.is_superuser else request.user.staff_profile.role
+    return render(request, "store/admin_product_submissions_modern.html", {
         "submissions": submissions,
         "pending_count": submissions.filter(trang_thai=DeXuatSanPham.TrangThai.CHO_DUYET).count(),
+        "role": role,
     })
 
 
@@ -1997,7 +2066,7 @@ def quan_tri_de_xuat_san_pham(request):
 def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    if not request.user.is_superuser:
+    if not _has_admin_access(request.user):
         return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
     with transaction.atomic():
         submission = get_object_or_404(DeXuatSanPham.objects.select_for_update(), pk=submission_id)
@@ -2011,15 +2080,17 @@ def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
         if product:
             product.so_luong = F("so_luong") + submission.so_luong
             product.gia_ban = submission.gia_ban
+            product.phan_loai = submission.phan_loai
             product.mo_ta = submission.mo_ta
             if submission.hinh_anh:
                 product.hinh_anh = submission.hinh_anh.name
-            product.save(update_fields=["so_luong", "gia_ban", "mo_ta", "hinh_anh"])
+            product.save(update_fields=["so_luong", "gia_ban", "phan_loai", "mo_ta", "hinh_anh"])
         else:
             SanPham.objects.create(
                 ten_san_pham=submission.ten_san_pham,
                 gia_ban=submission.gia_ban,
                 danh_muc=submission.danh_muc,
+                phan_loai=submission.phan_loai,
                 mo_ta=submission.mo_ta,
                 so_luong=submission.so_luong,
                 hinh_anh=submission.hinh_anh.name if submission.hinh_anh else "",
@@ -2036,7 +2107,7 @@ def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
 def quan_tri_tu_choi_de_xuat_san_pham(request, submission_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
-    if not request.user.is_superuser:
+    if not _has_admin_access(request.user):
         return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
     updated = DeXuatSanPham.objects.filter(
         pk=submission_id,
@@ -2106,3 +2177,88 @@ def ban_hang_san_pham(request):
         "search": search,
         "low_stock_count": SanPham.objects.filter(is_active=True, so_luong__lte=5).count(),
     })
+
+
+@login_required(login_url="dang_nhap")
+def staff_chat(request):
+    if not _has_internal_chat_access(request.user):
+        return HttpResponseForbidden("Phòng trao đổi này chỉ dành cho nhân viên.")
+    staff_kind = _internal_staff_kind(request.user)
+    is_sales = staff_kind in ("admin", "sales")
+    return render(request, "store/staff_chat.html", {
+        "staff_role": _staff_role_label(request.user),
+        "workspace_url": "/quan-tri/" if _has_admin_access(request.user) else ("/ban-hang/" if is_sales else "/cskh/"),
+        "workspace_label": "Không gian quản trị" if _has_admin_access(request.user) else ("Không gian bán hàng" if is_sales else "Hộp thư CSKH"),
+    })
+
+
+@login_required(login_url="dang_nhap")
+def staff_chat_api(request):
+    if not _has_internal_chat_access(request.user):
+        return JsonResponse({"error": "Tài khoản này không có quyền vào chat nội bộ."}, status=403)
+
+    if request.method == "GET":
+        after = request.GET.get("after")
+        before = request.GET.get("before")
+        messages_qs = StaffChatMessage.objects.select_related(
+            "sender__staff_profile", "sender__ho_so_nhan_vien"
+        )
+        has_older = False
+        if before:
+            try:
+                before_id = int(before)
+            except (TypeError, ValueError):
+                return JsonResponse({"error": "Mốc tin nhắn không hợp lệ."}, status=400)
+            page = list(messages_qs.filter(pk__lt=before_id).order_by("-pk")[:100])
+            page.reverse()
+            messages_qs = page
+            if page:
+                has_older = StaffChatMessage.objects.filter(pk__lt=page[0].pk).exists()
+        elif after:
+            try:
+                after_id = int(after)
+            except (TypeError, ValueError):
+                return JsonResponse({"error": "Mốc tin nhắn không hợp lệ."}, status=400)
+            messages_qs = messages_qs.filter(pk__gt=after_id).order_by("pk")
+        else:
+            messages_qs = list(messages_qs.order_by("-pk")[:100])
+            messages_qs.reverse()
+            if messages_qs:
+                has_older = StaffChatMessage.objects.filter(pk__lt=messages_qs[0].pk).exists()
+
+        serialized = [{
+            "id": item.pk,
+            "sender": item.sender.get_full_name().strip() or item.sender.username,
+            "role": _staff_role_label(item.sender),
+            "body": item.body,
+            "created_at": timezone.localtime(item.created_at).isoformat(),
+            "mine": item.sender_id == request.user.pk,
+        } for item in messages_qs]
+        return JsonResponse({"messages": serialized, "has_older": has_older})
+
+    if request.method == "POST":
+        if request.content_type == "application/json":
+            try:
+                payload = json.loads(request.body or b"{}")
+            except (json.JSONDecodeError, UnicodeDecodeError):
+                return JsonResponse({"error": "Nội dung gửi lên không hợp lệ."}, status=400)
+            if not isinstance(payload, dict):
+                return JsonResponse({"error": "Nội dung gửi lên không hợp lệ."}, status=400)
+            body = str(payload.get("body", "")).strip()
+        else:
+            body = request.POST.get("body", "").strip()
+        if not body:
+            return JsonResponse({"error": "Nhập nội dung trước khi gửi."}, status=400)
+        if len(body) > 2000:
+            return JsonResponse({"error": "Tin nhắn tối đa 2.000 ký tự."}, status=400)
+        item = StaffChatMessage.objects.create(sender=request.user, body=body)
+        return JsonResponse({"message": {
+            "id": item.pk,
+            "sender": item.sender.get_full_name().strip() or item.sender.username,
+            "role": _staff_role_label(item.sender),
+            "body": item.body,
+            "created_at": timezone.localtime(item.created_at).isoformat(),
+            "mine": True,
+        }}, status=201)
+
+    return HttpResponseNotAllowed(["GET", "POST"])

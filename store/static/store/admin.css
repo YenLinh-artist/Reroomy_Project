@@ -30,3 +30,4 @@
 
 .consult-photo-empty svg{width:42px;height:42px}.proposal-product-photo svg{width:28px;height:28px}
 .admin-sidebar nav a.workspace-switch{margin:4px 0 8px;border:1px solid #f7d9e2;background:linear-gradient(105deg,#fff4f7,#fffaf5);color:#b74770;font-weight:700}.admin-sidebar nav a.workspace-switch:hover{border-color:#f0aac1;background:#fff0f5;color:#d93474}.admin-sidebar nav a.workspace-switch .nav-icon{color:#d94c7d}
+.metric-card:after{z-index:0;filter:blur(12px);opacity:.68;pointer-events:none}.metric-card>*{position:relative;z-index:1}

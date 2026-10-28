@@ -66,6 +66,7 @@ urlpatterns = [
     path('ban-hang/san-pham/', views.ban_hang_san_pham, name='ban_hang_san_pham'),
     path('ban-hang/don-hang/', views.ban_hang_don_hang, name='ban_hang_don_hang'),
     path('ban-hang/don-hang/<int:order_id>/cap-nhat/', views.ban_hang_cap_nhat_don, name='ban_hang_cap_nhat_don'),
+    path('ban-hang/api/thong-bao-giao-don/', views.ban_hang_thong_bao_giao_don, name='ban_hang_thong_bao_giao_don'),
     path('ho-tro/', views.ho_tro_khach_hang, name='ho_tro_khach_hang'),
     path('ho-tro/api/', views.customer_support_api, name='customer_support_api'),
     path('quan-tri/bai-dang-san-pham/', views.quan_tri_de_xuat_san_pham, name='quan_tri_de_xuat_san_pham'),

@@ -1,0 +1,12 @@
+.sales-assignment-notifications{margin:0 0 18px;padding:15px 17px;border:1px solid #f3d2dc;border-radius:14px;background:linear-gradient(115deg,#fff6f8,#fffaf6);box-shadow:0 7px 20px #70434a0a}
+.sales-assignment-notifications[hidden]{display:none}
+.sales-assignment-heading{display:grid;gap:2px;margin-bottom:10px}
+.sales-assignment-heading strong{color:#b74770;font-size:14px}
+.sales-assignment-heading span{color:#9a8587;font-size:12px}
+.sales-assignment-list{display:grid;gap:7px;padding:0;margin:0;list-style:none}
+.sales-assignment-list li{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:10px 12px;border:1px solid #f5e3e5;border-radius:10px;background:#fff}
+.sales-assignment-list li>div{display:grid;gap:3px;min-width:0}
+.sales-assignment-list li strong{color:#514044;font-size:12px;overflow-wrap:anywhere}
+.sales-assignment-list time{color:#a28e90;font-size:10px}
+.sales-assignment-list a{flex:none;color:#d64f7f;font-size:12px;font-weight:700;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:640px){.sales-assignment-notifications{padding:13px}.sales-assignment-list li{align-items:flex-start;padding:9px}.sales-assignment-list a{white-space:nowrap}}

@@ -121,6 +121,20 @@ class OrderNotification(models.Model):
         return f"{self.order.code}: {self.message}"
 
 
+class StaffNotification(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="staff_notifications")
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="staff_notifications")
+    message = models.CharField(max_length=240)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.user}: {self.message}"
+
+
 class InventoryAdjustment(models.Model):
     product = models.ForeignKey(SanPham, on_delete=models.PROTECT, related_name="inventory_adjustments")
     quantity_delta = models.IntegerField()

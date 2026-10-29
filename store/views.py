@@ -32,6 +32,7 @@ from .models import (
     Order,
     OrderItem,
     OrderNotification,
+    StaffNotification,
     ProductReview,
     SanPham,
     SignupVoucherGrant,
@@ -1133,9 +1134,32 @@ def quan_tri_cap_nhat_don(request, order_id):
             profile = getattr(request.user, "staff_profile", None)
             if not request.user.is_superuser and (not profile or profile.role != StaffProfile.Role.ADMIN):
                 return HttpResponseForbidden("Chỉ quản trị viên được phân công đơn hàng.")
-            staff_profile = get_object_or_404(StaffProfile, pk=request.POST.get("staff_profile"), role=StaffProfile.Role.SALES, is_enabled=True)
-            order.staff_assignee = staff_profile.user
-            order.save(update_fields=["staff_assignee", "updated_at"])
+            staff_profile_id = request.POST.get("staff_profile", "").strip()
+            if not staff_profile_id.isdecimal():
+                messages.error(request, "Chọn nhân viên bán hàng trước khi giao đơn.")
+                return redirect("quan_tri_don_hang")
+            staff_profile = StaffProfile.objects.filter(
+                pk=staff_profile_id,
+                role=StaffProfile.Role.SALES,
+                is_enabled=True,
+                user__is_active=True,
+            ).select_related("user").first()
+            if not staff_profile:
+                messages.error(request, "Nhân viên này không còn hoạt động. Hãy chọn nhân viên khác.")
+                return redirect("quan_tri_don_hang")
+            with transaction.atomic():
+                order = Order.objects.select_for_update().get(pk=order.pk)
+                previous_assignee_id = order.staff_assignee_id
+                order.staff_assignee = staff_profile.user
+                order.save(update_fields=["staff_assignee", "updated_at"])
+                if previous_assignee_id != staff_profile.user_id:
+                    StaffNotification.objects.create(
+                        user=staff_profile.user,
+                        order=order,
+                        message=f"Admin đã giao đơn {order.code} cho bạn.",
+                    )
+            messages.success(request, f"Đã giao đơn {order.code} cho {staff_profile.user.username}.")
+            return redirect("quan_tri_chi_tiet_don", order_id=order.pk)
         elif action == "confirm":
             confirm_order(order.pk, request.user)
             notification_text = f"Đơn hàng {order.code} đã được duyệt thành công. Đơn COD sẽ thanh toán khi nhận hàng."
@@ -1854,6 +1878,7 @@ def ban_hang_dashboard(request):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
     expire_unconfirmed_cod_orders()
     orders = Order.objects.select_related("customer").order_by("-created_at")
+    assignment_notifications = _consume_sales_assignment_notifications(request.user)
     return render(request, "store/sales_dashboard.html", {
         "product_count": SanPham.objects.filter(is_active=True).count(),
         "new_order_count": orders.filter(status=Order.Status.PENDING).count(),
@@ -1861,6 +1886,7 @@ def ban_hang_dashboard(request):
         "orders_shipping": orders.filter(status=Order.Status.SHIPPING).count(),
         "cancelled_orders": orders.filter(status=Order.Status.CANCELLED).count(),
         "recent_orders": orders[:5],
+        "sales_assignment_notifications": assignment_notifications,
     })
 
 
@@ -1878,6 +1904,7 @@ def ban_hang_don_hang(request):
         orders = orders.filter(status=status)
     if payment in Order.PaymentMethod.values:
         orders = orders.filter(payment_method=payment)
+    assignment_notifications = _consume_sales_assignment_notifications(request.user)
     return render(request, "store/sales_orders.html", {
         "orders": orders,
         "statuses": Order.Status.choices,
@@ -1885,6 +1912,40 @@ def ban_hang_don_hang(request):
         "selected_status": status,
         "selected_payment": payment,
         "search": search,
+        "sales_assignment_notifications": assignment_notifications,
+    })
+
+
+def _consume_sales_assignment_notifications(user):
+    notifications = list(
+        StaffNotification.objects.filter(user=user, is_read=False)
+        .select_related("order")
+        .order_by("-created_at")[:10]
+    )
+    if notifications:
+        StaffNotification.objects.filter(pk__in=[item.pk for item in notifications]).update(is_read=True)
+    return notifications
+
+
+def ban_hang_thong_bao_giao_don(request):
+    if request.method != "GET":
+        return HttpResponseNotAllowed(["GET"])
+    if not _has_sales_access(request.user):
+        return HttpResponseForbidden("Trang này dành cho nhân viên bán hàng.")
+    notifications = list(
+        StaffNotification.objects.filter(user=request.user, is_read=False)
+        .select_related("order")
+        .order_by("-created_at")[:10]
+    )
+    if notifications:
+        StaffNotification.objects.filter(pk__in=[item.pk for item in notifications]).update(is_read=True)
+    return JsonResponse({
+        "notifications": [{
+            "id": item.pk,
+            "message": item.message,
+            "created_at": timezone.localtime(item.created_at).strftime("%H:%M · %d/%m/%Y"),
+            "url": f"/ban-hang/don-hang/#order-{item.order_id}",
+        } for item in notifications],
     })
 
 

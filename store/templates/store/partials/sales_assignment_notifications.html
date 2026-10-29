@@ -1,0 +1,10 @@
+<section class="sales-assignment-notifications" id="salesAssignmentNotifications" aria-live="polite" data-notifications-url="{% url 'ban_hang_thong_bao_giao_don' %}"{% if not sales_assignment_notifications %} hidden{% endif %}>
+  {% if sales_assignment_notifications %}
+  <div class="sales-assignment-heading"><strong>Đơn mới được giao cho bạn</strong><span>Admin đã phân công các đơn sau.</span></div>
+  <ul class="sales-assignment-list">
+    {% for notification in sales_assignment_notifications %}
+    <li data-notification-id="{{ notification.pk }}"><div><strong>{{ notification.message }}</strong><time>{{ notification.created_at|date:'H:i · d/m/Y' }}</time></div><a href="{% url 'ban_hang_don_hang' %}#order-{{ notification.order_id }}">Mở đơn</a></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>

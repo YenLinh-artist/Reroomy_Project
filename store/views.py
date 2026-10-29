@@ -7,6 +7,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.decorators import login_required
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
+from django.db.models.deletion import ProtectedError
 from django.db.models import Sum, Count, Q, F, Avg
 from django.http import Http404, HttpResponseNotAllowed, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
@@ -264,9 +265,20 @@ def _unread_notifications_count(user):
 
 
 def trang_chu(request):
+    show_signup_voucher_toast = request.session.pop("show_signup_voucher_toast", False)
+    signup_vouchers = []
+    if show_signup_voucher_toast and request.user.is_authenticated:
+        signup_vouchers = SignupVoucherGrant.objects.filter(
+            user=request.user,
+            grant_type=SignupVoucherGrant.GrantType.SIGNUP,
+            used_at__isnull=True,
+            expires_at__gt=timezone.now(),
+        ).order_by("minimum_order")
     return render(request, "index.html", {
         "san_pham_list": _products_for_homepage(),
         "unread_notifications_count": _unread_notifications_count(request.user),
+        "show_signup_voucher_toast": show_signup_voucher_toast,
+        "signup_vouchers": signup_vouchers,
         "categories": ["Phổ biến", "Combo chăn ấm - gối êm", "Giấy dán tường", "Đèn ngủ - học tập", "Gương tường"],
     })
 
@@ -802,7 +814,7 @@ def dang_ky(request):
                 messages.error(request, "Tên đăng nhập hoặc email vừa được sử dụng. Bạn thử lại nhé.")
             else:
                 login(request, user)
-                messages.success(request, "Tạo tài khoản thành công. Chào mừng bạn đến Re:Room!")
+                request.session["show_signup_voucher_toast"] = True
                 return redirect("trang_chu")
     return render(request, "register.html")
 
@@ -1031,13 +1043,66 @@ def quan_tri_xoa_san_pham(request, product_id):
 
 @_roles_required(StaffProfile.Role.ADMIN)
 def quan_tri_danh_muc(request):
-    form = DanhMucForm(request.POST or None)
-    if request.method == "POST" and form.is_valid():
-        form.save()
-        messages.success(request, "Đã thêm danh mục.")
+    editing_category = None
+    action = request.POST.get("action", "save") if request.method == "POST" else ""
+
+    if request.method == "POST" and action == "delete":
+        category_id = request.POST.get("category_id", "").strip()
+        if not category_id.isdecimal():
+            messages.error(request, "Danh m\u1ee5c kh\u00f4ng h\u1ee3p l\u1ec7.")
+            return redirect("quan_tri_danh_muc")
+        try:
+            with transaction.atomic():
+                editing_category = get_object_or_404(
+                    DanhMuc.objects.select_for_update(), pk=category_id
+                )
+                product_count = SanPham.objects.filter(danh_muc=editing_category).count()
+                submission_count = DeXuatSanPham.objects.filter(danh_muc=editing_category).count()
+                if product_count or submission_count:
+                    messages.error(
+                        request,
+                        "Kh\u00f4ng th\u1ec3 x\u00f3a danh m\u1ee5c \u0111ang \u0111\u01b0\u1ee3c s\u1ea3n ph\u1ea9m ho\u1eb7c \u0111\u1ec1 xu\u1ea5t s\u1eed d\u1ee5ng. H\u00e3y chuy\u1ec3n ch\u00fang sang danh m\u1ee5c kh\u00e1c tr\u01b0\u1edbc.",
+                    )
+                else:
+                    editing_category.delete()
+                    messages.success(request, "\u0110\u00e3 x\u00f3a danh m\u1ee5c tr\u1ed1ng.")
+        except ProtectedError:
+            messages.error(
+                request,
+                "Danh m\u1ee5c v\u1eeba \u0111\u01b0\u1ee3c s\u1eed d\u1ee5ng. H\u00e3y chuy\u1ec3n s\u1ea3n ph\u1ea9m ho\u1eb7c \u0111\u1ec1 xu\u1ea5t sang danh m\u1ee5c kh\u00e1c tr\u01b0\u1edbc.",
+            )
         return redirect("quan_tri_danh_muc")
-    categories = DanhMuc.objects.order_by("ten_danh_muc")
-    return render(request, "store/admin_categories.html", {"form": form, "categories": categories})
+
+    category_id = (
+        request.POST.get("category_id", "").strip()
+        if request.method == "POST" and action == "save"
+        else request.GET.get("edit", "").strip()
+    )
+    if category_id:
+        if not category_id.isdecimal():
+            messages.error(request, "Danh m\u1ee5c kh\u00f4ng h\u1ee3p l\u1ec7.")
+            return redirect("quan_tri_danh_muc")
+        editing_category = get_object_or_404(DanhMuc, pk=category_id)
+
+    form = DanhMucForm(request.POST or None, instance=editing_category)
+    if request.method == "POST" and action == "save" and form.is_valid():
+        was_editing = bool(editing_category)
+        form.save()
+        messages.success(
+            request,
+            "\u0110\u00e3 c\u1eadp nh\u1eadt danh m\u1ee5c." if was_editing else "\u0110\u00e3 th\u00eam danh m\u1ee5c.",
+        )
+        return redirect("quan_tri_danh_muc")
+
+    categories = DanhMuc.objects.annotate(
+        product_count=Count("sanpham", distinct=True),
+        submission_count=Count("dexuatsanpham", distinct=True),
+    ).order_by("ten_danh_muc")
+    return render(request, "store/admin_categories.html", {
+        "form": form,
+        "categories": categories,
+        "editing_category": editing_category,
+    })
 
 
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)

@@ -1,0 +1,14 @@
+.signup-voucher-toast{position:fixed;right:20px;bottom:20px;z-index:120;width:min(390px,calc(100vw - 28px));padding:22px 22px 18px;border:1px solid #f1cfd9;border-radius:18px;background:linear-gradient(145deg,#fff 0%,#fff7f5 100%);box-shadow:0 18px 55px #57333b2b;color:#403238;opacity:0;visibility:hidden;transform:translate3d(calc(100% + 28px),0,0);transition:opacity .32s ease,transform .42s cubic-bezier(.2,.8,.2,1),visibility .42s}
+.signup-voucher-toast.is-visible{opacity:1;visibility:visible;transform:translate3d(0,0,0)}
+.signup-voucher-toast__close{position:absolute;top:10px;right:11px;width:32px;height:32px;border:0;border-radius:50%;background:#fff0f4;color:#9b526e;font-size:21px;line-height:1;cursor:pointer}
+.signup-voucher-toast__close:hover{background:#ffe1ea;color:#d8417a}
+.signup-voucher-toast__eyebrow{display:block;margin:0 34px 5px 0;color:#d34e80;font-size:10px;font-weight:800;letter-spacing:1.3px}
+.signup-voucher-toast h2{margin:0 30px 6px 0;color:#49333b;font:700 19px/1.3 'DM Sans','Nunito',sans-serif}
+.signup-voucher-toast p{margin:0 0 10px;color:#8b777d;font-size:13px;line-height:1.5}
+.signup-voucher-toast ul{display:grid;gap:7px;margin:0;padding:0;list-style:none}
+.signup-voucher-toast li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 11px;border:1px solid #f4e2e5;border-radius:10px;background:#fff}
+.signup-voucher-toast li strong{color:#d84d7d;font-size:12px}
+.signup-voucher-toast li span{color:#78686d;font-size:11px;text-align:right}
+.signup-voucher-toast__link{display:inline-flex;gap:7px;align-items:center;margin-top:13px;color:#c43e70;font-size:12px;font-weight:800;text-decoration:underline;text-underline-offset:3px}
+@media(max-width:480px){.signup-voucher-toast{right:12px;bottom:12px;padding:19px 17px 16px}.signup-voucher-toast h2{font-size:17px}.signup-voucher-toast li{align-items:flex-start;flex-direction:column;gap:2px}.signup-voucher-toast li span{text-align:left}}
+@media(prefers-reduced-motion:reduce){.signup-voucher-toast{transition:none;transform:none}.signup-voucher-toast.is-visible{transform:none}}

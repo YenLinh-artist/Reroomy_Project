@@ -1,1 +1,64 @@
-{% extends 'store/admin_base.html' %}{% block title %}Danh mục{% endblock %}{% block content %}<div class="page-heading"><div><span class="eyebrow">CATALOG</span><h1>Danh mục sản phẩm</h1><p>Nhóm sản phẩm để khách dễ tìm trong cửa hàng.</p></div></div><div class="two-column"><section class="form-panel"><div class="panel-title"><div><h2>Thêm danh mục</h2></div></div><form method="post">{% csrf_token %}<div class="field">{{ form.ten_danh_muc.label_tag }}{{ form.ten_danh_muc }}{{ form.ten_danh_muc.errors }}</div><button class="btn">Lưu danh mục</button></form></section><section class="table-panel"><div class="panel-title"><div><h2>Danh mục hiện có</h2></div></div><div class="table-wrap"><table class="admin-table"><thead><tr><th>TÊN DANH MỤC</th><th>SẢN PHẨM</th></tr></thead><tbody>{% for item in categories %}<tr><td><strong>{{ item.ten_danh_muc }}</strong></td><td>{{ item.sanpham_set.count }}</td></tr>{% empty %}<tr><td colspan="2"><div class="empty-state">Chưa có danh mục. Hãy tạo một danh mục trước khi thêm sản phẩm.</div></td></tr>{% endfor %}</tbody></table></div></section></div>{% endblock %}
+{% extends 'store/admin_base.html' %}
+{% block title %}Danh m&#7913;c{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">CATALOG</span>
+    <h1>Danh m&#7913;c s&#7843;n ph&#7849;m</h1>
+    <p>Nh&oacute;m s&#7843;n ph&#7849;m &#273;&#7875; kh&aacute;ch d&#7877; t&igrave;m trong c&#7917;a h&agrave;ng.</p>
+  </div>
+</div>
+<div class="two-column">
+  <section class="form-panel">
+    <div class="panel-title"><div><h2>{% if editing_category %}Ch&#7881;nh s&#7917;a danh m&#7909;c{% else %}Th&ecirc;m danh m&#7909;c{% endif %}</h2></div></div>
+    <form method="post" action="{% url 'quan_tri_danh_muc' %}">
+      {% csrf_token %}
+      <input type="hidden" name="action" value="save">
+      {% if editing_category %}<input type="hidden" name="category_id" value="{{ editing_category.pk }}">{% endif %}
+      <div class="field">
+        {{ form.ten_danh_muc.label_tag }}
+        {{ form.ten_danh_muc }}
+        {{ form.ten_danh_muc.errors }}
+      </div>
+      <div class="inline-actions">
+        <button class="btn" type="submit">{% if editing_category %}L&#432;u thay &#273;&#7893;i{% else %}L&#432;u danh m&#7909;c{% endif %}</button>
+        {% if editing_category %}<a class="btn btn-soft" href="{% url 'quan_tri_danh_muc' %}">H&#7911;y</a>{% endif %}
+      </div>
+    </form>
+  </section>
+  <section class="table-panel">
+    <div class="panel-title"><div><h2>Danh m&#7909;c hi&#7879;n c&oacute;</h2></div></div>
+    <div class="table-wrap">
+      <table class="admin-table">
+        <thead><tr><th>T&Ecirc;N DANH M&#7908;C</th><th>S&#7842;N PH&#7848;M</th><th>THAO T&Aacute;C</th></tr></thead>
+        <tbody>
+          {% for item in categories %}
+          <tr>
+            <td><strong>{{ item.ten_danh_muc }}</strong></td>
+            <td>{{ item.product_count }}</td>
+            <td>
+              <div class="inline-actions">
+                <a class="btn btn-soft btn-small" href="{% url 'quan_tri_danh_muc' %}?edit={{ item.pk }}">S&#7917;a</a>
+                {% if item.product_count or item.submission_count %}
+                  <button class="btn btn-warn btn-small" type="button" disabled title="Chuy&#7875;n s&#7843;n ph&#7849;m v&agrave; &#273;&#7873; xu&#7845;t sang danh m&#7909;c kh&aacute;c tr&#432;&#7899;c khi x&oacute;a.">&#272;ang &#273;&#432;&#7907;c d&ugrave;ng</button>
+                {% else %}
+                  <form method="post" action="{% url 'quan_tri_danh_muc' %}" onsubmit="return confirm('X&oacute;a danh m&#7909;c tr&#7889;ng n&agrave;y?')">
+                    {% csrf_token %}
+                    <input type="hidden" name="action" value="delete">
+                    <input type="hidden" name="category_id" value="{{ item.pk }}">
+                    <button class="btn btn-warn btn-small" type="submit">X&oacute;a</button>
+                  </form>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3"><div class="empty-state">Ch&#432;a c&oacute; danh m&#7909;c. H&atilde;y t&#7841;o m&#7897;t danh m&#7909;c tr&#432;&#7899;c khi th&ecirc;m s&#7843;n ph&#7849;m.</div></td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="subtle">Ch&#7881; x&oacute;a &#273;&#432;&#7907;c danh m&#7909;c ch&#432;a g&#7855;n v&#7899;i s&#7843;n ph&#7849;m ho&#7863;c &#273;&#7873; xu&#7845;t.</p>
+  </section>
+</div>
+{% endblock %}

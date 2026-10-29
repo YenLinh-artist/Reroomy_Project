@@ -4,6 +4,7 @@
 <head>
   <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#ffc0d2">
+  {% if show_signup_voucher_toast %}<link rel="stylesheet" href="{% static 'store/signup-voucher-toast.css' %}">{% endif %}
   <title>Re:Room — Không gian nhỏ, ý tưởng to</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -86,6 +87,20 @@
   </main>
   {% include 'store/partials/footer.html' %}
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  {% if show_signup_voucher_toast and signup_vouchers %}
+  <aside class="signup-voucher-toast" id="signupVoucherToast" role="status" aria-live="polite" aria-atomic="true">
+    <button class="signup-voucher-toast__close" type="button" aria-label="Đóng thông báo">&times;</button>
+    <span class="signup-voucher-toast__eyebrow">CHÀO MỪNG ĐẾN RE:ROOM</span>
+    <h2>Bạn vừa nhận voucher chào mừng ✨</h2>
+    <p>Ưu đãi đã được thêm vào kho voucher của bạn:</p>
+    <ul>
+      {% for voucher in signup_vouchers %}
+      <li><strong>{{ voucher.display_name }}</strong><span>Giảm {{ voucher.discount_value }}% · đơn từ {{ voucher.minimum_order|floatformat:0 }}₫ · hạn {{ voucher.expires_at|date:"d/m H:i" }}</span></li>
+      {% endfor %}
+    </ul>
+    <a class="signup-voucher-toast__link" href="{% url 'tai_khoan' %}#vouchers">Xem kho ưu đãi <span aria-hidden="true">→</span></a>
+  </aside>
+  {% endif %}
   <div class="drawer-backdrop" id="drawerBackdrop"></div><aside class="cart-drawer" id="cartDrawer" aria-label="Giỏ hàng"><div class="drawer-head"><h2>Giỏ hàng của bạn</h2><button class="drawer-close" id="drawerClose" aria-label="Đóng">×</button></div><div class="cart-list" id="cartList"></div><div class="cart-total"><span>Tạm tính</span><span id="cartTotal">0đ</span></div><a class="btn-primary" id="checkoutButton" data-cart-url="{% url 'gio_hang' %}" href="{% url 'gio_hang' %}">Xem gi&#7887; h&#224;ng</a></aside>
   <script src="{% static 'store/cart.js' %}"></script><script>
     const products=[...document.querySelectorAll('.product-card')];
@@ -101,5 +116,6 @@
     const notifyButton=document.getElementById('notifyToggle'),notifyPop=document.getElementById('notifyPop'),notifyList=document.getElementById('orderNotificationList'),notifyDot=document.getElementById('notificationDot'),notifyCsrf=document.querySelector('#notificationCsrf [name=csrfmiddlewaretoken]')?.value||'';let currentNotifications=[];async function loadNotifications(){try{const response=await fetch("{% url 'thong_bao_don_hang' %}",{headers:{'Accept':'application/json'}});if(!response.ok)return;const data=await response.json();currentNotifications=data.notifications||[];notifyDot.style.display=data.unread?'block':'none';notifyDot.setAttribute('aria-label',data.unread+' tin ch\u01b0a \u0111\u1ecdc');notifyList.replaceChildren();if(!currentNotifications.length){const empty=document.createElement('p');empty.textContent='Ch\u01b0a c\u00f3 th\u00f4ng b\u00e1o m\u1edbi.';notifyList.append(empty);return}currentNotifications.forEach(item=>{const notice=document.createElement('p');notice.textContent=`${item.category||'Th\u00f4ng b\u00e1o'}: ${item.message}`;notifyList.append(notice)})}catch{}}notifyButton.addEventListener('click',async()=>{notifyPop.classList.toggle('open');notifyButton.setAttribute('aria-expanded',String(notifyPop.classList.contains('open')));if(notifyPop.classList.contains('open')&&currentNotifications.length){try{await fetch("{% url 'thong_bao_don_hang' %}",{method:'POST',headers:{'Content-Type':'application/json','X-CSRFToken':notifyCsrf},body:JSON.stringify({ids:currentNotifications.map(item=>item.id)})});notifyDot.style.display='none';currentNotifications=[]}catch{}}});loadNotifications();setInterval(loadNotifications,10000);
 
   </script>
+  {% if show_signup_voucher_toast and signup_vouchers %}<script src="{% static 'store/signup-voucher-toast.js' %}" defer></script>{% endif %}
 </body>
 </html>

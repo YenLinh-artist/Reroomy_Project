@@ -52,7 +52,8 @@ class CustomerProfile(models.Model):
 
 class Order(models.Model):
     class Status(models.TextChoices):
-        PENDING = "pending", "Chờ xác nhận"
+        PENDING = "pending", "Cần xác nhận"
+        NEEDS_ATTENTION = "needs_attention", "Cần xử lý"
         CONFIRMED = "confirmed", "Đã xác nhận"
         SHIPPING = "shipping", "Đang giao"
         COMPLETED = "completed", "Hoàn tất"
@@ -71,6 +72,8 @@ class Order(models.Model):
     tracking_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     customer = models.ForeignKey(CustomerProfile, on_delete=models.PROTECT, related_name="orders")
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
+    status_before_attention = models.CharField(max_length=20, choices=Status.choices, blank=True, default="")
+    support_reason = models.CharField(max_length=400, blank=True, default="")
     payment_method = models.CharField(max_length=12, choices=PaymentMethod.choices, default=PaymentMethod.COD)
     payment_status = models.CharField(max_length=12, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     paid_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -87,7 +90,12 @@ class Order(models.Model):
 
     def clean(self):
         from django.core.exceptions import ValidationError
-        if self.payment_method == self.PaymentMethod.COD and self.payment_status == self.PaymentStatus.PAID and self.status != self.Status.COMPLETED:
+        if (
+            self.payment_method == self.PaymentMethod.COD
+            and self.payment_status == self.PaymentStatus.PAID
+            and self.status != self.Status.COMPLETED
+            and not (self.status == self.Status.NEEDS_ATTENTION and self.status_before_attention == self.Status.COMPLETED)
+        ):
             raise ValidationError({"payment_status": "COD chỉ được ghi nhận đã thu sau khi giao hàng hoàn tất."})
 
     def save(self, *args, **kwargs):
@@ -244,6 +252,24 @@ class VoucherNotification(models.Model):
 
     def __str__(self):
         return f"{self.voucher.code}: {self.user}"
+
+
+class VoucherExpiryReminder(models.Model):
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="voucher_expiry_reminders")
+    source_key = models.CharField(max_length=80)
+    message = models.CharField(max_length=240)
+    expires_at = models.DateTimeField(db_index=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["user", "source_key"], name="unique_voucher_expiry_reminder"),
+        ]
+
+    def __str__(self):
+        return f"{self.user}: {self.message}"
 
 
 class DecorConsultation(models.Model):

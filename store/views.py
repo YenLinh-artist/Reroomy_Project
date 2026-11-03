@@ -530,7 +530,28 @@ def theo_doi_don_hang(request, tracking_token):
     )
     if request.method == "POST":
         action = request.POST.get("action", "")
-        if action == "cancel":
+        if action == "request_product_change":
+            if order.product_change_used:
+                messages.error(request, "Mỗi đơn hàng chỉ được gửi yêu cầu đổi sản phẩm một lần.")
+            elif order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
+                messages.error(request, "Chỉ có thể yêu cầu đổi sản phẩm khi đơn chưa được bàn giao vận chuyển.")
+            elif not order.items.exists():
+                messages.error(request, "Đơn hàng chưa có sản phẩm để đổi.")
+            else:
+                order.product_change_requested = True
+                order.product_change_used = True
+                order.save(update_fields=["product_change_requested", "product_change_used", "updated_at"])
+                cskh_users = User.objects.filter(
+                    Q(staff_profile__role=StaffProfile.Role.CONSULTANT, staff_profile__is_enabled=True)
+                    | Q(ho_so_nhan_vien__bo_phan=HoSoNhanVien.BoPhan.CSKH), is_active=True,
+                ).distinct()
+                StaffNotification.objects.bulk_create([
+                    StaffNotification(user=user, order=order, message=f"Khách yêu cầu đổi sản phẩm cho đơn {order.code}.")
+                    for user in cskh_users
+                ])
+                OrderNotification.objects.create(order=order, message=f"Đã tiếp nhận yêu cầu đổi sản phẩm cho đơn {order.code}. Nhân viên CSKH sẽ liên hệ với bạn.")
+                messages.success(request, "Đã gửi yêu cầu đổi sản phẩm. Nhân viên CSKH sẽ liên hệ với bạn.")
+        elif action == "cancel":
             reason = request.POST.get("reason", "").strip()
             allowed_reasons = {
                 "changed_mind": "Tôi đổi ý",
@@ -1280,6 +1301,13 @@ def quan_tri_don_hang(request):
         order.needs_attention = order.status == Order.Status.NEEDS_ATTENTION
     cancelled_order_count = sum(order.status == Order.Status.CANCELLED for order in all_orders) if demo_preview else Order.objects.filter(status=Order.Status.CANCELLED).count()
     sales_staff = StaffProfile.objects.filter(role=StaffProfile.Role.SALES, is_enabled=True).select_related("user") if role == "admin" else []
+    product_change_notifications = []
+    if role == "admin":
+        product_change_notifications = list(StaffNotification.objects.filter(
+            user=request.user, is_read=False, message__contains="được duyệt sau khi đổi sản phẩm",
+        ).select_related("order").order_by("-created_at")[:10])
+        if product_change_notifications:
+            StaffNotification.objects.filter(pk__in=[item.pk for item in product_change_notifications]).update(is_read=True)
     return render(request, "store/admin_orders.html", {
         "orders": orders, "statuses": Order.Status.choices,
         "payment_methods": Order.PaymentMethod.choices,
@@ -1288,6 +1316,7 @@ def quan_tri_don_hang(request):
         "sales_staff": sales_staff, "demo_preview": demo_preview,
         "query": search_term, "cancelled_order_count": cancelled_order_count, "role": role,
         "needs_info": needs_info,
+        "product_change_notifications": product_change_notifications,
     })
 
 
@@ -2075,9 +2104,11 @@ def cskh_hop_thu(request):
 def cskh_don_hang(request):
     if not _has_cskh_access(request.user):
         return HttpResponseForbidden("T\u00e0i kho\u1ea3n n\u00e0y kh\u00f4ng thu\u1ed9c b\u1ed9 ph\u1eadn CSKH.")
-    orders = Order.objects.select_related("customer").prefetch_related("items").order_by("-created_at")
+    orders = Order.objects.select_related("customer").prefetch_related("items").order_by("-product_change_requested", "-created_at")
     return render(request, "store/cskh_orders.html", {
         "orders": orders,
+        "products": SanPham.objects.filter(is_active=True).order_by("ten_san_pham"),
+        "product_change_count": Order.objects.filter(product_change_requested=True).count(),
         "pending_order_count": Order.objects.filter(status=Order.Status.PENDING).count(),
     })
 
@@ -2087,7 +2118,87 @@ def cskh_duyet_don_hang(request, order_id):
         return HttpResponseNotAllowed(["POST"])
     if not _has_cskh_access(request.user):
         return HttpResponseForbidden("T\u00e0i kho\u1ea3n n\u00e0y kh\u00f4ng thu\u1ed9c b\u1ed9 ph\u1eadn CSKH.")
-    messages.info(request, "Nh\u00e2n vi\u00ean CSKH tra c\u1ee9u h\u1ed3 s\u01a1; nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng ph\u1ee5 tr\u00e1ch duy\u1ec7t \u0111\u01a1n.")
+    order = get_object_or_404(Order.objects.prefetch_related("items"), pk=order_id)
+    if not order.product_change_requested or order.product_change_pending_sales:
+        messages.error(request, "Đơn này hiện không có yêu cầu đổi sản phẩm cần cập nhật.")
+        return redirect("cskh_don_hang")
+    if order.status not in (Order.Status.PENDING, Order.Status.CONFIRMED):
+        messages.error(request, "Đơn không còn ở trạng thái phù hợp để đổi sản phẩm.")
+        return redirect("cskh_don_hang")
+    try:
+        with transaction.atomic():
+            order = Order.objects.select_for_update().get(pk=order_id)
+            old_rows = list(order.items.select_related("product"))
+            new_products = {}
+            for item in old_rows:
+                raw_id = request.POST.get(f"product_{item.pk}", "").strip()
+                if not raw_id.isdecimal():
+                    raise ValidationError("Chọn sản phẩm mới cho từng dòng hàng trước khi cập nhật.")
+                product = SanPham.objects.select_for_update().filter(pk=int(raw_id), is_active=True).first()
+                if not product:
+                    raise ValidationError("Có sản phẩm không còn được bán.")
+                new_products[item.pk] = product
+
+            old_quantities, new_quantities = {}, {}
+            for item in old_rows:
+                if item.product_id:
+                    old_quantities[item.product_id] = old_quantities.get(item.product_id, 0) + item.quantity
+                product = new_products[item.pk]
+                new_quantities[product.pk] = new_quantities.get(product.pk, 0) + item.quantity
+            locked_products = {
+                product.pk: product for product in SanPham.objects.select_for_update().filter(
+                    pk__in=set(old_quantities) | set(new_quantities)
+                ).order_by("pk")
+            }
+            for product_id, quantity in new_quantities.items():
+                available = locked_products[product_id].so_luong + (old_quantities.get(product_id, 0) if order.stock_reserved else 0)
+                if available < quantity:
+                    raise ValidationError(f"Không đủ tồn kho cho {locked_products[product_id].ten_san_pham}.")
+
+            old_subtotal = sum(item.unit_price * item.quantity for item in old_rows)
+            changes = []
+            for item in old_rows:
+                product = new_products[item.pk]
+                old_name = item.product_name
+                changes.append(f"{old_name} → {product.ten_san_pham}")
+                item.product = product
+                item.product_name = product.ten_san_pham
+                item.unit_price = product.gia_ban
+                item.variant = ""
+                item.save(update_fields=["product", "product_name", "unit_price", "variant"])
+
+            if order.stock_reserved:
+                for product_id in set(old_quantities) | set(new_quantities):
+                    product = locked_products[product_id]
+                    delta = old_quantities.get(product_id, 0) - new_quantities.get(product_id, 0)
+                    if delta:
+                        product.so_luong += delta
+                        product.save(update_fields=["so_luong"])
+                        InventoryAdjustment.objects.create(
+                            product=product, quantity_delta=delta,
+                            reason=f"Cập nhật sản phẩm đơn {order.code}", actor=request.user, order=order,
+                        )
+            new_subtotal = sum(item.unit_price * item.quantity for item in order.items.all())
+            old_shipping = 0 if old_subtotal >= 500000 else (20000 if old_subtotal else 0)
+            new_shipping = 0 if new_subtotal >= 500000 else (20000 if new_subtotal else 0)
+            preserved_discount = max(0, old_subtotal - (order.total - old_shipping))
+            order.total = max(0, new_subtotal - preserved_discount) + new_shipping
+            order.product_change_summary = "; ".join(changes)[:400]
+            order.product_change_requested = False
+            order.product_change_pending_sales = True
+            order.status = Order.Status.PENDING
+            order.status_before_attention = ""
+            order.support_reason = ""
+            order.save(update_fields=["total", "product_change_summary", "product_change_requested", "product_change_pending_sales", "status", "status_before_attention", "support_reason", "updated_at"])
+            OrderNotification.objects.create(order=order, message=f"CSKH đã cập nhật sản phẩm theo yêu cầu ({order.product_change_summary}). Đơn đang chờ nhân viên bán hàng duyệt lại.")
+            for staff_user in User.objects.filter(
+                Q(staff_profile__role=StaffProfile.Role.SALES, staff_profile__is_enabled=True)
+                | Q(ho_so_nhan_vien__bo_phan=HoSoNhanVien.BoPhan.BAN_HANG), is_active=True,
+            ).distinct():
+                StaffNotification.objects.create(user=staff_user, order=order, message=f"Đơn {order.code} đã được CSKH đổi sản phẩm, cần duyệt lại.")
+        messages.success(request, "Đã cập nhật sản phẩm. Đơn hàng đang chờ nhân viên bán hàng duyệt lại.")
+    except (ValidationError, KeyError) as exc:
+        messages.error(request, "; ".join(exc.messages) if isinstance(exc, ValidationError) else "Không thể cập nhật sản phẩm.")
     return redirect("cskh_don_hang")
 
 
@@ -2204,8 +2315,23 @@ def ban_hang_cap_nhat_don(request, order_id):
     notification_text = None
     try:
         if action == "confirm":
+            is_product_change = order.product_change_pending_sales
+            change_summary = order.product_change_summary
             confirm_order(order.pk, request.user)
-            notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c duy\u1ec7t. \u0110\u01a1n COD thanh to\u00e1n khi nh\u1eadn h\u00e0ng."
+            if is_product_change:
+                order.product_change_pending_sales = False
+                order.save(update_fields=["product_change_pending_sales", "updated_at"])
+                notification_text = f"Đơn của bạn đã cập nhật lại sản phẩm thành công. Đơn hàng {order.code} đã được xác nhận."
+                for admin_user in User.objects.filter(
+                    Q(staff_profile__role=StaffProfile.Role.ADMIN, staff_profile__is_enabled=True)
+                    | Q(is_superuser=True), is_active=True,
+                ).distinct():
+                    StaffNotification.objects.create(
+                        user=admin_user, order=order,
+                        message=f"Đơn {order.code} đã được duyệt sau khi đổi sản phẩm: {change_summary}.",
+                    )
+            else:
+                notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c duy\u1ec7t. \u0110\u01a1n COD thanh to\u00e1n khi nh\u1eadn h\u00e0ng."
         elif action == "cancel":
             cancel_order(order.pk, request.user)
             notification_text = f"\u0110\u01a1n h\u00e0ng {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c h\u1ee7y."

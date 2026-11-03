@@ -40,6 +40,7 @@ from .models import (
     StaffProfile,
     Voucher,
     VoucherNotification,
+    VoucherExpiryReminder,
 )
 from .services import (
     BUSINESS_TIME_ZONE,
@@ -261,7 +262,55 @@ def _unread_notifications_count(user):
         OrderNotification.objects.filter(order__customer__user=user, is_read=False).count()
         + VoucherNotification.objects.filter(user=user, is_read=False).count()
         + SignupVoucherGrant.objects.filter(user=user, is_read=False).count()
+        + VoucherExpiryReminder.objects.filter(user=user, is_read=False).count()
     )
+
+
+def _create_expiring_voucher_reminders(user, now=None):
+    """Persist one in-app reminder per available voucher as it enters its final six hours."""
+    if not user.is_authenticated or user.is_staff or user.is_superuser:
+        return
+    now = now or timezone.now()
+    reminder_deadline = now + timedelta(hours=6)
+    pending_reminders = []
+    expiring_vouchers = Voucher.objects.filter(
+        status=Voucher.Status.APPROVED,
+        starts_at__lte=now,
+        ends_at__gt=now,
+        ends_at__lte=reminder_deadline,
+        used_count__lt=F("usage_limit"),
+    )
+    for voucher in expiring_vouchers:
+        hours_left = max(1, int((voucher.ends_at - now).total_seconds() // 3600))
+        pending_reminders.append(VoucherExpiryReminder(
+            user=user,
+            source_key=f"voucher:{voucher.pk}",
+            message=f"Voucher {voucher.code} sắp hết hạn, còn khoảng {hours_left} giờ để sử dụng.",
+            expires_at=voucher.ends_at,
+        ))
+    expiring_grants = SignupVoucherGrant.objects.filter(
+        user=user,
+        used_at__isnull=True,
+        expires_at__gt=now,
+        expires_at__lte=reminder_deadline,
+    )
+    for grant in expiring_grants:
+        hours_left = max(1, int((grant.expires_at - now).total_seconds() // 3600))
+        pending_reminders.append(VoucherExpiryReminder(
+            user=user,
+            source_key=f"grant:{grant.pk}",
+            message=f"Voucher {grant.display_name} sắp hết hạn, còn khoảng {hours_left} giờ để sử dụng.",
+            expires_at=grant.expires_at,
+        ))
+    if pending_reminders:
+        existing_keys = set(VoucherExpiryReminder.objects.filter(
+            user=user,
+            source_key__in=[item.source_key for item in pending_reminders],
+        ).values_list("source_key", flat=True))
+        VoucherExpiryReminder.objects.bulk_create(
+            [item for item in pending_reminders if item.source_key not in existing_keys],
+            ignore_conflicts=True,
+        )
 
 
 def trang_chu(request):
@@ -476,9 +525,85 @@ def dat_hang_thanh_cong(request):
 
 def theo_doi_don_hang(request, tracking_token):
     order = get_object_or_404(
-        Order.objects.prefetch_related("notifications"), tracking_token=tracking_token
+        Order.objects.select_related("customer").prefetch_related("items", "notifications"),
+        tracking_token=tracking_token,
     )
-    return render(request, "store/order_tracking.html", {"order": order})
+    if request.method == "POST":
+        action = request.POST.get("action", "")
+        if action == "cancel":
+            reason = request.POST.get("reason", "").strip()
+            allowed_reasons = {
+                "changed_mind": "Tôi đổi ý",
+                "wrong_information": "Tôi nhập sai thông tin nhận hàng",
+                "ordered_by_mistake": "Tôi đặt nhầm sản phẩm",
+                "other": "Lý do khác",
+            }
+            if order.status != Order.Status.PENDING:
+                messages.error(request, "Chỉ có thể hủy đơn khi đang chờ xác nhận.")
+            elif reason not in allowed_reasons:
+                messages.error(request, "Chọn lý do hủy đơn trước nha.")
+            else:
+                try:
+                    cancel_order(order.pk, actor=None)
+                    OrderNotification.objects.create(
+                        order=order,
+                        message=f"Khách hàng đã hủy đơn. Lý do: {allowed_reasons[reason]}.",
+                    )
+                    messages.success(request, "Đã hủy đơn hàng theo yêu cầu của bạn.")
+                except ValidationError as exc:
+                    messages.error(request, "; ".join(exc.messages))
+        elif action == "report_issue":
+            reason = request.POST.get("reason", "").strip()
+            allowed_issues = {
+                "wrong_product": "Giao sai sản phẩm",
+                "wrong_variant": "Nhận nhầm phân loại",
+                "damaged_product": "Sản phẩm lỗi hoặc hư hỏng",
+                "other": "Vấn đề khác",
+            }
+            detail = request.POST.get("detail", "").strip()[:250]
+            if order.status not in (Order.Status.SHIPPING, Order.Status.COMPLETED):
+                messages.error(request, "Bạn có thể báo vấn đề khi đơn đang giao hoặc đã nhận.")
+            elif reason not in allowed_issues:
+                messages.error(request, "Chọn nội dung cần hỗ trợ trước nha.")
+            else:
+                order.status_before_attention = order.status
+                order.status = Order.Status.NEEDS_ATTENTION
+                order.support_reason = allowed_issues[reason] + (f": {detail}" if detail else "")
+                order.save(update_fields=["status", "status_before_attention", "support_reason", "updated_at"])
+                OrderNotification.objects.create(
+                    order=order,
+                    message=f"Re:Room đã ghi nhận yêu cầu hỗ trợ: {order.support_reason}. Nhân viên sẽ kiểm tra và liên hệ bạn.",
+                )
+                messages.success(request, "Đã gửi yêu cầu hỗ trợ. Re:Room sẽ liên hệ bạn sớm.")
+        else:
+            messages.error(request, "Thao tác không hợp lệ.")
+        return redirect("theo_doi_don_hang", tracking_token=order.tracking_token)
+
+    estimate_base_date = timezone.localtime(
+        order.created_at if order.status == Order.Status.PENDING else order.updated_at
+    ).date()
+    if order.status == Order.Status.PENDING:
+        expected_start, expected_end = estimate_base_date + timedelta(days=3), estimate_base_date + timedelta(days=5)
+    elif order.status == Order.Status.CONFIRMED:
+        expected_start, expected_end = estimate_base_date + timedelta(days=2), estimate_base_date + timedelta(days=4)
+    elif order.status == Order.Status.SHIPPING:
+        expected_start, expected_end = estimate_base_date + timedelta(days=1), estimate_base_date + timedelta(days=2)
+    else:
+        expected_start = expected_end = None
+    current_location = {
+        Order.Status.PENDING: "Shop Re:Room đang tiếp nhận đơn",
+        Order.Status.CONFIRMED: "Kho Re:Room đang chuẩn bị đơn",
+        Order.Status.SHIPPING: "Đang trên đường đến địa chỉ nhận",
+        Order.Status.COMPLETED: "Đã giao đến địa chỉ nhận",
+        Order.Status.NEEDS_ATTENTION: "Đang được nhân viên hỗ trợ",
+        Order.Status.CANCELLED: "Đơn hàng đã dừng xử lý",
+    }.get(order.status, "Shop Re:Room đang cập nhật đơn")
+    return render(request, "store/order_tracking.html", {
+        "order": order,
+        "expected_delivery_start": expected_start,
+        "expected_delivery_end": expected_end,
+        "current_location": current_location,
+    })
 
 
 @login_required
@@ -511,6 +636,13 @@ def tai_khoan(request):
     )
     if request.method == "POST":
         action = request.POST.get("action", "save_profile")
+        if action == "mark_notifications_read":
+            OrderNotification.objects.filter(order__customer=customer, is_read=False).update(is_read=True)
+            VoucherNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+            SignupVoucherGrant.objects.filter(user=request.user, is_read=False).update(is_read=True)
+            VoucherExpiryReminder.objects.filter(user=request.user, is_read=False).update(is_read=True)
+            messages.success(request, "Đã đánh dấu thông báo đã đọc.")
+            return redirect("tai_khoan")
         if action == "change_password":
             password_form = PasswordChangeForm(user=request.user, data=request.POST)
             if password_form.is_valid():
@@ -577,30 +709,22 @@ def tai_khoan(request):
     order_queryset = Order.objects.filter(customer=customer).prefetch_related("items__review", "items__product").order_by("-created_at")
     orders = order_queryset[:10]
     reviews = ProductReview.objects.filter(customer=customer).select_related("order_item", "order_item__product").order_by("-created_at")[:20]
+    _create_expiring_voucher_reminders(request.user)
     notifications = OrderNotification.objects.filter(order__customer=customer).select_related("order")[:20]
     voucher_notifications = list(
         VoucherNotification.objects.filter(user=request.user).select_related("voucher").order_by("-created_at")[:20]
     )
-    unread_voucher_notification_count = VoucherNotification.objects.filter(user=request.user, is_read=False).count()
-    if unread_voucher_notification_count:
-        VoucherNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     current_time = timezone.now()
     voucher_grant_notifications = list(
         SignupVoucherGrant.objects.filter(
-            user=request.user, is_read=False, expires_at__gt=current_time,
+            user=request.user,
         ).order_by("-issued_at")[:20]
     )
-    unread_voucher_grant_count = SignupVoucherGrant.objects.filter(
-        user=request.user, is_read=False, expires_at__gt=current_time,
-    ).count()
-    if unread_voucher_grant_count:
-        SignupVoucherGrant.objects.filter(
-            user=request.user, is_read=False, expires_at__gt=current_time,
-        ).update(is_read=True)
+    expiry_reminders = VoucherExpiryReminder.objects.filter(user=request.user)[:20]
     available_vouchers, _ = _active_checkout_vouchers(request.user)
-    expired_signup_vouchers = SignupVoucherGrant.objects.filter(
-        user=request.user, used_at__isnull=True, expires_at__lte=current_time,
-    ).order_by("-expires_at")
+    unread_voucher_notification_count = VoucherNotification.objects.filter(user=request.user, is_read=False).count()
+    unread_voucher_grant_count = SignupVoucherGrant.objects.filter(user=request.user, is_read=False).count()
+    unread_expiry_reminder_count = VoucherExpiryReminder.objects.filter(user=request.user, is_read=False).count()
     return render(request, "store/account.html", {
         "customer": customer,
         "products": products,
@@ -611,12 +735,15 @@ def tai_khoan(request):
         "order_notifications": notifications,
         "voucher_notifications": voucher_notifications,
         "voucher_grant_notifications": voucher_grant_notifications,
-        "expired_signup_vouchers": expired_signup_vouchers,
+        "expiry_reminders": expiry_reminders,
+        "current_time": current_time,
         "unread_notifications_count": (
             OrderNotification.objects.filter(order__customer=customer, is_read=False).count()
             + unread_voucher_notification_count
             + unread_voucher_grant_count
+            + unread_expiry_reminder_count
         ),
+        "has_any_notifications": bool(notifications or voucher_notifications or voucher_grant_notifications or expiry_reminders),
         "available_vouchers": available_vouchers,
         "password_form": PasswordChangeForm(user=request.user),
     })
@@ -883,11 +1010,8 @@ def quan_tri_dashboard(request):
     products = list(SanPham.objects.select_related("danh_muc").order_by("so_luong", "ten_san_pham")[:5]) if role == "admin" else []
     order_count = Order.objects.count() if role in ("admin", "sales") else 0
     pending_orders = Order.objects.filter(status=Order.Status.PENDING).count() if role in ("admin", "sales") else 0
-    new_order_count = Order.objects.filter(status=Order.Status.PENDING, created_at__date=today).count() if role == "sales" else 0
-    needs_attention_count = Order.objects.filter(
-        status=Order.Status.PENDING,
-        created_at__lte=timezone.now() - timedelta(days=3),
-    ).count() if role == "sales" else 0
+    new_order_count = pending_orders if role == "sales" else 0
+    needs_attention_count = Order.objects.filter(status=Order.Status.NEEDS_ATTENTION).count() if role == "sales" else 0
     pending_review_count = ProductReview.objects.filter(is_visible=False, reported=False).count() if role in ("admin", "sales") else 0
     customer_count = CustomerProfile.objects.count() if role == "admin" else 0
     low_stock_products = list(SanPham.objects.filter(is_active=True, so_luong__lte=5).select_related("danh_muc").order_by("so_luong")[:5]) if role in ("admin", "sales") else []
@@ -1153,10 +1277,7 @@ def quan_tri_don_hang(request):
         if needs_info:
             orders = [order for order in orders if not order.customer.full_name or not order.customer.phone or not order.shipping_address]
     for order in all_orders:
-        order.needs_attention = (
-            order.status == Order.Status.PENDING
-            and order.created_at <= timezone.now() - timedelta(days=3)
-        )
+        order.needs_attention = order.status == Order.Status.NEEDS_ATTENTION
     cancelled_order_count = sum(order.status == Order.Status.CANCELLED for order in all_orders) if demo_preview else Order.objects.filter(status=Order.Status.CANCELLED).count()
     sales_staff = StaffProfile.objects.filter(role=StaffProfile.Role.SALES, is_enabled=True).select_related("user") if role == "admin" else []
     return render(request, "store/admin_orders.html", {
@@ -1242,6 +1363,12 @@ def quan_tri_cap_nhat_don(request, order_id):
         elif action == "collect_cod":
             mark_cod_collected(order.pk, request.user)
             notification_text = f"Re:Room đã ghi nhận thanh toán COD cho đơn hàng {order.code}."
+        elif action == "mark_attention":
+            _mark_order_needs_attention(order, request.POST.get("reason", "").strip())
+            notification_text = f"\u0110\u01a1n {order.code} chuy\u1ec3n sang tr\u1ea1ng th\u00e1i c\u1ea7n h\u1ed7 tr\u1ee3."
+        elif action == "resolve_attention":
+            _resolve_order_attention(order)
+            notification_text = f"\u0110\u01a1n {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c h\u1ed7 tr\u1ee3 xong; ti\u1ebfp t\u1ee5c tr\u1ea1ng th\u00e1i tr\u01b0\u1edbc \u0111\u00f3."
         elif action == "confirm_online_payment":
             mark_online_payment_received(order.pk, request.user)
             notification_text = f"Đã ghi nhận chuyển khoản cho đơn hàng {order.code}."
@@ -1707,20 +1834,28 @@ def thong_bao_don_hang(request):
         return HttpResponseNotAllowed(["GET", "POST"])
     if not request.user.is_authenticated or request.user.is_staff:
         return JsonResponse({"notifications": [], "unread": 0})
+    _create_expiring_voucher_reminders(request.user)
     order_notifications = OrderNotification.objects.filter(
         order__customer__user=request.user,
-        is_read=False,
     ).select_related("order").order_by("-created_at")
     voucher_notifications = VoucherNotification.objects.filter(
-        user=request.user, is_read=False,
+        user=request.user,
     ).select_related("voucher").order_by("-created_at")
     voucher_grants = SignupVoucherGrant.objects.filter(
-        user=request.user, is_read=False,
+        user=request.user,
     ).order_by("-issued_at")
+    expiry_reminders = VoucherExpiryReminder.objects.filter(user=request.user)
     if request.method == "POST":
         try:
-            ids = json.loads(request.body).get("ids", [])
-            grouped_ids = {"order": [], "voucher": [], "grant": []}
+            payload = json.loads(request.body)
+            if payload.get("mark_all") is True:
+                OrderNotification.objects.filter(order__customer__user=request.user, is_read=False).update(is_read=True)
+                VoucherNotification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+                SignupVoucherGrant.objects.filter(user=request.user, is_read=False).update(is_read=True)
+                VoucherExpiryReminder.objects.filter(user=request.user, is_read=False).update(is_read=True)
+                return JsonResponse({"ok": True})
+            ids = payload.get("ids", [])
+            grouped_ids = {"order": [], "voucher": [], "grant": [], "expiry": []}
             for value in ids:
                 if isinstance(value, int):
                     grouped_ids["order"].append(value)
@@ -1739,18 +1874,23 @@ def thong_bao_don_hang(request):
         SignupVoucherGrant.objects.filter(
             pk__in=grouped_ids["grant"], user=request.user, is_read=False,
         ).update(is_read=True)
+        VoucherExpiryReminder.objects.filter(
+            pk__in=grouped_ids["expiry"], user=request.user, is_read=False,
+        ).update(is_read=True)
         return JsonResponse({"ok": True})
     items = [{
         "id": f"order:{item.pk}",
         "category": "Tr\u1ea1ng th\u00e1i \u0111\u01a1n h\u00e0ng",
         "message": item.message,
         "created_at": item.created_at.isoformat(),
+        "is_read": item.is_read,
     } for item in order_notifications[:20]]
     items.extend({
         "id": f"voucher:{item.pk}",
         "category": "\u01afu \u0111\u00e3i gi\u1ea3m gi\u00e1",
         "message": item.message,
         "created_at": item.created_at.isoformat(),
+        "is_read": item.is_read,
     } for item in voucher_notifications[:20])
     now = timezone.now()
     items.extend({
@@ -1762,9 +1902,22 @@ def thong_bao_don_hang(request):
             else f"B\u1ea1n nh\u1eadn \u0111\u01b0\u1ee3c voucher {item.display_name}, gi\u1ea3m {item.discount_value}% cho \u0111\u01a1n t\u1eeb {item.minimum_order:,}\u20ab."
         ),
         "created_at": item.issued_at.isoformat(),
+        "is_read": item.is_read,
     } for item in voucher_grants[:20])
+    items.extend({
+        "id": f"expiry:{item.pk}",
+        "category": "Voucher s\u1eafp h\u1ebft h\u1ea1n",
+        "message": item.message,
+        "created_at": item.created_at.isoformat(),
+        "is_read": item.is_read,
+    } for item in expiry_reminders[:20])
     items.sort(key=lambda item: item["created_at"], reverse=True)
-    unread = order_notifications.count() + voucher_notifications.count() + voucher_grants.count()
+    unread = (
+        order_notifications.filter(is_read=False).count()
+        + voucher_notifications.filter(is_read=False).count()
+        + voucher_grants.filter(is_read=False).count()
+        + expiry_reminders.filter(is_read=False).count()
+    )
     items = items[:10]
     return JsonResponse({"notifications": items, "unread": unread})
 
@@ -1947,7 +2100,8 @@ def ban_hang_dashboard(request):
     return render(request, "store/sales_dashboard.html", {
         "product_count": SanPham.objects.filter(is_active=True).count(),
         "new_order_count": orders.filter(status=Order.Status.PENDING).count(),
-        "orders_to_process": orders.filter(status=Order.Status.CONFIRMED).count(),
+        "orders_to_process": orders.filter(status=Order.Status.NEEDS_ATTENTION).count(),
+        "orders_preparing": orders.filter(status=Order.Status.CONFIRMED).count(),
         "orders_shipping": orders.filter(status=Order.Status.SHIPPING).count(),
         "cancelled_orders": orders.filter(status=Order.Status.CANCELLED).count(),
         "recent_orders": orders[:5],
@@ -2014,6 +2168,32 @@ def ban_hang_thong_bao_giao_don(request):
     })
 
 
+def _mark_order_needs_attention(order, reason=""):
+    if order.status == Order.Status.NEEDS_ATTENTION:
+        raise ValidationError("Đơn hàng đang được hỗ trợ rồi.")
+    if order.status == Order.Status.CANCELLED:
+        raise ValidationError("Không thể chuyển đơn đã hủy sang trạng thái cần xử lý.")
+    order.status_before_attention = order.status
+    order.status = Order.Status.NEEDS_ATTENTION
+    order.support_reason = reason[:400]
+    order.save(update_fields=["status", "status_before_attention", "support_reason", "updated_at"])
+
+
+def _resolve_order_attention(order):
+    if order.status != Order.Status.NEEDS_ATTENTION:
+        raise ValidationError("Đơn hàng không ở trạng thái cần xử lý.")
+    restorable_statuses = {
+        Order.Status.PENDING,
+        Order.Status.CONFIRMED,
+        Order.Status.SHIPPING,
+        Order.Status.COMPLETED,
+    }
+    order.status = order.status_before_attention if order.status_before_attention in restorable_statuses else Order.Status.CONFIRMED
+    order.status_before_attention = ""
+    order.support_reason = ""
+    order.save(update_fields=["status", "status_before_attention", "support_reason", "updated_at"])
+
+
 def ban_hang_cap_nhat_don(request, order_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -2040,6 +2220,12 @@ def ban_hang_cap_nhat_don(request, order_id):
         elif action == "collect_cod":
             mark_cod_collected(order.pk, request.user)
             notification_text = f"Re:Room \u0111\u00e3 ghi nh\u1eadn thu COD cho \u0111\u01a1n {order.code}."
+        elif action == "mark_attention":
+            _mark_order_needs_attention(order, request.POST.get("reason", "").strip())
+            notification_text = f"\u0110\u01a1n {order.code} chuy\u1ec3n sang tr\u1ea1ng th\u00e1i c\u1ea7n h\u1ed7 tr\u1ee3."
+        elif action == "resolve_attention":
+            _resolve_order_attention(order)
+            notification_text = f"\u0110\u01a1n {order.code} \u0111\u00e3 \u0111\u01b0\u1ee3c h\u1ed7 tr\u1ee3 xong; ti\u1ebfp t\u1ee5c tr\u1ea1ng th\u00e1i tr\u01b0\u1edbc \u0111\u00f3."
         elif action == "confirm_online_payment":
             mark_online_payment_received(order.pk, request.user)
             notification_text = f"\u0110\u00e3 ghi nh\u1eadn chuy\u1ec3n kho\u1ea3n m\u00f4 ph\u1ecfng cho \u0111\u01a1n {order.code}."
@@ -2309,7 +2495,14 @@ def ban_hang_san_pham(request):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
     products = SanPham.objects.filter(is_active=True).select_related("danh_muc").order_by("so_luong", "ten_san_pham")
     search = request.GET.get("q", "").strip()
-    if search:
+    normalized_search = "".join(
+        char for char in unicodedata.normalize("NFKD", search.casefold())
+        if not unicodedata.combining(char)
+    )
+    low_stock_search = "sap het" in normalized_search or "low stock" in normalized_search
+    if low_stock_search:
+        products = products.filter(so_luong__lte=5)
+    elif search:
         products = products.filter(
             Q(ten_san_pham__icontains=search)
             | Q(danh_muc__ten_danh_muc__icontains=search)
@@ -2318,6 +2511,7 @@ def ban_hang_san_pham(request):
     return render(request, "store/sales_products.html", {
         "products": products,
         "search": search,
+        "low_stock_search": low_stock_search,
         "low_stock_count": SanPham.objects.filter(is_active=True, so_luong__lte=5).count(),
     })
 

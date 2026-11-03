@@ -1,3 +1,37 @@
 {% load static %}<!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Theo dõi đơn hàng | Re:Room</title><link rel="stylesheet" href="{% static 'store/fonts.css' %}"><link rel="stylesheet" href="{% static 'store/site-chrome.css' %}"><link rel="stylesheet" href="{% static 'store/cart-flow.css' %}"><link rel="stylesheet" href="{% static 'store/customer-pages.css' %}"></head>
-<body>{% include 'store/partials/header.html' %}<main class="flow-wrap customer-page"><nav class="flow-crumb"><a href="{% url 'trang_chu' %}">Trang chủ</a><span>/</span><b>Theo dõi đơn hàng</b></nav><section class="customer-card order-track-card"><p class="eyebrow">Cập nhật đơn hàng</p><h1>{{ order.code }}</h1><p>Đơn hàng: <strong>{{ order.get_status_display }}</strong> · Thanh toán: <strong>{{ order.get_payment_status_display }}</strong></p><p class="secure-note">{% if order.status == 'pending' %}Đơn đã được ghi nhận. Nhân viên bán hàng sẽ kiểm tra tồn kho và duyệt đơn.{% elif order.status == 'confirmed' %}Đơn đã được duyệt thành công. Đơn COD được thanh toán khi bạn nhận hàng.{% elif order.status == 'cancelled' %}Đơn đã được hủy. Xem lý do hoặc liên hệ Re:Room nếu cần hỗ trợ.{% elif order.status == 'shipping' %}Đơn đang được giao đến bạn.{% elif order.status == 'completed' %}Đơn đã giao thành công. Cảm ơn bạn đã mua sắm tại Re:Room!{% endif %}</p><h2>Lịch sử cập nhật</h2><ol class="order-timeline">{% for notification in order.notifications.all %}<li><strong>{{ notification.message }}</strong><time>{{ notification.created_at|date:"H:i · d/m/Y" }}</time></li>{% empty %}<li>Đơn hàng đang được tiếp nhận.</li>{% endfor %}</ol><a class="primary-link" href="{% url 'trang_chu' %}">Về trang chủ</a></section></main>{% include 'store/partials/footer.html' %}<script src="{% static 'store/cart.js' %}"></script></body></html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Theo dõi đơn hàng {{ order.code }} | Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'store/site-chrome.css' %}">
+  <link rel="stylesheet" href="{% static 'store/cart-flow.css' %}">
+  <link rel="stylesheet" href="{% static 'store/customer-pages.css' %}">
+</head>
+<body>
+{% include 'store/partials/header.html' %}
+<main class="flow-wrap customer-page order-tracking-page">
+  <nav class="flow-crumb"><a href="{% url 'trang_chu' %}">Trang chủ</a><span>/</span><b>Theo dõi đơn hàng</b></nav>
+  {% if messages %}<div class="tracking-messages" role="status" aria-live="polite">{% for message in messages %}<p class="{{ message.tags }}">{{ message }}</p>{% endfor %}</div>{% endif %}
+  <section class="customer-card order-track-card">
+    <header class="order-track-heading"><div><p class="eyebrow">THEO DÕI ĐƠN HÀNG</p><h1>{{ order.code }}</h1><p>Đặt lúc {{ order.created_at|date:"H:i · d/m/Y" }}</p></div><span class="order-track-status status-{{ order.status }}">{{ order.get_status_display }}</span></header>
+    <section class="order-current-location"><span class="order-location-mark" aria-hidden="true">⌖</span><div><small>CẬP NHẬT TRẠNG THÁI HIỆN TẠI</small><strong>{{ current_location }}</strong><p>Vị trí được suy ra từ bước xử lý mới nhất của đơn hàng.</p></div></section>
+    {% if expected_delivery_start and expected_delivery_end %}<section class="order-delivery-estimate"><span>Ngày giao dự kiến</span><strong>{{ expected_delivery_start|date:"d/m/Y" }} – {{ expected_delivery_end|date:"d/m/Y" }}</strong><small>Khoảng thời gian ước tính theo trạng thái hiện tại.</small></section>{% elif order.status == 'completed' %}<section class="order-delivery-estimate is-complete"><span>Ngày giao</span><strong>Đơn hàng đã giao thành công</strong></section>{% elif order.status == 'needs_attention' %}<section class="order-delivery-estimate is-support"><span>Đang hỗ trợ</span><strong>{{ order.support_reason }}</strong><small>Nhân viên Re:Room sẽ liên hệ để xử lý vấn đề này.</small></section>{% elif order.status == 'cancelled' %}<section class="order-delivery-estimate is-cancelled"><span>Trạng thái giao hàng</span><strong>Đơn hàng đã được hủy</strong></section>{% endif %}
+    <div class="order-track-columns">
+      <section class="tracking-panel tracking-items"><div class="tracking-panel-heading"><h2>Sản phẩm đã đặt</h2><span>{{ order.items.count }} món</span></div>
+        {% for item in order.items.all %}<article class="tracking-order-item"><div><strong>{{ item.product_name }}</strong><p>Phân loại: {{ item.variant|default:"Mẫu tiêu chuẩn" }}</p><small>{{ item.unit_price|floatformat:0 }}₫ × {{ item.quantity }}</small></div><b>{{ item.line_total|floatformat:0 }}₫</b></article>{% empty %}<p class="tracking-empty">Đơn hàng chưa có sản phẩm.</p>{% endfor %}
+      </section>
+      <section class="tracking-panel tracking-summary"><div class="tracking-panel-heading"><h2>Thông tin thanh toán</h2></div>
+        <dl><dt>Người nhận</dt><dd>{{ order.customer.full_name }}</dd><dt>Số điện thoại</dt><dd>{{ order.customer.phone|default:"Chưa cung cấp" }}</dd><dt>Địa chỉ nhận</dt><dd>{{ order.shipping_address|linebreaksbr|default:"Chưa cung cấp" }}</dd><dt>Phương thức</dt><dd>{{ order.get_payment_method_display }} · {{ order.get_payment_status_display }}</dd>{% if order.voucher_code %}<dt>Voucher</dt><dd>{{ order.voucher_code }}</dd>{% endif %}</dl>
+        <div class="tracking-total"><span>Tổng tiền</span><strong>{{ order.total|floatformat:0 }}₫</strong></div>
+      </section>
+    </div>
+    <section class="tracking-panel tracking-history"><div class="tracking-panel-heading"><h2>Lịch sử cập nhật</h2></div><ol class="order-timeline">{% for notification in order.notifications.all %}<li><strong>{{ notification.message }}</strong><time>{{ notification.created_at|date:"H:i · d/m/Y" }}</time></li>{% empty %}<li>Đơn hàng đang được tiếp nhận.</li>{% endfor %}</ol></section>
+    {% if order.status == 'pending' and order.payment_status != 'paid' %}<details class="tracking-customer-action"><summary>Hủy đơn hàng</summary><form method="post" action="{% url 'theo_doi_don_hang' order.tracking_token %}">{% csrf_token %}<input type="hidden" name="action" value="cancel"><label>Lý do hủy<select name="reason" required><option value="">Chọn lý do</option><option value="changed_mind">Tôi đổi ý</option><option value="wrong_information">Tôi nhập sai thông tin nhận hàng</option><option value="ordered_by_mistake">Tôi đặt nhầm sản phẩm</option><option value="other">Lý do khác</option></select></label><button type="submit" class="tracking-danger-button">Gửi yêu cầu hủy</button></form><small>Chỉ đơn đang chờ xác nhận mới có thể hủy tại đây.</small></details>{% endif %}
+    {% if order.status == 'shipping' or order.status == 'completed' %}<details class="tracking-customer-action"><summary>Báo vấn đề với đơn hàng</summary><form method="post" action="{% url 'theo_doi_don_hang' order.tracking_token %}">{% csrf_token %}<input type="hidden" name="action" value="report_issue"><label>Nội dung cần hỗ trợ<select name="reason" required><option value="">Chọn nội dung</option><option value="wrong_product">Giao sai sản phẩm</option><option value="wrong_variant">Nhận nhầm phân loại</option><option value="damaged_product">Sản phẩm lỗi hoặc hư hỏng</option><option value="other">Vấn đề khác</option></select></label><label>Mô tả thêm <span>(không bắt buộc)</span><textarea name="detail" maxlength="250" rows="3" placeholder="Mô tả ngắn để nhân viên hỗ trợ bạn"></textarea></label><button type="submit" class="tracking-action-button">Gửi yêu cầu hỗ trợ</button></form></details>{% endif %}
+    <a class="primary-link" href="{% url 'trang_chu' %}">Về trang chủ</a>
+  </section>
+</main>
+{% include 'store/partials/footer.html' %}
+<script src="{% static 'store/cart.js' %}"></script>
+</body></html>

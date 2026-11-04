@@ -106,6 +106,9 @@ def confirm_order(order_id, actor):
             product_name = next(i.product_name for i in items if i.product_id == product_id)
             raise ValidationError(f"Không đủ tồn kho cho {product_name}.")
     for item in items:
+        if item.product_id is None:
+            # Demo products have no stock row; their order item stores the product snapshot.
+            continue
         product = products.get(item.product_id)
         if not product:
             raise ValidationError(f"Sản phẩm {item.product_name} không còn trong danh mục.")

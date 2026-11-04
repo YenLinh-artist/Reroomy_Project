@@ -71,6 +71,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'store.context_processors.admin_role',
                 'store.context_processors.admin_notifications',
+                'store.context_processors.guest_order_notifications',
             ],
         },
     },

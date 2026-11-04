@@ -1,0 +1,33 @@
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Đơn hàng của bạn | Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'store/site-chrome.css' %}">
+  <link rel="stylesheet" href="{% static 'store/customer-pages.css' %}">
+  <style>
+    .guest-orders{max-width:900px;margin:38px auto;padding:0 18px 60px}.guest-orders h1{font-size:30px;color:#493936}.guest-order-card{margin:14px 0;padding:20px;border:1px solid #f0ded8;border-radius:16px;background:#fff}.guest-order-head,.guest-order-foot{display:flex;justify-content:space-between;align-items:center;gap:14px}.guest-order-card h2{margin:0;font-size:18px}.guest-order-card h2 a{color:#af5576;text-decoration:none}.guest-order-card h2 a:hover{text-decoration:underline}.guest-order-card p{color:#887670;line-height:1.6}.guest-order-items{margin:14px 0;padding:12px 0;border-top:1px solid #f3e9e5;border-bottom:1px solid #f3e9e5}.guest-order-items p{margin:5px 0}.guest-order-update{padding:11px;border-radius:10px;background:#fff5f2}.guest-order-link{display:inline-flex;padding:10px 14px;border-radius:9px;background:#ed5689;color:#fff;text-decoration:none;font-weight:700}.guest-orders-empty{padding:24px;border-radius:14px;background:#fff;border:1px solid #f0ded8;color:#796963;line-height:1.7}@media(max-width:600px){.guest-order-head,.guest-order-foot{align-items:flex-start;flex-direction:column}}
+  </style>
+</head>
+<body>
+  {% include 'store/partials/header.html' %}
+  <main class="guest-orders">
+    <p class="eyebrow">THEO DÕI ĐƠN HÀNG</p>
+    <h1>Đơn hàng trên trình duyệt này</h1>
+    <p>Các đơn khách vãng lai đã đặt trên trình duyệt này sẽ được lưu ở đây.</p>
+    {% for order in orders %}
+      <article class="guest-order-card">
+        <div class="guest-order-head"><div><h2><a href="{% url 'theo_doi_don_hang' order.tracking_token %}">{{ order.code }}</a></h2><small>Đặt lúc {{ order.created_at|date:"H:i · d/m/Y" }}</small></div><strong>{{ order.get_status_display }}</strong></div>
+        <div class="guest-order-items">{% for item in order.items.all %}<p>{{ item.product_name }} × {{ item.quantity }} · {{ item.line_total|floatformat:0 }}₫</p>{% endfor %}</div>
+        {% with latest=order.notifications.all.0 %}{% if latest %}<p class="guest-order-update"><strong>Cập nhật mới nhất:</strong> {{ latest.message }}</p>{% endif %}{% endwith %}
+        <div class="guest-order-foot"><strong>Tổng tiền: {{ order.total|floatformat:0 }}₫</strong><a class="guest-order-link" href="{% url 'theo_doi_don_hang' order.tracking_token %}">Mở theo dõi đơn</a></div>
+      </article>
+    {% empty %}
+      <div class="guest-orders-empty">Chưa có đơn hàng nào được lưu trên trình duyệt này. Sau khi đặt hàng, đơn sẽ hiện tại đây và trong chuông thông báo. Nếu bạn đã thoát trang theo dõi trước đây, hãy mở lại liên kết theo dõi riêng của đơn một lần để lưu đơn vào trình duyệt.</div>
+    {% endfor %}
+  </main>
+  {% include 'store/partials/footer.html' %}
+</body>
+</html>

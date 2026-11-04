@@ -471,6 +471,38 @@ class CustomerServiceConversation(models.Model):
         return f"Hỗ trợ: {self.customer.username}"
 
 
+class OrderServiceRequest(models.Model):
+    class RequestType(models.TextChoices):
+        EXCHANGE = "exchange", "Yêu cầu đổi sản phẩm"
+        RETURN = "return", "Yêu cầu trả hàng / hoàn đơn"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Chờ xử lý"
+        APPROVED = "approved", "Đã xác nhận"
+        REJECTED = "rejected", "Không được duyệt"
+        PROCESSING = "processing", "Đang tiếp nhận"
+        COMPLETED = "completed", "Đã xử lý xong"
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="service_requests")
+    order_item = models.ForeignKey(OrderItem, null=True, blank=True, on_delete=models.SET_NULL, related_name="service_requests")
+    conversation = models.ForeignKey(CustomerServiceConversation, on_delete=models.CASCADE, related_name="order_requests")
+    request_type = models.CharField(max_length=12, choices=RequestType.choices)
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
+    reason = models.CharField(max_length=80)
+    details = models.TextField(blank=True, max_length=1000)
+    requested_product = models.ForeignKey(SanPham, null=True, blank=True, on_delete=models.SET_NULL, related_name="requested_order_exchanges")
+    requested_variant = models.CharField(max_length=120, blank=True)
+    handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="handled_order_service_requests")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.order.code}: {self.get_request_type_display()}"
+
+
 class CustomerServiceMessage(models.Model):
     class SenderRole(models.TextChoices):
         CUSTOMER = "customer", "Khách hàng"
@@ -490,6 +522,13 @@ class CustomerServiceMessage(models.Model):
         blank=True,
         on_delete=models.SET_NULL,
         related_name="cskh_suggestions",
+    )
+    order_request = models.ForeignKey(
+        OrderServiceRequest,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="messages",
     )
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -16,7 +16,7 @@
   </form>
   <div class="table-wrap"><table class="admin-table"><thead><tr><th>ĐƠN / NGÀY</th><th>KHÁCH HÀNG</th><th>SẢN PHẨM</th><th>TRẠNG THÁI ĐƠN</th><th>THANH TOÁN</th><th>TỔNG TIỀN</th><th>THAO TÁC</th></tr></thead><tbody>
   {% for order in orders %}<tr>
-    <td><strong>{{ order.code }}</strong>{% if order.is_demo %}<span class="tag warn">DEMO</span>{% endif %}<div class="subtle">{{ order.created_at|date:'d/m/Y H:i' }}</div>{% if order.needs_attention and order.support_reason %}<span class="subtle">{{ order.support_reason }}</span>{% endif %}</td>
+    <td><strong>{{ order.code }}</strong>{% if order.is_demo %}<span class="tag warn">DEMO</span>{% endif %}<div class="subtle">{{ order.created_at|date:'d/m/Y H:i' }}</div>{% for service_request in order.service_requests.all %}<div class="subtle">{{ service_request.get_request_type_display }} &middot; {{ service_request.get_status_display }}</div>{% endfor %}{% if order.needs_attention and order.support_reason %}<span class="subtle">{{ order.support_reason }}</span>{% endif %}</td>
     <td>{{ order.customer.full_name }}<div class="subtle">{{ order.customer.phone|default:order.customer.email }}</div></td>
     <td>{% if order.is_demo %}{% for item in order.demo_items %}<div>{{ item.product_name }} × {{ item.quantity }}</div>{% endfor %}{% else %}{% for item in order.items.all %}<div>{{ item.product_name }} × {{ item.quantity }}</div>{% empty %}<span class="subtle">Chưa có dòng hàng</span>{% endfor %}{% endif %}</td>
     <td><span class="tag {% if order.status == 'cancelled' %}cancelled{% elif order.needs_attention %}warn{% elif order.status == 'completed' %}ok{% endif %}">{{ order.get_status_display }}</span></td>

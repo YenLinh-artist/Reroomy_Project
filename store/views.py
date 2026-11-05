@@ -2219,10 +2219,11 @@ def thong_bao_don_hang(request):
             Order.Status.SHIPPING: "\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c giao.",
             Order.Status.CANCELLED: "\u0110\u01a1n h\u00e0ng \u0111\u00e3 b\u1ecb h\u1ee7y.",
         }
+        default_status_message = "\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt."
         items = [{
             "id": f"guest-order:{order.tracking_token}",
             "category": "\u0110\u01a1n h\u00e0ng",
-            "message": f"{order.code} \u00b7 {status_messages.get(order.status, '\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt.')}",
+            "message": f"{order.code} \u00b7 {status_messages.get(order.status, default_status_message)}",
             "created_at": order.updated_at.isoformat(),
             "is_read": False,
             "url": reverse("theo_doi_don_hang", args=[order.tracking_token]),

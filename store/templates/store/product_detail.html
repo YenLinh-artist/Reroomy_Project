@@ -17,7 +17,7 @@ const toast=document.getElementById('toast');let timer;
 function say(text){toast.textContent=text;toast.classList.add('show');clearTimeout(timer);timer=setTimeout(()=>toast.classList.remove('show'),2200)}
 function add(){const added=window.storeCart.add(product,document.getElementById('productVariant').value);if(added)say('\u0110\u00e3 th\u00eam v\u00e0o gi\u1ecf h\u00e0ng');return added}
 document.getElementById('addToCart').addEventListener('click',add);
-document.getElementById('buyNow').addEventListener('click',()=>{if(add())location.href='{% url 'gio_hang' %}'});
+document.getElementById('buyNow').addEventListener('click',()=>{if(!add())return;const variant=document.getElementById('productVariant').value;window.storeCart.write(window.storeCart.read().map(item=>({...item,selected:item.id===String(product.id)&&item.variant===variant})));location.href='{% url 'thanh_toan' %}'});
 document.addEventListener('reroom-stock-error',e=>say(e.detail.stock<1?'Sản phẩm đã hết hàng':'Chỉ còn '+e.detail.stock+' sản phẩm'));
 const favorite=document.getElementById('favorite'),favoriteButtons=[favorite,...document.querySelectorAll('.related-favorite')],favKey='reroom-demo-faves';
 function readFavoriteIds(){try{const saved=JSON.parse(localStorage.getItem(favKey)||'[]');return new Set(Array.isArray(saved)?saved.map(String):[])}catch{return new Set()}}

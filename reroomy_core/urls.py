@@ -38,6 +38,7 @@ urlpatterns = [
     path('phong-mau/', views.phong_mau, name='phong_mau'),
     path('tu-van-decor/', views.tu_van_decor, name='tu_van_decor'),
     path('quan-tri/', views.quan_tri_dashboard, name='quan_tri_dashboard'),
+    path('quan-tri/quan-ly-voucher/', views.quan_tri_quan_ly_voucher, name='quan_tri_quan_ly_voucher'),
     path('quan-tri/tai-khoan/', views.quan_tri_tai_khoan, name='quan_tri_tai_khoan'),
     path('quan-tri/san-pham/', views.quan_tri_san_pham, name='quan_tri_san_pham'),
     path('quan-tri/san-pham/them/', views.quan_tri_tao_san_pham, name='quan_tri_tao_san_pham'),

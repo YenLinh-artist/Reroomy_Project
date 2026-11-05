@@ -2211,12 +2211,13 @@ def thong_bao_don_hang(request):
         orders = Order.objects.filter(
             tracking_token__in=tokens,
             customer__user__isnull=True,
-        ).exclude(status=Order.Status.COMPLETED).order_by("-updated_at")
+        ).order_by("-updated_at")
         status_messages = {
             Order.Status.PENDING: "\u0110\u01a1n h\u00e0ng \u0111ang ch\u1edd x\u00e1c nh\u1eadn.",
             Order.Status.NEEDS_ATTENTION: "\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c nh\u00e2n vi\u00ean h\u1ed7 tr\u1ee3.",
             Order.Status.CONFIRMED: "\u0110\u01a1n h\u00e0ng \u0111\u00e3 \u0111\u01b0\u1ee3c x\u00e1c nh\u1eadn.",
             Order.Status.SHIPPING: "\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c giao.",
+            Order.Status.COMPLETED: "\u0110\u01a1n h\u00e0ng \u0111\u00e3 giao th\u00e0nh c\u00f4ng.",
             Order.Status.CANCELLED: "\u0110\u01a1n h\u00e0ng \u0111\u00e3 b\u1ecb h\u1ee7y.",
         }
         default_status_message = "\u0110\u01a1n h\u00e0ng \u0111ang \u0111\u01b0\u1ee3c c\u1eadp nh\u1eadt."
@@ -2282,6 +2283,7 @@ def thong_bao_don_hang(request):
         "message": item.message,
         "created_at": item.created_at.isoformat(),
         "is_read": item.is_read,
+        "url": reverse("theo_doi_don_hang", args=[item.order.tracking_token]),
     } for item in order_notifications[:20]]
     items.extend({
         "id": f"voucher:{item.pk}",
@@ -2289,6 +2291,7 @@ def thong_bao_don_hang(request):
         "message": item.message,
         "created_at": item.created_at.isoformat(),
         "is_read": item.is_read,
+        "url": reverse("tai_khoan") + "#vouchers",
     } for item in voucher_notifications[:20])
     now = timezone.now()
     items.extend({
@@ -2301,6 +2304,7 @@ def thong_bao_don_hang(request):
         ),
         "created_at": item.issued_at.isoformat(),
         "is_read": item.is_read,
+        "url": reverse("tai_khoan") + "#vouchers",
     } for item in voucher_grants[:20])
     items.extend({
         "id": f"expiry:{item.pk}",
@@ -2308,6 +2312,7 @@ def thong_bao_don_hang(request):
         "message": item.message,
         "created_at": item.created_at.isoformat(),
         "is_read": item.is_read,
+        "url": reverse("tai_khoan") + "#vouchers",
     } for item in expiry_reminders[:20])
     items.sort(key=lambda item: item["created_at"], reverse=True)
     unread = (

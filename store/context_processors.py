@@ -35,7 +35,7 @@ def guest_order_notifications(request):
         orders = Order.objects.filter(
             tracking_token__in=tokens,
             customer__user__isnull=True,
-        ).exclude(status=Order.Status.COMPLETED)
+        )
         unread = orders.count()
     except Exception:
         unread = 0

@@ -1,0 +1,53 @@
+{% load static %}
+{% if not user.is_staff and request.resolver_match.url_name != 'ho_tro_khach_hang' %}
+<link rel="stylesheet" href="{% static 'store/customer-support-widget.css' %}">
+<aside class="customer-support-widget"
+       data-api="{% url 'customer_support_api' %}"
+       data-arrow-icon="{% static 'store/icons/arrow-right.svg' %}"
+       data-authenticated="{{ user.is_authenticated|yesno:'true,false' }}">
+  <button class="support-launcher" id="customerSupportToggle" type="button"
+          aria-label="Mở chat tư vấn" aria-expanded="false" aria-controls="customerSupportPanel">
+    <span class="support-launcher-icon"><img src="{% static 'store/icons/message-circle.svg' %}" alt="" aria-hidden="true"></span>
+    <span class="support-launcher-label">Chat tư vấn</span>
+    <span class="support-launcher-pulse" aria-hidden="true"></span>
+  </button>
+
+  <section class="support-panel" id="customerSupportPanel" role="dialog"
+           aria-labelledby="customerSupportTitle" aria-modal="false" hidden>
+    <header class="support-panel-head">
+      <span class="support-agent-avatar"><img src="{% static 'store/icons/message-circle.svg' %}" alt="" aria-hidden="true"></span>
+      <div class="support-agent-copy">
+        <strong id="customerSupportTitle">Re:Room · Chat tư vấn</strong>
+        <small>Nhắn tin với đội ngũ chăm sóc khách hàng</small>
+      </div>
+      <button class="support-close" type="button" aria-label="Đóng cửa sổ chat" data-support-close>×</button>
+    </header>
+
+    <div class="support-messages" id="customerSupportMessages" aria-live="polite" aria-relevant="additions text">
+      {% if user.is_authenticated %}
+      <p class="support-welcome">Chào bạn, Re:Room có thể hỗ trợ gì cho bạn nè?</p>
+      {% else %}
+      <div class="support-guest-welcome">
+        <p>Đăng nhập để nhắn tin với CSKH và xem lại trao đổi về đơn hàng của bạn.</p>
+        <a href="{% url 'dang_nhap' %}?next={{ request.path|urlencode }}">Đăng nhập để tiếp tục</a>
+      </div>
+      {% endif %}
+    </div>
+
+    {% if user.is_authenticated %}
+    <p class="support-error" id="customerSupportError" role="status" hidden></p>
+    <form class="support-compose" id="customerSupportCompose">
+      {% csrf_token %}
+      <label class="visually-hidden" for="customerSupportInput">Tin nhắn gửi CSKH</label>
+      <textarea id="customerSupportInput" name="body" maxlength="3000" rows="1"
+                placeholder="Nhập yêu cầu cần hỗ trợ..." required></textarea>
+      <button type="submit" aria-label="Gửi tin nhắn">
+        <img src="{% static 'store/icons/arrow-right.svg' %}" alt="" aria-hidden="true">
+      </button>
+    </form>
+    <p class="support-footnote">Tin nhắn của bạn được lưu trong tài khoản Re:Room.</p>
+    {% endif %}
+  </section>
+</aside>
+<script src="{% static 'store/customer-support-widget.js' %}" defer></script>
+{% endif %}

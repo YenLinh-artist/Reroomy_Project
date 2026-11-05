@@ -78,6 +78,7 @@ class Order(models.Model):
     product_change_used = models.BooleanField(default=False)
     product_change_pending_sales = models.BooleanField(default=False)
     product_change_summary = models.CharField(max_length=400, blank=True, default="")
+    product_change_requested_items = models.TextField(blank=True, default="{}")
     payment_method = models.CharField(max_length=12, choices=PaymentMethod.choices, default=PaymentMethod.COD)
     payment_status = models.CharField(max_length=12, choices=PaymentStatus.choices, default=PaymentStatus.PENDING)
     paid_at = models.DateTimeField(null=True, blank=True, db_index=True)
@@ -131,6 +132,26 @@ class OrderNotification(models.Model):
 
     def __str__(self):
         return f"{self.order.code}: {self.message}"
+
+
+class OrderSupportMessage(models.Model):
+    class SenderRole(models.TextChoices):
+        CUSTOMER = "customer", "Khách hàng"
+        STAFF = "staff", "Nhân viên CSKH"
+
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="support_messages")
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL)
+    sender_role = models.CharField(max_length=10, choices=SenderRole.choices)
+    sender_name = models.CharField(max_length=160)
+    body = models.TextField(max_length=3000)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    is_read = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ["created_at", "pk"]
+
+    def __str__(self):
+        return f"{self.order.code}: {self.sender_name}"
 
 
 class StaffNotification(models.Model):

@@ -1,0 +1,29 @@
+.exchange-preview{display:grid;grid-template-columns:minmax(0,1fr) 24px minmax(0,1fr);gap:11px;align-items:center;margin:15px 0;padding:13px;border:1px solid #f4dfe4;border-radius:16px;background:linear-gradient(130deg,#fff8fa,#fffaf5)}
+.exchange-preview-card{min-width:0;display:flex;align-items:center;gap:10px;padding:9px;border:1px solid #f1e5e7;border-radius:12px;background:#fff}
+.exchange-preview-card img{width:60px;height:60px;flex:none;object-fit:cover;border-radius:9px;background:#fff0f4}
+.exchange-preview-card div{min-width:0;display:grid;gap:4px}
+.exchange-preview-card small{color:#bd7185;font-size:9px;font-weight:700;letter-spacing:.6px}
+.exchange-preview-card strong{color:#49383e;font-size:12px;line-height:1.35;overflow-wrap:anywhere}
+.exchange-preview-card span{color:#9c828a;font-size:10px}
+.exchange-preview-card b{color:#d94d7c;font-size:11px}
+.exchange-preview-arrow{width:19px;height:19px;object-fit:contain;opacity:.7}
+.exchange-preview-difference{grid-column:1/-1;display:flex;justify-content:space-between;gap:12px;padding-top:10px;border-top:1px solid #f0e0e4;color:#8e727b;font-size:12px}
+.exchange-preview-difference strong{color:#bd4c75}
+.exchange-availability{margin:3px 0 10px;color:#a36576;font-size:12px;line-height:1.45}
+.exchange-availability[data-state="error"]{color:#b34e50}
+.exchange-availability[data-state="ready"]{color:#54856e}
+.exchange-submit:disabled{opacity:.55;cursor:not-allowed;box-shadow:none}
+.order-support-chat .order-message-list{max-height:380px;overflow:auto;display:flex;flex-direction:column;gap:10px;padding:12px;border:1px solid #f3e3e7;border-radius:13px;background:linear-gradient(145deg,#fff9fb,#fffdfa)}
+.order-support-chat .order-message{max-width:88%;align-self:flex-start;padding:9px 12px;border:1px solid #f1e5e8;border-radius:13px 13px 13px 4px;background:#fff;color:#59494f;box-shadow:0 3px 10px #713d5009}
+.order-support-chat .order-message.is-customer{align-self:flex-end;border-color:#ffd7e4;border-radius:13px 13px 4px 13px;background:#fff0f5;color:#78465a}
+.order-support-chat .order-message header{display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:10px}
+.order-support-chat .order-message header strong{color:#bd4c75}
+.order-support-chat .order-message time{color:#a58c95;white-space:nowrap}
+.order-support-chat .order-message p{margin:5px 0 0;font-size:12px;line-height:1.5;overflow-wrap:anywhere}
+.order-support-chat form{display:grid;gap:9px;margin-top:12px}
+.order-support-chat form label{color:#775f59;font-size:11px;font-weight:700}
+.order-support-chat form textarea{width:100%;min-height:75px;padding:10px 12px;border:1px solid #e9d9d4;border-radius:10px;background:#fff;color:#51413e;font:12px/1.45 var(--font-body,'Pathway Extreme',sans-serif);resize:vertical}
+.order-support-chat form button{justify-self:start;min-height:39px;padding:0 14px;border:0;border-radius:9px;background:#ed5689;color:#fff;font:700 12px var(--font-body,Arial,sans-serif);cursor:pointer}
+.tracking-history .tracking-order-item>a[data-support-open]{display:inline-flex;align-items:center;justify-content:center;gap:6px;margin-top:8px;padding:8px 12px;border:1px solid #f2cdd9;border-radius:999px;background:#fff6f9;color:#bd4c75;font-weight:700;text-decoration:none;white-space:nowrap;transition:background .16s,border-color .16s,transform .16s}
+.tracking-history .tracking-order-item>a[data-support-open]:hover{transform:translateY(-1px);border-color:#ed9cb8;background:#ffeef4}
+@media(max-width:640px){.exchange-preview{grid-template-columns:minmax(0,1fr);gap:8px}.exchange-preview-card{min-height:78px}.exchange-preview-arrow{justify-self:center;transform:rotate(90deg)}.exchange-preview-difference{grid-column:1}.tracking-history .tracking-order-item>a[data-support-open]{white-space:normal}}

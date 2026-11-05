@@ -881,6 +881,7 @@ def theo_doi_don_hang(request, tracking_token):
             request.user.is_authenticated
             and order.customer.user_id == request.user.pk
             and order.status == Order.Status.CONFIRMED
+            and not order.product_change_used
             and not any(item.request_type == OrderServiceRequest.RequestType.EXCHANGE and item.status in (
                 OrderServiceRequest.Status.PENDING, OrderServiceRequest.Status.APPROVED, OrderServiceRequest.Status.PROCESSING,
             ) for item in order_service_requests)
@@ -2871,9 +2872,13 @@ def _message_json(message):
             "item_variant": item.variant if item else "",
             "item_image": item.product.hinh_anh.url if item and item.product and item.product.hinh_anh else "",
             "quantity": item.quantity if item else 0,
+            "item_unit_price": item.unit_price if item else None,
+            "item_line_total": item.line_total if item else None,
             "target_name": target.ten_san_pham if target else "",
             "target_variant": service_request.requested_variant,
             "target_price": target.gia_ban if target else None,
+            "target_line_total": target.gia_ban * item.quantity if target and item else None,
+            "price_difference": (target.gia_ban - item.unit_price) * item.quantity if target and item else None,
             "target_image": target.hinh_anh.url if target and target.hinh_anh else "",
         }
     return {

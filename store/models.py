@@ -511,9 +511,13 @@ class OrderServiceRequest(models.Model):
     status = models.CharField(max_length=16, choices=Status.choices, default=Status.PENDING)
     reason = models.CharField(max_length=80)
     details = models.TextField(blank=True, max_length=1000)
+    unboxing_video = models.FileField(upload_to="order_returns/videos/", blank=True)
     requested_product = models.ForeignKey(SanPham, null=True, blank=True, on_delete=models.SET_NULL, related_name="requested_order_exchanges")
     requested_variant = models.CharField(max_length=120, blank=True)
     handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="handled_order_service_requests")
+    reviewed_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="reviewed_order_service_requests")
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    inventory_restored_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
     updated_at = models.DateTimeField(auto_now=True)
 

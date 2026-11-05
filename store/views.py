@@ -1384,6 +1384,7 @@ def quan_tri_dashboard(request):
     latest_revenue_month = max((index for index, amount in enumerate(month_values) if amount), default=None)
     return render(request, "store/admin_dashboard.html", {
         "product_count": (len(DEMO_ADMIN_PRODUCTS) if demo_products_preview else SanPham.objects.count()) if role == "admin" else 0,
+        "approved_voucher_count": Voucher.objects.filter(status=Voucher.Status.APPROVED).count() if role == "admin" else 0,
         "category_count": DanhMuc.objects.count() if role == "admin" else 0,
         "customer_count": customer_count,
         "low_stock_count": low_stock_count,
@@ -1419,6 +1420,63 @@ def quan_tri_dashboard(request):
         "report_year": today.year,
         "demo_preview": demo_preview,
         "demo_products_preview": demo_products_preview,
+    })
+
+
+@_roles_required(StaffProfile.Role.ADMIN)
+def quan_tri_quan_ly_voucher(request):
+    month_options = []
+    for month in VoucherNotification.objects.filter(
+        voucher__status=Voucher.Status.APPROVED,
+    ).annotate(month=TruncMonth("created_at", tzinfo=BUSINESS_TIME_ZONE)).values_list(
+        "month", flat=True,
+    ).distinct().order_by("-month"):
+        month_options.append({"value": month.strftime("%Y-%m"), "label": month.strftime("%m/%Y")})
+
+    current_month = timezone.localtime(timezone.now(), BUSINESS_TIME_ZONE).date().replace(day=1)
+    selected_month = request.GET.get("month", "")
+    valid_months = {item["value"] for item in month_options}
+    if selected_month not in valid_months:
+        selected_month = month_options[0]["value"] if month_options else current_month.strftime("%Y-%m")
+    try:
+        month_date = datetime.strptime(selected_month, "%Y-%m").date().replace(day=1)
+    except ValueError:
+        month_date = current_month
+    next_month = date(month_date.year + (month_date.month == 12), month_date.month % 12 + 1, 1)
+    month_start = timezone.make_aware(datetime.combine(month_date, time.min), BUSINESS_TIME_ZONE)
+    month_end = timezone.make_aware(datetime.combine(next_month, time.min), BUSINESS_TIME_ZONE)
+    if selected_month not in valid_months:
+        month_options.insert(0, {"value": selected_month, "label": month_date.strftime("%m/%Y")})
+
+    vouchers = Voucher.objects.filter(
+        status=Voucher.Status.APPROVED,
+        notifications__created_at__gte=month_start,
+        notifications__created_at__lt=month_end,
+    ).annotate(
+        issued_count=Count("notifications", filter=Q(
+            notifications__created_at__gte=month_start,
+            notifications__created_at__lt=month_end,
+        ), distinct=True),
+    ).distinct().order_by("code")
+    status_filter = request.GET.get("status", "all")
+    if status_filter == "used":
+        vouchers = vouchers.filter(used_count__gt=0)
+    elif status_filter == "unused":
+        vouchers = vouchers.filter(used_count=0)
+    selected_voucher_id = request.GET.get("voucher_id")
+    voucher_rows = list(vouchers)
+    selected_voucher = next(
+        (voucher for voucher in voucher_rows if str(voucher.pk) == selected_voucher_id), None,
+    )
+    return render(request, "store/admin_voucher_management.html", {
+        "role": StaffProfile.Role.ADMIN,
+        "month_options": month_options,
+        "selected_month": selected_month,
+        "status_filter": status_filter,
+        "vouchers": voucher_rows,
+        "selected_voucher": selected_voucher,
+        "issued_total": sum(voucher.issued_count for voucher in voucher_rows),
+        "used_total": sum(voucher.used_count for voucher in voucher_rows),
     })
 
 

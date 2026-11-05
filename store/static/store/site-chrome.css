@@ -104,3 +104,4 @@ footer#about .copyright{max-width:1280px;margin:35px auto 0;color:#9d766b;font-s
 .topbar .icon-btn svg{stroke-width:2}
 @media(max-width:700px){.topbar .icon-btn{width:36px;height:36px}}
 @media(max-width:430px){.topbar .icon-btn img,.topbar .icon-btn svg{width:21px;height:21px;max-width:21px;max-height:21px}}
+.notify-pop .notify-item a{display:block;color:inherit;text-decoration:none}.notify-pop .notify-item a:hover{color:#bd4d75;text-decoration:underline;text-underline-offset:2px}.notify-pop .notify-item a:focus-visible{outline:2px solid #ed80a0;outline-offset:2px;border-radius:4px}

@@ -175,6 +175,7 @@
   }
 
   function openPanel(requestId = '') {
+    document.dispatchEvent(new CustomEvent('reroom:overlay-open', { detail: { name: 'support' } }));
     pendingRequestId = requestId ? String(requestId) : '';
     panel.hidden = false;
     toggle.setAttribute('aria-expanded', 'true');
@@ -182,12 +183,16 @@
     if (authenticated) loadMessages();
   }
 
-  function closePanel() {
+  function closePanel({ restoreFocus = true } = {}) {
     panel.hidden = true;
     toggle.setAttribute('aria-expanded', 'false');
     toggle.setAttribute('aria-label', 'Mở chat tư vấn');
-    toggle.focus();
+    if (restoreFocus) toggle.focus({ preventScroll: true });
   }
+
+  document.addEventListener('reroom:overlay-open', (event) => {
+    if (event.detail?.name !== 'support' && !panel.hidden) closePanel({ restoreFocus: false });
+  });
 
   toggle.addEventListener('click', () => panel.hidden ? openPanel() : closePanel());
   widget.querySelector('[data-support-close]').addEventListener('click', closePanel);

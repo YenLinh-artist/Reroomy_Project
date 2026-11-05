@@ -26,6 +26,7 @@
   };
   searchToggle?.addEventListener('click', () => {
     const open = !searchBar?.classList.contains('open');
+    if (open) document.dispatchEvent(new CustomEvent('reroom:overlay-open', { detail: { name: 'search' } }));
     setSearchOpen(open);
     if (!open && searchInput) {
       searchInput.value = '';
@@ -42,8 +43,27 @@
   };
   accountToggle?.addEventListener('click', event => {
     event.stopPropagation();
-    setAccountOpen(!account.classList.contains('is-open'));
+    const open = !account.classList.contains('is-open');
+    if (open) document.dispatchEvent(new CustomEvent('reroom:overlay-open', { detail: { name: 'account' } }));
+    setAccountOpen(open);
   });
+
+  document.addEventListener('reroom:overlay-open', event => {
+    const active = event.detail?.name;
+    if (active !== 'search') setSearchOpen(false);
+    if (active !== 'account') setAccountOpen(false);
+    if (active !== 'notifications') {
+      document.getElementById('notifyPop')?.classList.remove('open');
+      document.getElementById('notifyToggle')?.setAttribute('aria-expanded', 'false');
+    }
+  });
+
+  const topbar = document.querySelector('.topbar');
+  const updateTopbarHeight = () => {
+    if (topbar) document.documentElement.style.setProperty('--site-header-height', `${Math.ceil(topbar.getBoundingClientRect().height)}px`);
+  };
+  updateTopbarHeight();
+  if (topbar && window.ResizeObserver) new ResizeObserver(updateTopbarHeight).observe(topbar);
 
   document.addEventListener('click', event => {
     if (!event.target.closest('.topbar .account')) setAccountOpen(false);
@@ -56,6 +76,9 @@
     }
 
     const notifyToggle = event.target.closest('#notifyToggle');
+    if (notifyToggle && notifyPop?.classList.contains('open')) {
+      document.dispatchEvent(new CustomEvent('reroom:overlay-open', { detail: { name: 'notifications' } }));
+    }
     if (notifyToggle && !document.getElementById('notifyPop')) {
       location.href = notifyToggle.dataset.notificationsUrl || '/tai-khoan/#notifications';
       return;

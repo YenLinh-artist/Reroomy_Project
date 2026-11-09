@@ -1,4 +1,12 @@
 (()=>{
+document.querySelectorAll('[data-password-toggle]').forEach(button=>button.addEventListener('click',()=>{
+ const input=button.closest('.password-input-wrap')?.querySelector('input');
+ if(!input)return;
+ const reveal=input.type==='password';
+ input.type=reveal?'text':'password';
+ button.setAttribute('aria-pressed',String(reveal));
+ button.setAttribute('aria-label',reveal?'Ẩn mật khẩu':'Hiện mật khẩu');
+}));
 const node=document.getElementById('account-products-json'),products=node?JSON.parse(node.textContent):[];
 const grid=document.getElementById('favoriteGrid'),empty=document.getElementById('favoriteEmpty');
 const safe=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));

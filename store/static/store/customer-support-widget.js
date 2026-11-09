@@ -159,11 +159,14 @@
     if (!authenticated || panel.hidden) return;
     try {
       const response = await fetch(api, { headers: { Accept: 'application/json' }, cache: 'no-store' });
-      if (!response.ok) throw new Error('Chưa tải được tin nhắn. Bạn thử mở lại sau nha.');
-      if (!(response.headers.get('content-type') || '').includes('application/json')) {
+      const isJson = (response.headers.get('content-type') || '').includes('application/json');
+      const data = isJson ? await response.json() : null;
+      if (!response.ok) {
+        throw new Error(data?.error || `Chưa tải được tin nhắn (lỗi ${response.status}). Bạn thử mở lại sau nha.`);
+      }
+      if (!isJson) {
         throw new Error('Phiên đăng nhập đã hết hạn. Hãy đăng nhập lại để tiếp tục trò chuyện.');
       }
-      const data = await response.json();
       render(data.messages || []);
       if (error) error.hidden = true;
     } catch (exception) {
@@ -256,4 +259,13 @@
   }
 
   window.setInterval(loadMessages, 5000);
+
+  const query = new URLSearchParams(window.location.search);
+  if (query.get('open_support') === '1') {
+    openPanel(query.get('request_id') || '');
+    query.delete('open_support');
+    query.delete('request_id');
+    const remainingQuery = query.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${remainingQuery ? `?${remainingQuery}` : ''}${window.location.hash}`);
+  }
 })();

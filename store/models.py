@@ -44,6 +44,8 @@ class CustomerProfile(models.Model):
     full_name = models.CharField(max_length=160)
     email = models.EmailField(blank=True)
     phone = models.CharField(max_length=30, blank=True, db_index=True)
+    address = models.CharField(max_length=500, blank=True, default="")
+    delivery_note = models.TextField(blank=True, default="")
     created_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):

@@ -377,11 +377,14 @@ def gio_hang(request):
 def thanh_toan(request):
     customer = CustomerProfile.objects.filter(user=request.user).first() if request.user.is_authenticated else None
     last_order = Order.objects.filter(customer=customer).order_by("-created_at").first() if customer else None
+    last_shipping_address = last_order.shipping_address if last_order else ""
+    last_address, _, last_note = last_shipping_address.partition("\nGhi chú:")
     defaults = {
         "full_name": customer.full_name if customer else "",
         "email": customer.email if customer else (request.user.email if request.user.is_authenticated else ""),
         "phone": customer.phone if customer else "",
-        "address": last_order.shipping_address.split("\nGhi chú:", 1)[0] if last_order else "",
+        "address": (customer.address or last_address) if customer else last_address,
+        "note": (customer.delivery_note or last_note.strip()) if customer else last_note.strip(),
     }
     if request.method == "POST":
         try:
@@ -475,10 +478,12 @@ def thanh_toan(request):
                 if request.user.is_authenticated:
                     customer, _ = CustomerProfile.objects.get_or_create(
                         user=request.user,
-                        defaults={"full_name": full_name, "email": email, "phone": phone},
+                        defaults={"full_name": full_name, "email": email, "phone": phone,
+                                  "address": address, "delivery_note": note},
                     )
                     customer.full_name, customer.email, customer.phone = full_name, email, phone
-                    customer.save(update_fields=["full_name", "email", "phone"])
+                    customer.address, customer.delivery_note = address, note
+                    customer.save(update_fields=["full_name", "email", "phone", "address", "delivery_note"])
                 else:
                     customer = CustomerProfile.objects.create(full_name=full_name, email=email, phone=phone)
                 order = Order.objects.create(
@@ -992,6 +997,8 @@ def tai_khoan(request):
         full_name = request.POST.get("full_name", "").strip()[:160]
         email = request.POST.get("email", "").strip()[:254]
         phone = request.POST.get("phone", "").strip()[:30]
+        address = request.POST.get("address", "").strip()[:500]
+        delivery_note = request.POST.get("delivery_note", "").strip()[:1000]
         import re
         email_valid = True
         if email:
@@ -999,13 +1006,16 @@ def tai_khoan(request):
                 validate_email(email)
             except ValidationError:
                 email_valid = False
-        if not full_name or not re.fullmatch(r"[0-9+() .-]{9,16}", phone):
-            messages.error(request, "S\u1ed1 \u0111i\u1ec7n tho\u1ea1i ch\u01b0a \u0111\u00fang \u0111\u1ecbnh d\u1ea1ng.")
+        if not full_name or not address:
+            messages.error(request, "Vui lòng nhập tên người nhận và địa chỉ giao hàng.")
+        elif not re.fullmatch(r"[0-9]{10}", phone):
+            messages.error(request, "Số điện thoại cần gồm đúng 10 chữ số.")
         elif not email_valid:
             messages.error(request, "Email ch\u01b0a \u0111\u00fang \u0111\u1ecbnh d\u1ea1ng.")
         else:
             customer.full_name, customer.email, customer.phone = full_name, email, phone
-            customer.save(update_fields=["full_name", "email", "phone"])
+            customer.address, customer.delivery_note = address, delivery_note
+            customer.save(update_fields=["full_name", "email", "phone", "address", "delivery_note"])
             request.user.first_name = full_name
             request.user.email = email
             request.user.save(update_fields=["first_name", "email"])
@@ -1014,9 +1024,20 @@ def tai_khoan(request):
     products = _products_for_homepage()
     order_queryset = Order.objects.filter(customer=customer).prefetch_related("items__review", "items__product").order_by("-created_at")
     orders = order_queryset[:10]
+    last_customer_order = Order.objects.filter(customer=customer).order_by("-created_at").only("shipping_address").first()
+    profile_address = customer.address
+    profile_delivery_note = customer.delivery_note
+    if last_customer_order and (not profile_address or not profile_delivery_note):
+        previous_address, _, previous_note = last_customer_order.shipping_address.partition("\nGhi chú:")
+        profile_address = profile_address or previous_address
+        profile_delivery_note = profile_delivery_note or previous_note.strip()
     reviews = ProductReview.objects.filter(customer=customer).select_related("order_item", "order_item__product").order_by("-created_at")[:20]
     _create_expiring_voucher_reminders(request.user)
-    notifications = OrderNotification.objects.filter(order__customer=customer).select_related("order")[:20]
+    notifications = list(OrderNotification.objects.filter(
+        order__customer=customer,
+    ).select_related("order").prefetch_related("order__service_requests")[:20])
+    for notification in notifications:
+        notification.support_url = _order_notification_url(notification)
     voucher_notifications = list(
         VoucherNotification.objects.filter(user=request.user).select_related("voucher").order_by("-created_at")[:20]
     )
@@ -1033,6 +1054,8 @@ def tai_khoan(request):
     unread_expiry_reminder_count = VoucherExpiryReminder.objects.filter(user=request.user, is_read=False).count()
     return render(request, "store/account.html", {
         "customer": customer,
+        "profile_address": profile_address,
+        "profile_delivery_note": profile_delivery_note,
         "products": products,
         "orders": orders,
         "orders_count": order_queryset.count(),
@@ -2257,6 +2280,18 @@ def quan_tri_danh_gia(request):
 
 
 
+def _order_notification_url(notification):
+    order = notification.order
+    tracking_url = reverse("theo_doi_don_hang", args=[order.tracking_token])
+    message = (notification.message or "").casefold()
+    support_keywords = ("cskh", "yêu cầu đổi", "đổi sản phẩm", "trả hàng", "hoàn đơn", "cần hỗ trợ")
+    if not any(keyword in message for keyword in support_keywords):
+        return tracking_url
+    service_request = order.service_requests.order_by("-created_at").first()
+    request_id = service_request.pk if service_request else ""
+    return f"{tracking_url}?open_support=1&request_id={request_id}"
+
+
 def thong_bao_don_hang(request):
     if request.method not in ("GET", "POST"):
         return HttpResponseNotAllowed(["GET", "POST"])
@@ -2341,7 +2376,7 @@ def thong_bao_don_hang(request):
         "message": item.message,
         "created_at": item.created_at.isoformat(),
         "is_read": item.is_read,
-        "url": reverse("theo_doi_don_hang", args=[item.order.tracking_token]),
+        "url": _order_notification_url(item),
     } for item in order_notifications[:20]]
     items.extend({
         "id": f"voucher:{item.pk}",
@@ -2934,7 +2969,7 @@ def _message_json(message):
             "order_url": f"/theo-doi-don/{service_request.order.tracking_token}/",
             "item_name": item.product_name if item else "Sản phẩm trong đơn",
             "item_variant": item.variant if item else "",
-            "item_image": item.product.hinh_anh.url if item and item.product and item.product.hinh_anh else "",
+            "item_image": _safe_product_image_url(item.product if item else None),
             "quantity": item.quantity if item else 0,
             "item_unit_price": item.unit_price if item else None,
             "item_line_total": item.line_total if item else None,
@@ -2943,7 +2978,7 @@ def _message_json(message):
             "target_price": target.gia_ban if target else None,
             "target_line_total": target.gia_ban * item.quantity if target and item else None,
             "price_difference": (target.gia_ban - item.unit_price) * item.quantity if target and item else None,
-            "target_image": target.hinh_anh.url if target and target.hinh_anh else "",
+            "target_image": _safe_product_image_url(target),
         }
     return {
         "id": message.pk,
@@ -2958,6 +2993,15 @@ def _message_json(message):
         } if product else None),
         "order_request": order_request,
     }
+
+
+def _safe_product_image_url(product):
+    if not product:
+        return ""
+    try:
+        return product.hinh_anh.url if product.hinh_anh else ""
+    except Exception:
+        return ""
 
 
 @transaction.atomic

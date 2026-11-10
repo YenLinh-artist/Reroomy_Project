@@ -16,6 +16,7 @@ from django.templatetags.static import static
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.core.exceptions import ValidationError
+from django.core.files.base import ContentFile
 from functools import wraps
 from types import SimpleNamespace
 from datetime import date, datetime, time, timedelta
@@ -39,6 +40,7 @@ from .models import (
     StaffNotification,
     ProductReview,
     SanPham,
+    SanPhamAnhBoSung,
     SignupVoucherGrant,
     StaffProfile,
     Voucher,
@@ -65,6 +67,7 @@ from .models import (
     CustomerServiceMessage,
     DanhMuc,
     DeXuatSanPham,
+    DeXuatSanPhamAnhBoSung,
     HoSoNhanVien,
     SanPham,
     StaffChatMessage,
@@ -135,6 +138,7 @@ def _demo_product(item):
     return {
         **item,
         "image_url": static(f"store/images/{item['image']}") if _local_demo_photo(item["image"]).is_file() else "",
+        "image_urls": [static(f"store/images/{item['image']}")] if _local_demo_photo(item["image"]).is_file() else [],
         "has_photo": _local_demo_photo(item["image"]).is_file(),
         "detail_url": item["id"],
         "rating": "4.8",
@@ -153,6 +157,10 @@ def _demo_product(item):
 
 def _database_product(item):
     variants = [value.strip() for value in (item.phan_loai or "").split(",") if value.strip()] or ["Mẫu hiện có"]
+    image_url = item.hinh_anh.url if item.hinh_anh else ""
+    image_urls = ([image_url] if image_url else []) + [photo.anh.url for photo in item.anh_bo_sung.all()]
+    estimated_width, estimated_depth = _estimated_room_footprint(item.ten_san_pham, item.danh_muc.ten_danh_muc)
+    has_room_dimensions = bool(item.room_width_cm and item.room_depth_cm)
     return {
         "id": str(item.pk),
         "name": item.ten_san_pham,
@@ -161,8 +169,13 @@ def _database_product(item):
         "display_price": f"{item.gia_ban // 1000}k" if item.gia_ban >= 1000 else f"{item.gia_ban}đ",
         "sold": "Mới",
         "image": item.hinh_anh.name if item.hinh_anh else "",
-        "image_url": item.hinh_anh.url if item.hinh_anh else "",
+        "image_url": image_url,
+        "image_urls": image_urls,
         "has_photo": bool(item.hinh_anh),
+        "room_width_cm": float(item.room_width_cm or estimated_width),
+        "room_depth_cm": float(item.room_depth_cm or estimated_depth),
+        "room_dimensions_estimated": not has_room_dimensions,
+        "room_color_hint": item.phan_loai or item.ten_san_pham,
         "tag": "Mới cập nhật",
         "description": item.mo_ta or "Thông tin sản phẩm sẽ sớm được cập nhật.",
         "detail_url": str(item.pk),
@@ -179,6 +192,26 @@ def _database_product(item):
         "sold_text": "Chưa có dữ liệu bán",
         "icon_url": _product_icon_url(item.danh_muc.ten_danh_muc, item.ten_san_pham),
     }
+
+
+def _estimated_room_footprint(product_name, category_name):
+    normalized_name = unicodedata.normalize("NFKD", product_name or "")
+    name = "".join(char for char in normalized_name if not unicodedata.combining(char)).casefold()
+    label = unicodedata.normalize("NFKD", f"{category_name or ''} {product_name or ''}")
+    label = "".join(char for char in label if not unicodedata.combining(char)).casefold()
+    if any(word in name for word in ("tu ", "ke ", "wardrobe", "cabinet")):
+        return 90, 45
+    if any(word in name for word in ("giuong", "nem", "bed")):
+        return 140, 200
+    if any(word in label for word in ("sofa", "ghe", "armchair")):
+        return 170, 80
+    if any(word in name for word in ("chan", "goi")):
+        return 80, 60
+    if any(word in label for word in ("ban", "desk", "table")):
+        return 100, 55
+    if any(word in label for word in ("den", "lamp")):
+        return 30, 30
+    return 70, 55
 
 
 def _product_icon_url(category, product_name=""):
@@ -200,10 +233,15 @@ def _product_icon_url(category, product_name=""):
 
 def _products_for_homepage():
     all_saved_products = SanPham.objects.exists()
-    saved_products = list(SanPham.objects.filter(is_active=True).select_related("danh_muc").order_by("-pk"))
+    saved_products = list(SanPham.objects.filter(is_active=True).select_related("danh_muc").prefetch_related("anh_bo_sung").order_by("-pk"))
     if all_saved_products:
         return [_database_product(item) for item in saved_products]
     return [_demo_product(item) for item in DEMO_PRODUCTS]
+
+
+def _room_planner_products():
+    products = SanPham.objects.filter(is_active=True).select_related("danh_muc").prefetch_related("anh_bo_sung").order_by("ten_san_pham")
+    return [_database_product(item) for item in products]
 
 
 def _order_change_products():
@@ -349,6 +387,13 @@ def _create_expiring_voucher_reminders(user, now=None):
 
 
 def trang_chu(request):
+    selected_category = request.GET.get("category", "").strip()
+    san_pham_list = _products_for_homepage()
+    category_term = selected_category.casefold()
+    for product in san_pham_list:
+        product["matches_selected_category"] = (
+            not category_term or category_term in product["category"].casefold()
+        )
     show_signup_voucher_toast = request.session.pop("show_signup_voucher_toast", False)
     signup_vouchers = []
     if show_signup_voucher_toast and request.user.is_authenticated:
@@ -359,7 +404,8 @@ def trang_chu(request):
             expires_at__gt=timezone.now(),
         ).order_by("minimum_order")
     return render(request, "index.html", {
-        "san_pham_list": _products_for_homepage(),
+        "san_pham_list": san_pham_list,
+        "selected_category": selected_category,
         "unread_notifications_count": _unread_notifications_count(request.user),
         "show_signup_voucher_toast": show_signup_voucher_toast,
         "signup_vouchers": signup_vouchers,
@@ -1148,7 +1194,10 @@ def tu_van_decor(request):
 
 
 def phong_mau(request):
-    return render(request, "store/rooms.html", {"suggestions": _products_for_homepage()})
+    return render(request, "store/rooms.html", {
+        "suggestions": _products_for_homepage(),
+        "room_products": _room_planner_products(),
+    })
 
 
 def chi_tiet_san_pham(request, product_key):
@@ -1157,7 +1206,7 @@ def chi_tiet_san_pham(request, product_key):
     if product:
         item = _demo_product(product)
     elif product_key.isdigit():
-        saved = get_object_or_404(SanPham.objects.select_related("danh_muc"), pk=int(product_key), is_active=True)
+        saved = get_object_or_404(SanPham.objects.select_related("danh_muc").prefetch_related("anh_bo_sung"), pk=int(product_key), is_active=True)
         item = _database_product(saved)
     else:
         raise Http404("Không tìm thấy sản phẩm")
@@ -1508,6 +1557,11 @@ def quan_tri_tai_khoan(request):
     return render(request, "store/admin_account.html")
 
 
+def _save_product_gallery_images(product, uploads):
+    for uploaded in uploads:
+        SanPhamAnhBoSung.objects.create(san_pham=product, anh=uploaded)
+
+
 @_roles_required(StaffProfile.Role.ADMIN)
 def quan_tri_san_pham(request):
     products = SanPham.objects.select_related("danh_muc").order_by("ten_san_pham")
@@ -1528,10 +1582,14 @@ def quan_tri_tao_san_pham(request):
     if request.method == "POST" and form.is_valid():
         saved = form.save(commit=False)
         uploaded = request.FILES.get("hinh_anh")
+        gallery_uploads = list(form.cleaned_data.get("anh_bo_sung") or [])
+        if not uploaded and gallery_uploads:
+            saved.hinh_anh = gallery_uploads.pop(0)
         if uploaded and not (uploaded.content_type or "").startswith("image/"):
             form.add_error("hinh_anh", "Vui lòng chọn tệp ảnh.")
         else:
             saved.save()
+            _save_product_gallery_images(saved, gallery_uploads)
             if saved.so_luong:
                 InventoryAdjustment.objects.create(product=saved, quantity_delta=saved.so_luong, reason="Tồn kho khởi tạo khi tạo sản phẩm", actor=request.user)
             messages.success(request, "Đã thêm sản phẩm vào kho.")
@@ -1546,10 +1604,14 @@ def quan_tri_sua_san_pham(request, product_id):
     if request.method == "POST" and form.is_valid():
         saved = form.save(commit=False)
         uploaded = request.FILES.get("hinh_anh")
+        gallery_uploads = list(form.cleaned_data.get("anh_bo_sung") or [])
+        if not uploaded and not saved.hinh_anh and gallery_uploads:
+            saved.hinh_anh = gallery_uploads.pop(0)
         if uploaded and not (uploaded.content_type or "").startswith("image/"):
             form.add_error("hinh_anh", "Vui lòng chọn tệp ảnh.")
         else:
             saved.save()
+            _save_product_gallery_images(saved, gallery_uploads)
             messages.success(request, "Đã cập nhật sản phẩm.")
             return redirect("quan_tri_san_pham")
     return render(request, "store/admin_product_form.html", {"form": form, "page_title": "Chỉnh sửa sản phẩm", "editing": True, "product": product})
@@ -3216,18 +3278,23 @@ def cskh_de_xuat_san_pham(request):
     form = DeXuatSanPhamForm(request.POST or None, request.FILES or None)
     if request.method == "POST" and form.is_valid():
         uploaded = request.FILES.get("hinh_anh")
+        gallery_uploads = list(form.cleaned_data.get("anh_bo_sung") or [])
         if uploaded and not (uploaded.content_type or "").startswith("image/"):
             form.add_error("hinh_anh", "Vui lòng chọn tệp ảnh.")
         else:
             proposed = form.save(commit=False)
+            if not uploaded and gallery_uploads:
+                proposed.hinh_anh = gallery_uploads.pop(0)
             proposed.nguoi_tao = request.user
             proposed.save()
+            for image in gallery_uploads:
+                DeXuatSanPhamAnhBoSung.objects.create(de_xuat=proposed, anh=image)
             messages.success(request, "Bài đăng đã gửi admin duyệt. Sản phẩm sẽ vào kho và hiển thị sau khi được duyệt.")
             return redirect("ban_hang_de_xuat_san_pham" if is_sales else "cskh_de_xuat_san_pham")
     role = "sales" if is_sales else "consultant"
     return render(request, "store/staff_product_submissions.html", {
         "form": form,
-        "submissions": DeXuatSanPham.objects.filter(nguoi_tao=request.user).select_related("danh_muc"),
+        "submissions": DeXuatSanPham.objects.filter(nguoi_tao=request.user).select_related("danh_muc").prefetch_related("anh_bo_sung"),
         "staff_role": _staff_role_label(request.user),
         "workspace_url": "/ban-hang/" if is_sales else "/cskh/",
         "workspace_label": "Không gian bán hàng" if is_sales else "Hộp thư CSKH",
@@ -3239,7 +3306,7 @@ def cskh_de_xuat_san_pham(request):
 def quan_tri_de_xuat_san_pham(request):
     if not _has_admin_access(request.user):
         return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
-    submissions = DeXuatSanPham.objects.select_related("danh_muc", "nguoi_tao")
+    submissions = DeXuatSanPham.objects.select_related("danh_muc", "nguoi_tao").prefetch_related("anh_bo_sung")
     role = StaffProfile.Role.ADMIN if request.user.is_superuser else request.user.staff_profile.role
     return render(request, "store/admin_product_submissions_modern.html", {
         "submissions": submissions,
@@ -3268,11 +3335,15 @@ def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
             product.gia_ban = submission.gia_ban
             product.phan_loai = submission.phan_loai
             product.mo_ta = submission.mo_ta
+            if submission.room_width_cm:
+                product.room_width_cm = submission.room_width_cm
+            if submission.room_depth_cm:
+                product.room_depth_cm = submission.room_depth_cm
             if submission.hinh_anh:
                 product.hinh_anh = submission.hinh_anh.name
-            product.save(update_fields=["so_luong", "gia_ban", "phan_loai", "mo_ta", "hinh_anh"])
+            product.save(update_fields=["so_luong", "gia_ban", "phan_loai", "mo_ta", "hinh_anh", "room_width_cm", "room_depth_cm"])
         else:
-            SanPham.objects.create(
+            product = SanPham.objects.create(
                 ten_san_pham=submission.ten_san_pham,
                 gia_ban=submission.gia_ban,
                 danh_muc=submission.danh_muc,
@@ -3280,7 +3351,15 @@ def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
                 mo_ta=submission.mo_ta,
                 so_luong=submission.so_luong,
                 hinh_anh=submission.hinh_anh.name if submission.hinh_anh else "",
+                room_width_cm=submission.room_width_cm,
+                room_depth_cm=submission.room_depth_cm,
             )
+        for proposed_image in submission.anh_bo_sung.all():
+            with proposed_image.anh.open("rb") as image_file:
+                SanPhamAnhBoSung.objects.create(
+                    san_pham=product,
+                    anh=ContentFile(image_file.read(), name=proposed_image.anh.name.rsplit("/", 1)[-1]),
+                )
         submission.trang_thai = DeXuatSanPham.TrangThai.DA_DUYET
         submission.nguoi_duyet = request.user
         submission.duyet_luc = timezone.now()

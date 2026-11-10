@@ -1,1 +1,44 @@
-{% extends 'store/admin_base.html' %}{% block title %}{{ page_title }}{% endblock %}{% block content %}<div class="page-heading"><div><span class="eyebrow">CATALOG</span><h1>{{ page_title }}</h1><p>Thông tin sẽ được cập nhật trên cửa hàng sau khi lưu.</p></div><a class="btn btn-soft" href="{% url 'quan_tri_san_pham' %}">← Quay lại sản phẩm</a></div>{% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}<form class="form-panel" method="post" enctype="multipart/form-data">{% csrf_token %}<div class="form-grid">{% for field in form %}<div class="field {% if field.name == 'mo_ta' or field.name == 'hinh_anh' %}wide{% endif %}"><label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}{% if field.name == 'hinh_anh' %}<span class="subtle">Chọn ảnh JPG, PNG hoặc WEBP.</span>{% endif %}{{ field.errors }}</div>{% endfor %}</div><div class="inline-actions"><button class="btn" type="submit">{% if editing %}Lưu thay đổi{% else %}Thêm vào kho{% endif %}</button><a class="btn btn-soft" href="{% url 'quan_tri_san_pham' %}">Hủy</a></div></form>{% endblock %}
+{% extends 'store/admin_base.html' %}
+{% load static %}
+{% block title %}{{ page_title }}{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><span class="eyebrow">CATALOG</span><h1>{{ page_title }}</h1><p>Thông tin sẽ được cập nhật trên cửa hàng sau khi lưu.</p></div>
+  <a class="btn btn-soft" href="{% url 'quan_tri_san_pham' %}">← Quay lại sản phẩm</a>
+</div>
+{% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+<form class="form-panel product-editor-form" method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <div class="form-grid">
+    {% for field in form %}
+      <div class="field{% if field.name == 'mo_ta' or field.name == 'hinh_anh' or field.name == 'anh_bo_sung' %} wide{% endif %}{% if field.name == 'is_active' %} field-check-row{% endif %}">
+        {% if field.name == 'is_active' %}
+          <label class="field-toggle" for="{{ field.id_for_label }}">
+            <span class="pretty-check">{{ field }}<i aria-hidden="true"></i></span>
+            <span><strong>{{ field.label }}</strong><small>Sản phẩm đang được phép hiển thị và bán trên cửa hàng.</small></span>
+          </label>
+        {% else %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+        {% endif %}
+        {% if field.help_text %}<span class="subtle">{{ field.help_text }}</span>{% endif %}
+        {% if field.name == 'anh_bo_sung' %}<div class="product-image-preview" data-image-preview aria-live="polite"></div>{% endif %}
+        {% for error in field.errors %}<span class="form-errors">{{ error }}</span>{% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+  {% if editing and product %}
+    <section class="current-product-images" aria-label="Ảnh hiện có">
+      <strong>Ảnh hiện có</strong>
+      <div class="product-image-preview">
+        {% if product.hinh_anh %}<figure><img src="{{ product.hinh_anh.url }}" alt="Ảnh đại diện {{ product.ten_san_pham }}"><figcaption>Ảnh đại diện</figcaption></figure>{% endif %}
+        {% for photo in product.anh_bo_sung.all %}<figure><img src="{{ photo.anh.url }}" alt="Ảnh {{ product.ten_san_pham }}"><figcaption>Ảnh bổ sung</figcaption></figure>{% endfor %}
+        {% if not product.hinh_anh and not product.anh_bo_sung.exists %}<span class="subtle">Chưa có ảnh.</span>{% endif %}
+      </div>
+    </section>
+  {% endif %}
+  <p class="product-editor-note">Kích thước ngang và sâu dùng để vẽ footprint theo tỷ lệ ở công cụ bố trí phòng. Nếu chưa nhập, sơ đồ sẽ dùng kích thước ước lượng.</p>
+  <div class="inline-actions"><button class="btn" type="submit">{% if editing %}Lưu thay đổi{% else %}Thêm vào kho{% endif %}</button><a class="btn btn-soft" href="{% url 'quan_tri_san_pham' %}">Hủy</a></div>
+</form>
+<script src="{% static 'store/product-image-input.js' %}"></script>
+{% endblock %}

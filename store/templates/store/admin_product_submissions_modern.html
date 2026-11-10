@@ -13,7 +13,7 @@
         <tr>
           <td><div class="submission-product-cell">
             {% if item.hinh_anh %}<img src="{{ item.hinh_anh.url }}" alt="Ảnh {{ item.ten_san_pham }}">{% else %}<span class="submission-image-placeholder">Ảnh</span>{% endif %}
-            <div><strong>{{ item.ten_san_pham }}</strong><small>{{ item.danh_muc.ten_danh_muc }}{% if item.phan_loai %} · {{ item.phan_loai }}{% endif %}</small><small>{{ item.mo_ta|default:'Chưa có mô tả' }}</small></div>
+            <div><strong>{{ item.ten_san_pham }}</strong><small>{{ item.danh_muc.ten_danh_muc }}{% if item.phan_loai %} · {{ item.phan_loai }}{% endif %}</small><small>{{ item.mo_ta|default:'Chưa có mô tả' }}</small><small>{% if item.room_width_cm and item.room_depth_cm %}Footprint {{ item.room_width_cm }} × {{ item.room_depth_cm }} cm{% else %}Chưa nhập kích thước sơ đồ{% endif %}</small><div class="submission-gallery">{% for photo in item.anh_bo_sung.all %}<img src="{{ photo.anh.url }}" alt="Ảnh bổ sung {{ item.ten_san_pham }}">{% endfor %}</div></div>
           </div></td>
           <td>{{ item.nguoi_tao|default:'Tài khoản đã xóa' }}<small class="subtle">{{ item.tao_luc|date:'d/m/Y H:i' }}</small></td>
           <td><strong>{{ item.gia_ban }}₫</strong><small class="subtle">Đề xuất nhập {{ item.so_luong }}</small></td>

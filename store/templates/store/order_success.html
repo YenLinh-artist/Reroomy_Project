@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="{% static 'store/site-chrome.css' %}">
   <link rel="stylesheet" href="{% static 'store/cart-flow.css' %}">
   <link rel="stylesheet" href="{% static 'store/customer-pages.css' %}">
+  <link rel="stylesheet" href="{% static 'store/product-cards.css' %}">
 </head>
 <body class="order-success-body">
   {% include 'store/partials/header.html' %}
@@ -42,16 +43,9 @@
       <div class="success-divider"></div>
       <p class="success-recommend-kicker">Gợi ý cho góc phòng của bạn</p>
       <h2 id="suggestionsTitle">SẢN PHẨM BẠN CÓ THỂ THÍCH</h2>
-      <div class="success-product-grid">
+      <div class="product-grid product-grid--success">
         {% for product in suggestions %}
-          <article class="success-product-card">
-            <a class="success-product-image" href="{% url 'chi_tiet_san_pham' product.id %}">
-              {% if product.has_photo %}<img src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy">{% else %}<img class="success-product-icon" src="{{ product.icon_url }}" alt="">{% endif %}
-            </a>
-            <div class="success-product-info"><div><a href="{% url 'chi_tiet_san_pham' product.id %}">{{ product.name }}</a><strong>{{ product.display_price }}</strong></div><p>{{ product.category }}</p>
-              <button class="success-add-cart" type="button" data-id="{{ product.id }}" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image_url }}" data-stock="{{ product.stock_quantity }}">Thêm vào giỏ</button>
-            </div>
-          </article>
+          {% include 'store/partials/product_card.html' with product=product %}
         {% empty %}<p class="empty-note">Tụi mình sẽ sớm có thêm sản phẩm gợi ý cho bạn.</p>{% endfor %}
       </div>
       <a class="success-back-link" href="{% url 'trang_chu' %}">Tiếp tục khám phá Re:Room</a>
@@ -59,6 +53,7 @@
   </main>
   {% include 'store/partials/footer.html' %}
   <script src="{% static 'store/cart.js' %}"></script>
+  <script src="{% static 'store/product-cards.js' %}"></script>
   <script src="{% static 'store/order-success.js' %}"></script>
   <script>
     const orderQr = document.getElementById('orderVietQr');

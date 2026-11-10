@@ -4,7 +4,7 @@
     <a class="brand" href="{% url 'trang_chu' %}" aria-label="Re:Room trang chủ">RE<span>:</span>ROOM</a>
     <div class="navlinks" id="mainNav">
       <div class="navlink"><a data-nav-key="home" href="{% url 'trang_chu' %}">Trang chủ</a></div>
-      <div class="navlink"><a data-nav-key="shop" href="{% url 'trang_chu' %}#san-pham">Cửa hàng <i class="chevron"></i></a><div class="drop"><a href="{% url 'trang_chu' %}#san-pham">Tất cả sản phẩm</a><a href="{% url 'trang_chu' %}#san-pham" data-nav-filter="Đồ thư giãn">Đồ thư giãn</a><a href="{% url 'trang_chu' %}#san-pham" data-nav-filter="Góc học tập">Góc học tập</a><a href="{% url 'trang_chu' %}#san-pham" data-nav-filter="Đồ tiện ích">Đồ tiện ích</a></div></div>
+      <div class="navlink"><a data-nav-key="shop" href="{% url 'trang_chu' %}#san-pham">Cửa hàng <i class="chevron"></i></a><div class="drop"><a href="{% url 'trang_chu' %}#san-pham">Tất cả sản phẩm</a><a href="{% url 'trang_chu' %}?category={{ 'Đồ thư giãn'|urlencode }}#san-pham" data-nav-filter="Đồ thư giãn">Đồ thư giãn</a><a href="{% url 'trang_chu' %}?category={{ 'Góc học tập'|urlencode }}#san-pham" data-nav-filter="Góc học tập">Góc học tập</a><a href="{% url 'trang_chu' %}?category={{ 'Đồ tiện ích'|urlencode }}#san-pham" data-nav-filter="Đồ tiện ích">Đồ tiện ích</a></div></div>
       <div class="navlink"><a data-nav-key="room" href="{% url 'phong_mau' %}">Phòng <i class="chevron"></i></a><div class="drop"><a href="{% url 'phong_mau' %}">Phòng ngủ nhỏ</a><a href="{% url 'phong_mau' %}#room-planner">Góc học tập</a><a href="{% url 'goi_y_combo' %}">Gợi ý combo decor</a></div></div>
       <div class="navlink"><a data-nav-key="about" href="{% url 'trang_chu' %}#about">Giới thiệu</a></div>
     </div>

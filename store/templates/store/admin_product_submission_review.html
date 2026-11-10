@@ -1,0 +1,54 @@
+{% extends 'store/admin_base.html' %}
+{% load static %}
+{% block title %}Xem đề xuất sản phẩm{% endblock %}
+{% block content %}
+<div class="page-heading">
+  <div><span class="eyebrow">SẢN PHẨM CỘNG TÁC</span><h1>Xem đề xuất sản phẩm</h1><p>Kiểm tra thông tin trước khi duyệt và cộng số lượng vào kho.</p></div>
+  <a class="btn btn-soft" href="{% url 'quan_tri_de_xuat_san_pham' %}">Quay lại danh sách</a>
+</div>
+
+<div class="submission-review-detail">
+  <section class="submission-detail-card">
+    <h2>Thông tin nhân viên gửi</h2>
+    <div class="submission-detail-gallery">
+      {% if submission.hinh_anh %}<figure><img src="{{ submission.hinh_anh.url }}" alt="Ảnh {{ submission.ten_san_pham }}"><figcaption>Ảnh đại diện</figcaption></figure>{% endif %}
+      {% for photo in submission.anh_bo_sung.all %}<figure><img src="{{ photo.anh.url }}" alt="Ảnh bổ sung {{ submission.ten_san_pham }}"><figcaption>Ảnh bổ sung</figcaption></figure>{% endfor %}
+      {% if not submission.hinh_anh and not submission.anh_bo_sung.exists %}<p class="subtle">Nhân viên chưa gửi ảnh sản phẩm.</p>{% endif %}
+    </div>
+    <dl class="submission-detail-list">
+      <div><dt>Tên sản phẩm</dt><dd>{{ submission.ten_san_pham }}</dd></div>
+      <div><dt>Danh mục</dt><dd>{{ submission.danh_muc.ten_danh_muc }}</dd></div>
+      <div><dt>Giá đề xuất</dt><dd>{{ submission.gia_ban }}₫</dd></div>
+      <div><dt>Số lượng đề xuất</dt><dd>{{ submission.so_luong }}</dd></div>
+      <div><dt>Phân loại</dt><dd>{{ submission.phan_loai|default:'Chưa ghi' }}</dd></div>
+      <div><dt>Kích thước dùng trên sơ đồ</dt><dd>{% if submission.room_width_cm and submission.room_depth_cm %}{{ submission.room_width_cm }} × {{ submission.room_depth_cm }} cm{% else %}Chưa cung cấp{% endif %}</dd></div>
+      <div class="is-description"><dt>Mô tả</dt><dd>{{ submission.mo_ta|default:'Chưa có mô tả'|linebreaksbr }}</dd></div>
+      <div><dt>Người đề xuất</dt><dd>{{ submission.nguoi_tao|default:'Tài khoản đã xóa' }}</dd></div>
+      <div><dt>Gửi lúc</dt><dd>{{ submission.tao_luc|date:'d/m/Y H:i' }}</dd></div>
+    </dl>
+  </section>
+
+  <section class="top-view-upload-card submission-top-view-card">
+    <div class="top-view-upload-heading"><strong>Ảnh dùng cho sơ đồ 2D</strong><span>Đề xuất thêm</span></div>
+    <p>Nhân viên không cần gửi ảnh này. Admin có thể thêm ảnh nhìn từ trên xuống khi duyệt; nếu chưa có thì để trống, sơ đồ sẽ dùng vector minh họa.</p>
+    {% if existing_product and existing_product.room_top_view %}<figure class="submission-existing-top-view"><img src="{{ existing_product.room_top_view.url }}" alt="Ảnh Top View hiện tại của {{ existing_product.ten_san_pham }}"><figcaption>Ảnh Top View hiện có — để trống nếu muốn giữ ảnh này.</figcaption></figure>{% endif %}
+    <form class="submission-top-view-form" method="post" action="{% url 'quan_tri_duyet_de_xuat_san_pham' submission.pk %}" enctype="multipart/form-data">
+      {% csrf_token %}
+      <label for="{{ form.room_top_view.id_for_label }}">{{ form.room_top_view.label }}</label>
+      {{ form.room_top_view }}
+      {% if form.room_top_view.help_text %}<span class="subtle">{{ form.room_top_view.help_text }}</span>{% endif %}
+      {% for error in form.room_top_view.errors %}<span class="form-errors">{{ error }}</span>{% endfor %}
+      <div class="product-image-preview" data-top-view-preview aria-live="polite"></div>
+      <p class="internal-support-note">Cần nhân viên hỗ trợ tìm ảnh? <a href="{% url 'staff_chat' %}">Nhắn trong chat nội bộ</a>.</p>
+      <div class="inline-actions">
+        <button class="btn" type="submit">Duyệt &amp; cộng kho</button>
+        <a class="btn btn-soft" href="{% url 'quan_tri_de_xuat_san_pham' %}">Để sau</a>
+      </div>
+    </form>
+    <form class="submission-detail-reject" method="post" action="{% url 'quan_tri_tu_choi_de_xuat_san_pham' submission.pk %}">
+      {% csrf_token %}<button class="btn btn-soft" type="submit">Từ chối đề xuất</button>
+    </form>
+  </section>
+</div>
+<script src="{% static 'store/product-image-input.js' %}"></script>
+{% endblock %}

@@ -11,8 +11,17 @@
   {% csrf_token %}
   <div class="form-grid">
     {% for field in form %}
-      <div class="field{% if field.name == 'mo_ta' or field.name == 'hinh_anh' or field.name == 'anh_bo_sung' %} wide{% endif %}{% if field.name == 'is_active' %} field-check-row{% endif %}">
-        {% if field.name == 'is_active' %}
+      <div class="field{% if field.name == 'mo_ta' or field.name == 'hinh_anh' or field.name == 'anh_bo_sung' or field.name == 'room_top_view' %} wide{% endif %}{% if field.name == 'is_active' %} field-check-row{% endif %}">
+        {% if field.name == 'room_top_view' %}
+          <div class="top-view-upload-card">
+            <div class="top-view-upload-heading"><strong>Ảnh dùng cho sơ đồ 2D</strong><span>Đề xuất thêm</span></div>
+            <p>Ảnh nhìn thẳng từ trên xuống sẽ thay hình vector minh họa. PNG nền trong suốt hoặc SVG sẽ rõ nhất; không có ảnh thì sơ đồ vẫn hiển thị như cũ.</p>
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<span class="subtle">{{ field.help_text }}</span>{% endif %}
+            <div class="product-image-preview" data-top-view-preview aria-live="polite"></div>
+          </div>
+        {% elif field.name == 'is_active' %}
           <label class="field-toggle" for="{{ field.id_for_label }}">
             <span class="pretty-check">{{ field }}<i aria-hidden="true"></i></span>
             <span><strong>{{ field.label }}</strong><small>Sản phẩm đang được phép hiển thị và bán trên cửa hàng.</small></span>
@@ -21,7 +30,7 @@
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
           {{ field }}
         {% endif %}
-        {% if field.help_text %}<span class="subtle">{{ field.help_text }}</span>{% endif %}
+        {% if field.help_text and field.name != 'room_top_view' %}<span class="subtle">{{ field.help_text }}</span>{% endif %}
         {% if field.name == 'anh_bo_sung' %}<div class="product-image-preview" data-image-preview aria-live="polite"></div>{% endif %}
         {% for error in field.errors %}<span class="form-errors">{{ error }}</span>{% endfor %}
       </div>
@@ -32,8 +41,9 @@
       <strong>Ảnh hiện có</strong>
       <div class="product-image-preview">
         {% if product.hinh_anh %}<figure><img src="{{ product.hinh_anh.url }}" alt="Ảnh đại diện {{ product.ten_san_pham }}"><figcaption>Ảnh đại diện</figcaption></figure>{% endif %}
+        {% if product.room_top_view %}<figure class="is-top-view"><img src="{{ product.room_top_view.url }}" alt="Ảnh nhìn từ trên xuống {{ product.ten_san_pham }}"><figcaption>Ảnh Top View · sơ đồ 2D</figcaption></figure>{% endif %}
         {% for photo in product.anh_bo_sung.all %}<figure><img src="{{ photo.anh.url }}" alt="Ảnh {{ product.ten_san_pham }}"><figcaption>Ảnh bổ sung</figcaption></figure>{% endfor %}
-        {% if not product.hinh_anh and not product.anh_bo_sung.exists %}<span class="subtle">Chưa có ảnh.</span>{% endif %}
+        {% if not product.hinh_anh and not product.room_top_view and not product.anh_bo_sung.exists %}<span class="subtle">Chưa có ảnh.</span>{% endif %}
       </div>
     </section>
   {% endif %}

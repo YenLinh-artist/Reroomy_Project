@@ -18,7 +18,39 @@
 .current-product-images{margin:0 0 15px;padding:12px 14px;border:1px solid #f1e4e2;border-radius:12px;background:#fffdfc}
 .current-product-images>strong{display:block;margin-bottom:8px;color:#76656a;font-size:12px}
 .product-editor-note{margin:0 0 15px;color:#9a8589;font-size:11px;line-height:1.5}
+.top-view-upload-card{display:grid;gap:8px;padding:13px;border:1px dashed #efb8c4;border-radius:12px;background:#fffafa}
+.top-view-upload-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.top-view-upload-heading strong{color:#514047;font-size:14px}
+.top-view-upload-heading span{padding:4px 9px;border-radius:999px;background:#ddf5e7;color:#248553;font-size:10px;font-weight:700;white-space:nowrap}
+.top-view-upload-card>p{margin:0;color:#84777a;font-size:11px;line-height:1.5}
+.top-view-upload-card>label{color:#715e65;font-size:11px;font-weight:700}
+.top-view-upload-card input[type=file]{width:100%;padding:9px 10px;border:1px solid #f0dada;border-radius:9px;background:#fce9e9;color:#8e6571;font:12px var(--font-body,Arial,sans-serif)}
+.top-view-upload-card .subtle{color:#9b8b90;font-size:10px;line-height:1.45}
+.product-image-preview figure.is-top-view img,.current-product-images figure.is-top-view img{object-fit:contain;background-color:#fffaf6;background-image:linear-gradient(45deg,#eee7e2 25%,transparent 25%),linear-gradient(-45deg,#eee7e2 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#eee7e2 75%),linear-gradient(-45deg,transparent 75%,#eee7e2 75%);background-size:12px 12px;background-position:0 0,0 6px,6px -6px,-6px 0}
+.submission-review-detail{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:16px;align-items:start}
+.submission-detail-card{min-width:0;padding:18px;border:1px solid #f0e2e2;border-radius:15px;background:#fff}
+.submission-detail-card h2{margin:0 0 14px;color:#44363d;font-size:17px}
+.submission-detail-gallery{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:15px}
+.submission-detail-gallery figure,.submission-existing-top-view{width:104px;margin:0;overflow:hidden;border:1px solid #f0e2e2;border-radius:10px;background:#fffaf8}
+.submission-detail-gallery img{display:block;width:104px;height:94px;object-fit:cover}
+.submission-detail-gallery figcaption,.submission-existing-top-view figcaption{padding:5px 7px;color:#907d80;font-size:9px;line-height:1.4}
+.submission-detail-list{display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin:0}
+.submission-detail-list>div{padding:10px 0;border-top:1px solid #f3e9e7}
+.submission-detail-list dt{margin-bottom:4px;color:#a18c91;font-size:10px}
+.submission-detail-list dd{margin:0;color:#504249;font-size:12px;font-weight:600;line-height:1.5;overflow-wrap:anywhere}
+.submission-detail-list .is-description{grid-column:1/-1}
+.submission-top-view-card{align-content:start}
+.submission-existing-top-view{display:flex;align-items:center;width:100%;gap:10px;padding:8px}
+.submission-existing-top-view img{width:72px;height:68px;object-fit:contain;background:#fffaf6}
+.submission-top-view-form{display:grid;gap:8px}
+.submission-top-view-form>label{color:#715e65;font-size:11px;font-weight:700}
+.submission-top-view-form input[type=file]{width:100%;padding:9px 10px;border:1px solid #f0dada;border-radius:9px;background:#fce9e9;color:#8e6571;font:12px var(--font-body,Arial,sans-serif)}
+.internal-support-note{margin:2px 0;color:#8d7d82;font-size:11px;line-height:1.5}
+.internal-support-note a{color:#d7467b;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.submission-detail-reject{margin-top:12px;padding-top:12px;border-top:1px solid #f2e6e4}
 .staff-proposals-field input[type=checkbox]{width:19px;height:19px;accent-color:#e94e86;vertical-align:middle}
 .staff-proposals-field input[type=file]{max-width:100%;padding:8px;border:1px solid #e9dfe2;border-radius:9px;background:#fff;color:#796c70}
 .submission-gallery{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px}
 .submission-gallery img{width:42px;height:42px;object-fit:cover;border:1px solid #f0dfe2;border-radius:7px;background:#fff8f6}
+@media(max-width:820px){.submission-review-detail{grid-template-columns:1fr}}
+@media(max-width:520px){.submission-detail-list{grid-template-columns:1fr}.submission-detail-list .is-description{grid-column:auto}.top-view-upload-heading{align-items:flex-start;flex-direction:column}}

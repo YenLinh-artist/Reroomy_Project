@@ -20,7 +20,7 @@
           <td><span class="tag{% if item.trang_thai == 'approved' %} ok{% elif item.trang_thai == 'rejected' %} reject{% else %} warn{% endif %}">{{ item.get_trang_thai_display }}</span>{% if item.duyet_luc %}<small class="subtle">{{ item.duyet_luc|date:'d/m/Y H:i' }}</small>{% endif %}</td>
           <td>{% if item.trang_thai == 'pending' %}
             <div class="submission-review-actions">
-              <form method="post" action="{% url 'quan_tri_duyet_de_xuat_san_pham' item.pk %}">{% csrf_token %}<button class="btn btn-small" type="submit">Duyệt & cộng kho</button></form>
+              <a class="btn btn-small" href="{% url 'quan_tri_duyet_de_xuat_san_pham' item.pk %}">Xem &amp; duyệt</a>
               <form method="post" action="{% url 'quan_tri_tu_choi_de_xuat_san_pham' item.pk %}">{% csrf_token %}<button class="btn btn-small btn-soft submission-reject" type="submit">Từ chối</button></form>
             </div>
           {% else %}<span class="subtle">Đã xử lý</span>{% endif %}</td>

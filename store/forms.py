@@ -3,6 +3,7 @@ from django import forms
 from django.contrib.auth import password_validation
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.core.files.uploadedfile import UploadedFile
 
 from .models import DanhMuc, DeXuatSanPham, HoSoNhanVien, SanPham, Voucher
 from .models import StaffProfile
@@ -40,6 +41,32 @@ class MultipleImageField(forms.FileField):
             if upload.size > self.max_file_size:
                 raise ValidationError("Mỗi ảnh tải lên cần nhỏ hơn 8 MB.")
         return cleaned_files
+
+
+def _validate_top_view_upload(upload):
+    if not isinstance(upload, UploadedFile):
+        return upload
+    extension = "." + upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
+    if extension not in {".png", ".svg", ".webp", ".jpg", ".jpeg"}:
+        raise ValidationError("Ảnh Top View cần là PNG, SVG, WEBP hoặc JPG.")
+    if upload.size > 8 * 1024 * 1024:
+        raise ValidationError("Ảnh Top View cần nhỏ hơn 8 MB.")
+    content_type = getattr(upload, "content_type", "") or ""
+    if content_type and not content_type.startswith("image/"):
+        raise ValidationError("Vui lòng chọn tệp hình ảnh cho Top View.")
+    return upload
+
+
+class ProductTopViewForm(forms.Form):
+    room_top_view = forms.FileField(
+        required=False,
+        label="Ảnh nhìn từ trên xuống (Top View)",
+        help_text="Không bắt buộc. PNG nền trong suốt hoặc SVG sẽ rõ nhất.",
+        widget=forms.FileInput(attrs={"accept": ".png,.svg,.webp,.jpg,.jpeg,image/*", "class": "js-product-top-view"}),
+    )
+
+    def clean_room_top_view(self):
+        return _validate_top_view_upload(self.cleaned_data.get("room_top_view"))
 
 
 class StaffAccountForm(forms.Form):
@@ -92,15 +119,16 @@ class SanPhamForm(forms.ModelForm):
 
     class Meta:
         model = SanPham
-        fields = ("ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta", "hinh_anh", "room_width_cm", "room_depth_cm", "is_active")
+        fields = ("ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta", "hinh_anh", "room_top_view", "room_width_cm", "room_depth_cm", "is_active")
         labels = {
             "ten_san_pham": "Tên sản phẩm", "danh_muc": "Danh mục", "gia_ban": "Giá bán (₫)",
             "so_luong": "Tồn kho ban đầu", "phan_loai": "Phân loại",
-            "mo_ta": "Mô tả", "hinh_anh": "Ảnh đại diện",
+            "mo_ta": "Mô tả", "hinh_anh": "Ảnh đại diện", "room_top_view": "Ảnh nhìn từ trên xuống (Top View)",
             "room_width_cm": "Ngang nhìn từ trên (cm)", "room_depth_cm": "Sâu nhìn từ trên (cm)",
             "is_active": "Đang kinh doanh",
         }
         help_texts = {
+            "room_top_view": "Không bắt buộc. Ảnh này thay hình minh họa trong sơ đồ 2D; PNG nền trong suốt hoặc SVG sẽ rõ nhất.",
             "room_width_cm": "Dùng để vẽ tỷ lệ trên sơ đồ phòng; để trống cả hai kích thước nếu chưa biết.",
             "room_depth_cm": "Dùng để vẽ tỷ lệ trên sơ đồ phòng; để trống cả hai kích thước nếu chưa biết.",
         }
@@ -111,6 +139,7 @@ class SanPhamForm(forms.ModelForm):
             "phan_loai": forms.TextInput(attrs={"placeholder": "Màu kem, Màu trắng, Size S"}),
             "mo_ta": forms.Textarea(attrs={"rows": 5, "placeholder": "Chất liệu, kích thước, cách sử dụng..."}),
             "hinh_anh": forms.ClearableFileInput(attrs={"accept": "image/*"}),
+            "room_top_view": forms.ClearableFileInput(attrs={"accept": ".png,.svg,.webp,.jpg,.jpeg,image/*", "class": "js-product-top-view"}),
             "room_width_cm": forms.NumberInput(attrs={"min": 1, "step": "0.1", "placeholder": "Ví dụ: 120"}),
             "room_depth_cm": forms.NumberInput(attrs={"min": 1, "step": "0.1", "placeholder": "Ví dụ: 60"}),
         }
@@ -123,7 +152,7 @@ class SanPhamForm(forms.ModelForm):
         self.fields["anh_bo_sung"] = deepcopy(self.declared_fields["anh_bo_sung"])
         self.order_fields([name for name in (
             "ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta",
-            "hinh_anh", "anh_bo_sung", "room_width_cm", "room_depth_cm", "is_active",
+            "hinh_anh", "anh_bo_sung", "room_top_view", "room_width_cm", "room_depth_cm", "is_active",
         ) if name in self.fields])
 
     def clean(self):
@@ -134,6 +163,9 @@ class SanPhamForm(forms.ModelForm):
             self.add_error("room_width_cm", message)
             self.add_error("room_depth_cm", message)
         return cleaned
+
+    def clean_room_top_view(self):
+        return _validate_top_view_upload(self.cleaned_data.get("room_top_view"))
 
 
 class DeXuatSanPhamForm(forms.ModelForm):

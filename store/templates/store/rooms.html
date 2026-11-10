@@ -60,7 +60,7 @@
             <article class="room-picker-item" data-room-product data-search="{{ item.name|lower }} {{ item.category|lower }} {{ item.room_color_hint|lower }}">
               <div class="room-picker-photo">{% if item.image_url %}<img src="{{ item.image_url }}" alt="">{% else %}<img src="{{ item.icon_url }}" alt="">{% endif %}</div>
               <div class="room-picker-copy"><strong>{{ item.name }}</strong><small>{{ item.category }}</small><small>{% if item.room_dimensions_estimated %}Kích thước tạm tính{% else %}{{ item.room_width_cm|floatformat:0 }} × {{ item.room_depth_cm|floatformat:0 }} cm{% endif %}</small></div>
-              <button type="button" class="room-add-button" data-add-room-product data-name="{{ item.name }}" data-category="{{ item.category }}" data-color="{{ item.room_color_hint }}" data-width="{{ item.room_width_cm }}" data-depth="{{ item.room_depth_cm }}" data-estimated="{{ item.room_dimensions_estimated|yesno:'true,false' }}">Thêm</button>
+              <button type="button" class="room-add-button" data-add-room-product data-name="{{ item.name }}" data-category="{{ item.category }}" data-color="{{ item.room_color_hint }}" data-width="{{ item.room_width_cm }}" data-depth="{{ item.room_depth_cm }}" data-estimated="{{ item.room_dimensions_estimated|yesno:'true,false' }}" data-top-view="{{ item.room_top_view_url }}">Thêm</button>
             </article>
           {% empty %}
             <div class="room-picker-empty"><strong>Chưa có sản phẩm để bố trí</strong><span>Sản phẩm đang kinh doanh sẽ xuất hiện ở đây sau khi được thêm vào kho.</span></div>

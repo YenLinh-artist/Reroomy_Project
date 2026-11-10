@@ -24,4 +24,23 @@
       preview.append(note);
     });
   });
+  document.querySelectorAll('.js-product-top-view').forEach(input=>{
+    const preview=input.closest('.field,.top-view-upload-card')?.querySelector('[data-top-view-preview]');
+    if(!preview)return;
+    input.addEventListener('change',()=>{
+      preview.replaceChildren();
+      const file=Array.from(input.files||[]).find(candidate=>candidate.type.startsWith('image/'));
+      if(!file)return;
+      const figure=document.createElement('figure');
+      figure.className='is-top-view';
+      const image=document.createElement('img');
+      const caption=document.createElement('figcaption');
+      image.src=URL.createObjectURL(file);
+      image.alt='Xem trước ảnh top view';
+      image.onload=()=>URL.revokeObjectURL(image.src);
+      caption.textContent='Ảnh Top View · '+file.name;
+      figure.append(image,caption);
+      preview.append(figure);
+    });
+  });
 })();

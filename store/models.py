@@ -18,6 +18,7 @@ class SanPham(models.Model):
     mo_ta = models.TextField(blank=True)
     so_luong = models.PositiveIntegerField(default=0)
     hinh_anh = models.FileField(upload_to="products/", blank=True)
+    room_top_view = models.FileField(upload_to="products/top-view/", blank=True)
     room_width_cm = models.DecimalField(max_digits=7, decimal_places=1, blank=True, null=True, validators=[MinValueValidator(1)])
     room_depth_cm = models.DecimalField(max_digits=7, decimal_places=1, blank=True, null=True, validators=[MinValueValidator(1)])
     is_active = models.BooleanField(default=True)

@@ -98,6 +98,7 @@
     const title=node('title');title.textContent=item.name+' · '+Math.round(item.width*100)+' × '+Math.round(item.depth*100)+' cm'+(item.estimated?' · kích thước tạm tính':'');group.append(title);
     const base=node('rect',{class:'object-footprint',x:1,y:1,width:Math.max(1,w-2),height:Math.max(1,h-2),rx:Math.min(12,w/8,h/8),fill:item.color,stroke:item.id===selectedId?'#e64e87':'#907e70','stroke-width':item.id===selectedId?3:1.5});group.append(base);
     const shape=normalize(item.category+' '+item.name);
+    if(!item.topView){
     if(/giuong|nem|chan|goi|bed/.test(shape)){
       group.append(node('rect',{x:2,y:2,width:Math.max(1,w-4),height:Math.max(8,h*.18),rx:5,fill:'#8e776b',opacity:.75}));
       for(let i=0;i<2;i++)group.append(node('rect',{x:w*.12+i*w*.4,y:h*.23,width:w*.32,height:h*.16,rx:5,fill:'#fffaf4',stroke:'#d7c4b7','stroke-width':1}));
@@ -114,7 +115,18 @@
       group.append(node('path',{d:'M '+(w*.5)+' 4 V '+(h-4),stroke:'#ffffffb8','stroke-width':1.5}));
       group.append(node('circle',{cx:w*.44,cy:h*.52,r:2.3,fill:'#826a61'}));group.append(node('circle',{cx:w*.56,cy:h*.52,r:2.3,fill:'#826a61'}));
     }
-    if(w>=38&&h>=30){
+    }
+    if(item.topView){
+      const clipId='room-top-view-'+String(item.id).replace(/[^a-z0-9_-]/gi,'');
+      const clip=node('clipPath',{id:clipId,clipPathUnits:'userSpaceOnUse'});
+      clip.append(node('rect',{x:2,y:2,width:Math.max(1,w-4),height:Math.max(1,h-4),rx:Math.min(10,w/8,h/8)}));
+      const defs=node('defs');defs.append(clip);group.append(defs);
+      const imageAttrs={x:2,y:2,width:Math.max(1,w-4),height:Math.max(1,h-4),preserveAspectRatio:'xMidYMid meet','clip-path':'url(#'+clipId+')',href:item.topView};
+      if(item.rotation===90){imageAttrs.x=(w-h+4)/2;imageAttrs.y=(h-w+4)/2;imageAttrs.width=Math.max(1,h-4);imageAttrs.height=Math.max(1,w-4);imageAttrs.transform='rotate(90 '+(w/2)+' '+(h/2)+')'}
+      group.append(node('image',imageAttrs));
+      if(item.id===selectedId)group.append(node('rect',{x:1,y:1,width:Math.max(1,w-2),height:Math.max(1,h-2),rx:Math.min(12,w/8,h/8),fill:'none',stroke:'#e64e87','stroke-width':3,'pointer-events':'none'}));
+    }
+    if(!item.topView&&w>=38&&h>=30){
       const fontSize=Math.max(6,Math.min(9,w/9)),maxChars=Math.max(4,Math.floor((w-10)/(fontSize*.58))),lines=wrappedName(item.name,maxChars).slice(0,2),lineHeight=fontSize+2,labelHeight=lines.length*lineHeight+3,labelY=Math.max(4,h*.52-labelHeight/2),labelWidth=Math.min(w-6,Math.max(fontSize*3,Math.max(...lines.map(text=>Array.from(text).length))*fontSize*.62+8));
       group.append(node('rect',{x:(w-labelWidth)/2,y:labelY,width:labelWidth,height:labelHeight,rx:3,fill:'#fffaf2e8','pointer-events':'none'}));
       const name=node('text',{x:w/2,y:labelY+fontSize,fill:'#493c39','font-size':fontSize,'font-family':'sans-serif','font-weight':700,'text-anchor':'middle','pointer-events':'none'});
@@ -128,7 +140,7 @@
   document.querySelectorAll('[data-add-room-product]').forEach(button=>button.addEventListener('click',()=>{
     const rawWidth=(Number(button.dataset.width)||70)/100,rawDepth=(Number(button.dataset.depth)||55)/100;
     const width=Math.min(rawWidth,Math.max(.2,roomWidth-.16)),depth=Math.min(rawDepth,Math.max(.2,roomDepth-.16)),position=findPosition(width,depth);
-    const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:button.dataset.name||'Sản phẩm',category:button.dataset.category||'',colorHint:button.dataset.color||'',color:productColor(button.dataset.color,button.dataset.name),width,depth,x:position.x,y:position.y,estimated:button.dataset.estimated==='true'};
+    const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:button.dataset.name||'Sản phẩm',category:button.dataset.category||'',colorHint:button.dataset.color||'',color:productColor(button.dataset.color,button.dataset.name),topView:button.dataset.topView||'',rotation:0,width,depth,x:position.x,y:position.y,estimated:button.dataset.estimated==='true'};
     objects.push(item);selectedId=item.id;drawPlan();
   }));
   document.getElementById('roomProductSearch')?.addEventListener('input',event=>{const query=normalize(event.target.value);document.querySelectorAll('[data-room-product]').forEach(item=>item.hidden=!normalize(item.dataset.search).includes(query))});
@@ -137,7 +149,7 @@
   svg.addEventListener('pointerdown',event=>{const group=event.target.closest('[data-room-object]');if(!group)return;const item=objects.find(value=>value.id===group.dataset.roomObject);if(!item)return;selectedId=item.id;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse());drag={id:item.id,offsetX:(local.x-frame.x)/frame.scale-item.x,offsetY:(local.y-frame.y)/frame.scale-item.y};svg.setPointerCapture(event.pointerId);drawPlan();event.preventDefault()});
   svg.addEventListener('pointermove',event=>{if(!drag)return;const item=objects.find(value=>value.id===drag.id);if(!item)return;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse()),pad=.06;item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,(local.x-frame.x)/frame.scale-drag.offsetX));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,(local.y-frame.y)/frame.scale-drag.offsetY));drawPlan()});
   const endDrag=()=>{drag=null};svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
-  rotateButton.addEventListener('click',()=>{const item=objects.find(value=>value.id===selectedId);if(!item)return;[item.width,item.depth]=[item.depth,item.width];const pad=.06;item.x=Math.max(pad,Math.min(item.x,roomWidth-pad-item.width));item.y=Math.max(pad,Math.min(item.y,roomDepth-pad-item.depth));drawPlan()});
+  rotateButton.addEventListener('click',()=>{const item=objects.find(value=>value.id===selectedId);if(!item)return;[item.width,item.depth]=[item.depth,item.width];item.rotation=item.rotation===90?0:90;const pad=.06;item.x=Math.max(pad,Math.min(item.x,roomWidth-pad-item.width));item.y=Math.max(pad,Math.min(item.y,roomDepth-pad-item.depth));drawPlan()});
   removeButton.addEventListener('click',()=>{objects=objects.filter(item=>item.id!==selectedId);selectedId=null;drawPlan()});
   document.getElementById('clearRoomPlan').addEventListener('click',()=>{objects=[];selectedId=null;drawPlan()});
   document.getElementById('roomPlanExport').addEventListener('click',()=>{const copy=svg.cloneNode(true);copy.setAttribute('xmlns',ns);copy.setAttribute('width','1520');copy.setAttribute('height','1400');const styles=node('style');styles.textContent='.room-wall{stroke:#879681;stroke-width:7;stroke-linecap:square;fill:none}.room-door-leaf{stroke:#ae8f76;stroke-width:2.2;fill:none}.room-door-arc{stroke:#bc9b80;stroke-width:1.5;stroke-dasharray:4 3;fill:none}.room-loft-area{fill:#c8aa8b;fill-opacity:.23;stroke:#ac9278;stroke-width:1.5;stroke-dasharray:7 5}.room-structure-label{fill:#817460;font:700 11px sans-serif;letter-spacing:.06em;text-anchor:middle}.room-door-label{fill:#967b68;font:600 8px sans-serif;text-anchor:middle}.room-compass text{fill:#817460;font:700 10px sans-serif;text-anchor:middle}.room-compass path{fill:none;stroke:#879681;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}';copy.insertBefore(styles,copy.firstChild);const xml=new XMLSerializer().serializeToString(copy);const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='reroom-so-do-phong.svg';link.click();URL.revokeObjectURL(url)});

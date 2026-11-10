@@ -61,7 +61,7 @@ from datetime import timedelta
 from django.db.models import F, Q, Sum, Value
 from django.db.models.functions import Coalesce, TruncMonth
 from django.http import Http404, HttpResponse, HttpResponseForbidden, HttpResponseNotAllowed, JsonResponse
-from .forms import DanhMucForm, DeXuatSanPhamForm, NhanVienCreationForm, NhanVienPasswordForm, SanPhamForm
+from .forms import DanhMucForm, DeXuatSanPhamForm, NhanVienCreationForm, NhanVienPasswordForm, ProductTopViewForm, SanPhamForm
 from .models import (
     CustomerServiceConversation,
     CustomerServiceMessage,
@@ -174,6 +174,7 @@ def _database_product(item):
         "has_photo": bool(item.hinh_anh),
         "room_width_cm": float(item.room_width_cm or estimated_width),
         "room_depth_cm": float(item.room_depth_cm or estimated_depth),
+        "room_top_view_url": item.room_top_view.url if item.room_top_view else "",
         "room_dimensions_estimated": not has_room_dimensions,
         "room_color_hint": item.phan_loai or item.ten_san_pham,
         "tag": "Mới cập nhật",
@@ -3317,10 +3318,35 @@ def quan_tri_de_xuat_san_pham(request):
 
 @staff_member_required(login_url="dang_nhap")
 def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
+    if request.method not in ("GET", "POST"):
+        return HttpResponseNotAllowed(["GET", "POST"])
     if not _has_admin_access(request.user):
         return HttpResponseForbidden("Chỉ admin mới được duyệt bài đăng.")
+    role = StaffProfile.Role.ADMIN if request.user.is_superuser else request.user.staff_profile.role
+    submission = get_object_or_404(
+        DeXuatSanPham.objects.select_related("danh_muc", "nguoi_tao").prefetch_related("anh_bo_sung"),
+        pk=submission_id,
+    )
+    if submission.trang_thai != DeXuatSanPham.TrangThai.CHO_DUYET:
+        messages.info(request, "Bài đăng này đã được xử lý trước đó.")
+        return redirect("quan_tri_de_xuat_san_pham")
+    existing_product = SanPham.objects.filter(
+        ten_san_pham__iexact=submission.ten_san_pham,
+        danh_muc=submission.danh_muc,
+    ).first()
+    form = ProductTopViewForm(
+        request.POST if request.method == "POST" else None,
+        request.FILES if request.method == "POST" else None,
+    )
+    if request.method == "GET":
+        return render(request, "store/admin_product_submission_review.html", {
+            "submission": submission, "form": form, "role": role, "existing_product": existing_product,
+        })
+    if not form.is_valid():
+        return render(request, "store/admin_product_submission_review.html", {
+            "submission": submission, "form": form, "role": role, "existing_product": existing_product,
+        })
+    room_top_view = form.cleaned_data.get("room_top_view")
     with transaction.atomic():
         submission = get_object_or_404(DeXuatSanPham.objects.select_for_update(), pk=submission_id)
         if submission.trang_thai != DeXuatSanPham.TrangThai.CHO_DUYET:
@@ -3341,7 +3367,9 @@ def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
                 product.room_depth_cm = submission.room_depth_cm
             if submission.hinh_anh:
                 product.hinh_anh = submission.hinh_anh.name
-            product.save(update_fields=["so_luong", "gia_ban", "phan_loai", "mo_ta", "hinh_anh", "room_width_cm", "room_depth_cm"])
+            if room_top_view:
+                product.room_top_view = room_top_view
+            product.save(update_fields=["so_luong", "gia_ban", "phan_loai", "mo_ta", "hinh_anh", "room_width_cm", "room_depth_cm", "room_top_view"])
         else:
             product = SanPham.objects.create(
                 ten_san_pham=submission.ten_san_pham,
@@ -3351,6 +3379,7 @@ def quan_tri_duyet_de_xuat_san_pham(request, submission_id):
                 mo_ta=submission.mo_ta,
                 so_luong=submission.so_luong,
                 hinh_anh=submission.hinh_anh.name if submission.hinh_anh else "",
+                room_top_view=room_top_view or "",
                 room_width_cm=submission.room_width_cm,
                 room_depth_cm=submission.room_depth_cm,
             )

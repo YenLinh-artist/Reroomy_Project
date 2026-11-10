@@ -1,3 +1,4 @@
+from copy import deepcopy
 from django import forms
 from django.contrib.auth import password_validation
 from django.contrib.auth.models import User
@@ -6,6 +7,39 @@ from django.core.exceptions import ValidationError
 from .models import DanhMuc, DeXuatSanPham, HoSoNhanVien, SanPham, Voucher
 from .models import StaffProfile
 from .validators import validate_gmail_address
+
+
+class MultipleFileInput(forms.ClearableFileInput):
+    allow_multiple_selected = True
+
+
+class MultipleImageField(forms.FileField):
+    widget = MultipleFileInput
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
+    max_files = 8
+    max_file_size = 8 * 1024 * 1024
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("required", False)
+        kwargs.setdefault("widget", self.widget(attrs={"accept": "image/*", "multiple": True, "class": "js-product-images"}))
+        kwargs.setdefault("help_text", "Có thể chọn tối đa 8 ảnh cùng lúc; mỗi ảnh tối đa 8 MB.")
+        super().__init__(*args, **kwargs)
+
+    def clean(self, data, initial=None):
+        if data in self.empty_values:
+            return []
+        files = list(data) if isinstance(data, (list, tuple)) else [data]
+        if len(files) > self.max_files:
+            raise ValidationError("Mỗi lần có thể tải lên tối đa 8 ảnh.")
+        cleaned_files = [super(MultipleImageField, self).clean(upload, None) for upload in files]
+        for upload in cleaned_files:
+            extension = "." + upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
+            content_type = getattr(upload, "content_type", "") or ""
+            if extension not in self.allowed_extensions or (content_type and not content_type.startswith("image/")):
+                raise ValidationError("Chỉ nhận ảnh JPG, PNG, WEBP hoặc GIF.")
+            if upload.size > self.max_file_size:
+                raise ValidationError("Mỗi ảnh tải lên cần nhỏ hơn 8 MB.")
+        return cleaned_files
 
 
 class StaffAccountForm(forms.Form):
@@ -54,14 +88,21 @@ class StaffAccountForm(forms.Form):
 
 
 class SanPhamForm(forms.ModelForm):
+    anh_bo_sung = MultipleImageField(label="Ảnh bổ sung", help_text="Chọn tối đa 8 ảnh cùng lúc. Ảnh đầu tiên sẽ làm ảnh đại diện nếu sản phẩm chưa có ảnh.")
+
     class Meta:
         model = SanPham
-        fields = ("ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta", "hinh_anh", "is_active")
+        fields = ("ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta", "hinh_anh", "room_width_cm", "room_depth_cm", "is_active")
         labels = {
             "ten_san_pham": "Tên sản phẩm", "danh_muc": "Danh mục", "gia_ban": "Giá bán (₫)",
             "so_luong": "Tồn kho ban đầu", "phan_loai": "Phân loại",
-            "mo_ta": "Mô tả", "hinh_anh": "Ảnh sản phẩm",
+            "mo_ta": "Mô tả", "hinh_anh": "Ảnh đại diện",
+            "room_width_cm": "Ngang nhìn từ trên (cm)", "room_depth_cm": "Sâu nhìn từ trên (cm)",
             "is_active": "Đang kinh doanh",
+        }
+        help_texts = {
+            "room_width_cm": "Dùng để vẽ tỷ lệ trên sơ đồ phòng; để trống cả hai kích thước nếu chưa biết.",
+            "room_depth_cm": "Dùng để vẽ tỷ lệ trên sơ đồ phòng; để trống cả hai kích thước nếu chưa biết.",
         }
         widgets = {
             "ten_san_pham": forms.TextInput(attrs={"placeholder": "Ví dụ: Đèn ngủ mây nhỏ"}),
@@ -70,6 +111,8 @@ class SanPhamForm(forms.ModelForm):
             "phan_loai": forms.TextInput(attrs={"placeholder": "Màu kem, Màu trắng, Size S"}),
             "mo_ta": forms.Textarea(attrs={"rows": 5, "placeholder": "Chất liệu, kích thước, cách sử dụng..."}),
             "hinh_anh": forms.ClearableFileInput(attrs={"accept": "image/*"}),
+            "room_width_cm": forms.NumberInput(attrs={"min": 1, "step": "0.1", "placeholder": "Ví dụ: 120"}),
+            "room_depth_cm": forms.NumberInput(attrs={"min": 1, "step": "0.1", "placeholder": "Ví dụ: 60"}),
         }
 
     def __init__(self, *args, **kwargs):
@@ -77,12 +120,28 @@ class SanPhamForm(forms.ModelForm):
         # Stock edits must go through the inventory ledger page.
         if self.instance and self.instance.pk:
             self.fields.pop("so_luong", None)
+        self.fields["anh_bo_sung"] = deepcopy(self.declared_fields["anh_bo_sung"])
+        self.order_fields([name for name in (
+            "ten_san_pham", "danh_muc", "gia_ban", "so_luong", "phan_loai", "mo_ta",
+            "hinh_anh", "anh_bo_sung", "room_width_cm", "room_depth_cm", "is_active",
+        ) if name in self.fields])
+
+    def clean(self):
+        cleaned = super().clean()
+        width, depth = cleaned.get("room_width_cm"), cleaned.get("room_depth_cm")
+        if bool(width) != bool(depth):
+            message = "Nhập đủ cả chiều ngang và chiều sâu, hoặc để trống cả hai để dùng kích thước ước lượng."
+            self.add_error("room_width_cm", message)
+            self.add_error("room_depth_cm", message)
+        return cleaned
 
 
 class DeXuatSanPhamForm(forms.ModelForm):
+    anh_bo_sung = MultipleImageField(label="Ảnh bổ sung", help_text="Chọn tối đa 8 ảnh cùng lúc; ảnh đầu tiên sẽ làm ảnh đại diện.")
+
     class Meta:
         model = DeXuatSanPham
-        fields = ("ten_san_pham", "danh_muc", "gia_ban", "phan_loai", "mo_ta", "so_luong", "hinh_anh")
+        fields = ("ten_san_pham", "danh_muc", "gia_ban", "phan_loai", "mo_ta", "so_luong", "hinh_anh", "room_width_cm", "room_depth_cm")
         labels = {
             "ten_san_pham": "Tên sản phẩm",
             "danh_muc": "Danh mục",
@@ -90,7 +149,13 @@ class DeXuatSanPhamForm(forms.ModelForm):
             "phan_loai": "Phân loại",
             "mo_ta": "Mô tả",
             "so_luong": "Số lượng đề xuất nhập",
-            "hinh_anh": "Ảnh sản phẩm",
+            "hinh_anh": "Ảnh đại diện",
+            "room_width_cm": "Ngang nhìn từ trên (cm)",
+            "room_depth_cm": "Sâu nhìn từ trên (cm)",
+        }
+        help_texts = {
+            "room_width_cm": "Dùng để vẽ tỷ lệ trên sơ đồ phòng; để trống cả hai kích thước nếu chưa biết.",
+            "room_depth_cm": "Dùng để vẽ tỷ lệ trên sơ đồ phòng; để trống cả hai kích thước nếu chưa biết.",
         }
         widgets = {
             "ten_san_pham": forms.TextInput(attrs={"placeholder": "Ví dụ: Đèn ngủ mây nhỏ"}),
@@ -99,7 +164,26 @@ class DeXuatSanPhamForm(forms.ModelForm):
             "mo_ta": forms.Textarea(attrs={"rows": 4, "placeholder": "Chất liệu, kích thước, công dụng..."}),
             "so_luong": forms.NumberInput(attrs={"min": 0}),
             "hinh_anh": forms.ClearableFileInput(attrs={"accept": "image/*"}),
+            "room_width_cm": forms.NumberInput(attrs={"min": 1, "step": "0.1", "placeholder": "Ví dụ: 120"}),
+            "room_depth_cm": forms.NumberInput(attrs={"min": 1, "step": "0.1", "placeholder": "Ví dụ: 60"}),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["anh_bo_sung"] = deepcopy(self.declared_fields["anh_bo_sung"])
+        self.order_fields([
+            "ten_san_pham", "danh_muc", "gia_ban", "phan_loai", "mo_ta", "so_luong",
+            "hinh_anh", "anh_bo_sung", "room_width_cm", "room_depth_cm",
+        ])
+
+    def clean(self):
+        cleaned = super().clean()
+        width, depth = cleaned.get("room_width_cm"), cleaned.get("room_depth_cm")
+        if bool(width) != bool(depth):
+            message = "Nhập đủ cả chiều ngang và chiều sâu, hoặc để trống cả hai để dùng kích thước ước lượng."
+            self.add_error("room_width_cm", message)
+            self.add_error("room_depth_cm", message)
+        return cleaned
 
 
 class DanhMucForm(forms.ModelForm):

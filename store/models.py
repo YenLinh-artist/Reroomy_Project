@@ -18,10 +18,21 @@ class SanPham(models.Model):
     mo_ta = models.TextField(blank=True)
     so_luong = models.PositiveIntegerField(default=0)
     hinh_anh = models.FileField(upload_to="products/", blank=True)
+    room_width_cm = models.DecimalField(max_digits=7, decimal_places=1, blank=True, null=True, validators=[MinValueValidator(1)])
+    room_depth_cm = models.DecimalField(max_digits=7, decimal_places=1, blank=True, null=True, validators=[MinValueValidator(1)])
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.ten_san_pham
+
+
+class SanPhamAnhBoSung(models.Model):
+    san_pham = models.ForeignKey(SanPham, on_delete=models.CASCADE, related_name="anh_bo_sung")
+    anh = models.FileField(upload_to="products/gallery/")
+    tao_luc = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("pk",)
 
 
 class StaffProfile(models.Model):
@@ -360,6 +371,8 @@ class DeXuatSanPham(models.Model):
     mo_ta = models.TextField(blank=True)
     so_luong = models.PositiveIntegerField(default=0)
     hinh_anh = models.FileField(upload_to="product_submissions/", blank=True)
+    room_width_cm = models.DecimalField(max_digits=7, decimal_places=1, blank=True, null=True, validators=[MinValueValidator(1)])
+    room_depth_cm = models.DecimalField(max_digits=7, decimal_places=1, blank=True, null=True, validators=[MinValueValidator(1)])
     nguoi_tao = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         related_name="de_xuat_san_pham",
@@ -382,6 +395,15 @@ class DeXuatSanPham(models.Model):
 
     def __str__(self):
         return f"{self.ten_san_pham} ({self.get_trang_thai_display()})"
+
+
+class DeXuatSanPhamAnhBoSung(models.Model):
+    de_xuat = models.ForeignKey(DeXuatSanPham, on_delete=models.CASCADE, related_name="anh_bo_sung")
+    anh = models.FileField(upload_to="product_submissions/gallery/")
+    tao_luc = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("pk",)
 
 
 class StaffChatMessage(models.Model):

@@ -1,1 +1,146 @@
-﻿(()=>{const canvas=document.getElementById('sampleRoomPlan');if(!canvas)return;const ctx=canvas.getContext('2d'),form=document.getElementById('sampleRoomForm');let objects=[{label:'Giường',x:.08,y:.1,w:.36,h:.44,color:'#ffd6df'},{label:'Bàn học',x:.58,y:.12,w:.28,h:.2,color:'#ffb28e'},{label:'Tủ',x:.58,y:.55,w:.25,h:.3,color:'#dfc39f'}];function draw(){let w=Number(form.width.value)||3,d=Number(form.depth.value)||4,bg=form.palette.value;ctx.clearRect(0,0,760,430);const s=570,x=95,y=80,h=s*d/Math.max(w,d);ctx.fillStyle='#fff9f5';ctx.fillRect(0,0,760,430);ctx.fillStyle=bg;ctx.fillRect(x,y,s,h);ctx.strokeStyle='#d99b91';ctx.lineWidth=4;ctx.strokeRect(x,y,s,h);ctx.fillStyle='#806b64';ctx.font='16px sans-serif';ctx.fillText(`${w}m × ${d}m · ${form.item.value} (${form.variant.value||'chưa chọn phân loại'})`,x,y-16);for(const o of objects){ctx.fillStyle=o.color;ctx.beginPath();ctx.roundRect(x+o.x*s,y+o.y*h,o.w*s,o.h*h,12);ctx.fill();ctx.fillStyle='#5c4d49';ctx.font='14px sans-serif';ctx.fillText(o.label,x+o.x*s+8,y+o.y*h+22)}}form.addEventListener('submit',e=>{e.preventDefault();draw()});canvas.addEventListener('dblclick',()=>canvas.requestFullscreen?.());document.getElementById('roomPlanExport').addEventListener('click',()=>{const a=document.createElement('a');a.download='reroom-phong-mau.png';a.href=canvas.toDataURL('image/png');a.click()});document.querySelectorAll('.room-filters button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.room-filters button').forEach(x=>x.classList.toggle('active',x===b));const filter=b.dataset.filter;document.querySelectorAll('#roomProducts .mini-product').forEach(card=>card.hidden=filter!=='all'&&!card.dataset.category.includes(filter))}));document.querySelectorAll('.room-gallery-picks button').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.room-gallery-picks button').forEach(x=>x.classList.toggle('active',x===b));document.querySelector('#roomGalleryMain span').textContent=b.dataset.title+' · ảnh đang chờ bổ sung'}));draw();let moving=null;function point(e){const r=canvas.getBoundingClientRect();return{x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}canvas.addEventListener('pointerdown',e=>{const p=point(e),w=Number(form.width.value)||3,d=Number(form.depth.value)||4,h=570*d/Math.max(w,d);moving=objects.find(o=>p.x>=95+o.x*570&&p.x<=95+(o.x+o.w)*570&&p.y>=80+o.y*h&&p.y<=80+(o.y+o.h)*h);canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!moving)return;const p=point(e),w=Number(form.width.value)||3,d=Number(form.depth.value)||4,h=570*d/Math.max(w,d);moving.x=Math.max(0,Math.min(1-moving.w,(p.x-95)/570));moving.y=Math.max(0,Math.min(1-moving.h,(p.y-80)/h));draw()});canvas.addEventListener('pointerup',()=>moving=null)})();
+(()=>{
+  const svg=document.getElementById('sampleRoomPlan');
+  if(!svg)return;
+  const form=document.getElementById('sampleRoomForm');
+  const floorLayer=document.getElementById('roomPlanFloor');
+  const architectureLayer=document.getElementById('roomPlanArchitecture');
+  const objectLayer=document.getElementById('roomPlanObjects');
+  const selectionLabel=document.getElementById('roomPlanSelection');
+  const rotateButton=document.getElementById('rotateRoomProduct');
+  const removeButton=document.getElementById('removeRoomProduct');
+  const roomWidthInput=form.elements.width,roomDepthInput=form.elements.depth;
+  const paletteInput=form.elements.palette;
+  const loftInput=form.elements.loft,doorSideInput=form.elements.doorSide;
+  const doorSwingInput=form.elements.doorSwing,doorPositionInput=form.elements.doorPosition;
+  const ns='http://www.w3.org/2000/svg';
+  let roomWidth=Number(roomWidthInput.value)||3,roomDepth=Number(roomDepthInput.value)||4;
+  let objects=[],selectedId=null,frame=null,drag=null;
+  const normalize=value=>String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
+  const swatches=[[/xanh\s*duong|xanh\s*bien/,'#9ab7d2'],[/xanh\s*reu/,'#a7b28d'],[/xanh\s*la/,'#a8bd9e'],[/(^|\s)trang($|\s)/,'#f4eee8'],[/kem/,'#edcfaa'],[/(^|\s)be($|\s)/,'#d9bd9e'],[/vang/,'#e8cf84'],[/hong/,'#e8a9b8'],[/mau\s*do|do\s*tuoi/,'#d9847b'],[/nau/,'#9d7964'],[/(^|\s)den($|\s)/,'#777274'],[/caro/,'#caa899'],[/xanh/,'#9ab7bd']];
+  function productColor(hint,name){const value=normalize(hint+' '+name);for(const [pattern,color] of swatches){if(pattern.test(value))return color}let hash=0;for(const char of value)hash=(hash*31+char.charCodeAt(0))|0;return ['#e8b5bb','#b9c8b2','#d9c2a4','#b9c4d7','#dfb6d0','#b8d0cd'][Math.abs(hash)%6]}
+  function node(tag,attrs={}){const result=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([key,value])=>result.setAttribute(key,String(value)));return result}
+  function clampObjects(){const pad=.06;objects.forEach(item=>{item.width=Math.min(item.width,Math.max(.2,roomWidth-pad*2));item.depth=Math.min(item.depth,Math.max(.2,roomDepth-pad*2));item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,item.x));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,item.y))})}
+  function getFrame(){const scale=Math.min(620/roomWidth,430/roomDepth,150);const width=roomWidth*scale,depth=roomDepth*scale;return{x:(760-width)/2,y:(700-depth)/2,width,depth,scale}}
+  function drawRoomArchitecture(){
+    architectureLayer.replaceChildren();
+    const wallWidth=Math.max(4,frame.scale*.055),side=doorSideInput.value;
+    if(loftInput.value==='yes'){
+      const loftDepth=Math.min(frame.depth*.4,1.7*frame.scale);
+      architectureLayer.append(node('rect',{x:frame.x+wallWidth,y:frame.y+wallWidth,width:frame.width-wallWidth*2,height:loftDepth,rx:3,class:'room-loft-area'}));
+      const boundary=node('line',{x1:frame.x+wallWidth,y1:frame.y+loftDepth+wallWidth,x2:frame.x+frame.width-wallWidth,y2:frame.y+loftDepth+wallWidth,stroke:'#ac9278','stroke-width':2,'stroke-dasharray':'7 5'});
+      architectureLayer.append(boundary);
+      const loftLabel=node('text',{x:frame.x+frame.width/2,y:frame.y+loftDepth*.53,class:'room-structure-label'});
+      loftLabel.textContent='KHU GÁC LỬNG';architectureLayer.append(loftLabel);
+      const ladderX=frame.x+frame.width*.76,ladderY=frame.y+loftDepth-wallWidth*.2;
+      architectureLayer.append(node('path',{d:'M '+(ladderX-10)+' '+ladderY+' V '+(ladderY+frame.scale*.42)+' M '+(ladderX+10)+' '+ladderY+' V '+(ladderY+frame.scale*.42),stroke:'#a88d70','stroke-width':2}));
+      for(let rung=1;rung<5;rung++)architectureLayer.append(node('line',{x1:ladderX-9,y1:ladderY+frame.scale*.42*rung/5,x2:ladderX+9,y2:ladderY+frame.scale*.42*rung/5,stroke:'#a88d70','stroke-width':1.4}));
+    }
+    const horizontal=side==='top'||side==='bottom';
+    const sideLength=horizontal?frame.width:frame.depth;
+    const doorWidth=Math.min(frame.scale*.82,sideLength*.34);
+    const center=Math.max(doorWidth*.65,Math.min(sideLength-doorWidth*.65,sideLength*Number(doorPositionInput.value||.5)));
+    const start=center-doorWidth/2,end=center+doorWidth/2;
+    const walls={
+      top:{x:frame.x,y:frame.y,tx:1,ty:0,nx:0,ny:1,length:frame.width},
+      bottom:{x:frame.x,y:frame.y+frame.depth,tx:1,ty:0,nx:0,ny:-1,length:frame.width},
+      left:{x:frame.x,y:frame.y,tx:0,ty:1,nx:1,ny:0,length:frame.depth},
+      right:{x:frame.x+frame.width,y:frame.y,tx:0,ty:1,nx:-1,ny:0,length:frame.depth}
+    };
+    const wallLine=(a,b)=>architectureLayer.append(node('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:'room-wall'}));
+    Object.entries(walls).forEach(([wallSide,wall])=>{
+      if(wallSide===side)return;
+      wallLine({x:wall.x,y:wall.y},{x:wall.x+wall.tx*wall.length,y:wall.y+wall.ty*wall.length});
+    });
+    const {x:wallX,y:wallY,tx,ty,nx:wallNx,ny:wallNy}=walls[side];
+    let nx=wallNx,ny=wallNy;
+    if(doorSwingInput.value==='outside'){nx=-nx;ny=-ny}
+    const pointAt=distance=>({x:wallX+tx*distance,y:wallY+ty*distance});
+    const line=(a,b,attrs={})=>architectureLayer.append(node('line',{x1:a.x,y1:a.y,x2:b.x,y2:b.y,class:'room-wall',...attrs}));
+    line(pointAt(0),pointAt(start));line(pointAt(end),pointAt(sideLength));
+    const hinge=pointAt(start),closed={x:hinge.x+tx*doorWidth,y:hinge.y+ty*doorWidth},open={x:hinge.x+nx*doorWidth,y:hinge.y+ny*doorWidth};
+    architectureLayer.append(node('line',{x1:hinge.x,y1:hinge.y,x2:open.x,y2:open.y,class:'room-door-leaf'}));
+    const sweep=tx*ny-ty*nx>0?1:0;
+    architectureLayer.append(node('path',{d:'M '+closed.x+' '+closed.y+' A '+doorWidth+' '+doorWidth+' 0 0 '+sweep+' '+open.x+' '+open.y,class:'room-door-arc'}));
+    const doorLabel=node('text',{x:hinge.x+tx*doorWidth/2+nx*9,y:hinge.y+ty*doorWidth/2+ny*9,class:'room-door-label'});
+    doorLabel.textContent='CỬA · '+({top:'BẮC',right:'ĐÔNG',bottom:'NAM',left:'TÂY'}[side]);architectureLayer.append(doorLabel);
+  }
+  function wrappedName(value,maxChars){
+    const words=String(value||'').trim().split(/\s+/);let lines=[''];
+    for(const original of words){
+      let word=original;
+      while(Array.from(word).length>maxChars){const chars=Array.from(word);const piece=chars.splice(0,maxChars-1).join('')+'…';word=chars.join('');if(lines[lines.length-1])lines.push('');lines[lines.length-1]=piece;if(lines.length>=2)return lines}
+      const current=lines[lines.length-1];
+      if(current&&Array.from(current+' '+word).length>maxChars){if(lines.length===2){lines[1]=lines[1].slice(0,Math.max(1,maxChars-1))+'…';return lines}lines.push(word)}
+      else lines[lines.length-1]=current?current+' '+word:word;
+    }
+    if(lines.length>2)lines.length=2;
+    return lines.filter(Boolean);
+  }
+  function drawPlan(){
+    frame=getFrame();floorLayer.replaceChildren();architectureLayer.replaceChildren();objectLayer.replaceChildren();
+    const floor=node('rect',{x:frame.x,y:frame.y,width:frame.width,height:frame.depth,rx:3,fill:paletteInput.value,class:'room-floor'});
+    const grid=node('rect',{x:frame.x,y:frame.y,width:frame.width,height:frame.depth,rx:8,fill:'url(#roomGrid)',opacity:.7,'pointer-events':'none'});
+    floorLayer.append(floor,grid);
+    const label=node('text',{x:frame.x,y:frame.y-14,fill:'#836c64','font-size':13,'font-family':'sans-serif','font-weight':700});
+    label.textContent=roomWidth+' × '+roomDepth+' m';floorLayer.append(label);
+    document.getElementById('roomPlanDimensions').textContent='Phòng '+roomWidth+' × '+roomDepth+' m';
+    const pattern=svg.querySelector('#roomGrid');pattern.setAttribute('width',Math.max(12,frame.scale/2));pattern.setAttribute('height',Math.max(12,frame.scale/2));
+    drawRoomArchitecture();
+    if(!objects.length){const empty=node('text',{x:frame.x+frame.width/2,y:frame.y+frame.depth/2,fill:'#b29d96','font-size':13,'font-family':'sans-serif','text-anchor':'middle'});empty.textContent='Chọn sản phẩm bên trái để bắt đầu bố trí';objectLayer.append(empty)}
+    objects.forEach(item=>drawObject(item));
+    const selected=objects.find(item=>item.id===selectedId);
+    selectionLabel.textContent=selected?selected.name+(selected.estimated?' · kích thước tạm tính':'')+' · '+Math.round(selected.width*100)+' × '+Math.round(selected.depth*100)+' cm':'Chọn món đồ trong danh sách';
+    rotateButton.disabled=!selected;removeButton.disabled=!selected;
+  }
+  function drawObject(item){
+    const x=frame.x+item.x*frame.scale,y=frame.y+item.y*frame.scale,w=item.width*frame.scale,h=item.depth*frame.scale;
+    const group=node('g',{class:'room-object'+(item.id===selectedId?' is-selected':''),'data-room-object':item.id,transform:'translate('+x+' '+y+')',tabindex:0,role:'button','aria-label':item.name+'; '+Math.round(item.width*100)+' × '+Math.round(item.depth*100)+' cm'});
+    const title=node('title');title.textContent=item.name+' · '+Math.round(item.width*100)+' × '+Math.round(item.depth*100)+' cm'+(item.estimated?' · kích thước tạm tính':'');group.append(title);
+    const base=node('rect',{class:'object-footprint',x:1,y:1,width:Math.max(1,w-2),height:Math.max(1,h-2),rx:Math.min(12,w/8,h/8),fill:item.color,stroke:item.id===selectedId?'#e64e87':'#907e70','stroke-width':item.id===selectedId?3:1.5});group.append(base);
+    const shape=normalize(item.category+' '+item.name);
+    if(/giuong|nem|chan|goi|bed/.test(shape)){
+      group.append(node('rect',{x:2,y:2,width:Math.max(1,w-4),height:Math.max(8,h*.18),rx:5,fill:'#8e776b',opacity:.75}));
+      for(let i=0;i<2;i++)group.append(node('rect',{x:w*.12+i*w*.4,y:h*.23,width:w*.32,height:h*.16,rx:5,fill:'#fffaf4',stroke:'#d7c4b7','stroke-width':1}));
+      group.append(node('path',{d:'M '+(w*.08)+' '+(h*.46)+' H '+(w*.92),stroke:'#ffffffad','stroke-width':2,'pointer-events':'none'}));
+    }else if(/sofa|ghe|armchair/.test(shape)){
+      group.append(node('rect',{x:w*.12,y:h*.2,width:w*.76,height:h*.62,rx:9,fill:'#fffaf2a8',stroke:'#ffffffd9','stroke-width':1.5}));
+      group.append(node('path',{d:'M '+(w*.5)+' '+(h*.22)+' V '+(h*.8),stroke:'#ffffffd9','stroke-width':1.5}));
+      group.append(node('rect',{x:w*.04,y:h*.23,width:w*.1,height:h*.55,rx:5,fill:item.color,stroke:'#907e70','stroke-width':1}));
+      group.append(node('rect',{x:w*.86,y:h*.23,width:w*.1,height:h*.55,rx:5,fill:item.color,stroke:'#907e70','stroke-width':1}));
+    }else if(/ban|desk|table/.test(shape)){
+      group.append(node('circle',{cx:w/2,cy:h/2,r:Math.min(w,h)*.12,fill:'#fffaf4a8'}));
+      for(const [lx,ly] of [[.12,.12],[.82,.12],[.12,.82],[.82,.82]])group.append(node('circle',{cx:w*lx,cy:h*ly,r:Math.min(w,h)*.035,fill:'#806c60'}));
+    }else if(/tu|ke|cabinet|wardrobe/.test(shape)){
+      group.append(node('path',{d:'M '+(w*.5)+' 4 V '+(h-4),stroke:'#ffffffb8','stroke-width':1.5}));
+      group.append(node('circle',{cx:w*.44,cy:h*.52,r:2.3,fill:'#826a61'}));group.append(node('circle',{cx:w*.56,cy:h*.52,r:2.3,fill:'#826a61'}));
+    }
+    if(w>=38&&h>=30){
+      const fontSize=Math.max(6,Math.min(9,w/9)),maxChars=Math.max(4,Math.floor((w-10)/(fontSize*.58))),lines=wrappedName(item.name,maxChars).slice(0,2),lineHeight=fontSize+2,labelHeight=lines.length*lineHeight+3,labelY=Math.max(4,h*.52-labelHeight/2),labelWidth=Math.min(w-6,Math.max(fontSize*3,Math.max(...lines.map(text=>Array.from(text).length))*fontSize*.62+8));
+      group.append(node('rect',{x:(w-labelWidth)/2,y:labelY,width:labelWidth,height:labelHeight,rx:3,fill:'#fffaf2e8','pointer-events':'none'}));
+      const name=node('text',{x:w/2,y:labelY+fontSize,fill:'#493c39','font-size':fontSize,'font-family':'sans-serif','font-weight':700,'text-anchor':'middle','pointer-events':'none'});
+      lines.forEach((line,index)=>{const span=node('tspan',{x:w/2,dy:index?lineHeight:0});span.textContent=line;name.append(span)});group.append(name);
+    }
+    if(item.id===selectedId){const size=node('text',{x:w/2,y:h-5,fill:'#6c5550','font-size':8,'font-family':'sans-serif','text-anchor':'middle','pointer-events':'none'});size.textContent=Math.round(item.width*100)+'×'+Math.round(item.depth*100);group.append(size)}
+    objectLayer.append(group);
+  }
+  function overlaps(x,y,w,h,ignore=null){return objects.some(item=>item.id!==ignore&&x<item.x+item.width+.04&&x+w+.04>item.x&&y<item.y+item.depth+.04&&y+h+.04>item.y)}
+  function findPosition(w,h){const pad=.08;for(let y=pad;y+h<=roomDepth-pad+.001;y+=.2){for(let x=pad;x+w<=roomWidth-pad+.001;x+=.2){if(!overlaps(x,y,w,h))return{x,y}}}return{x:Math.max(pad,(roomWidth-w)/2),y:Math.max(pad,(roomDepth-h)/2)}}
+  document.querySelectorAll('[data-add-room-product]').forEach(button=>button.addEventListener('click',()=>{
+    const rawWidth=(Number(button.dataset.width)||70)/100,rawDepth=(Number(button.dataset.depth)||55)/100;
+    const width=Math.min(rawWidth,Math.max(.2,roomWidth-.16)),depth=Math.min(rawDepth,Math.max(.2,roomDepth-.16)),position=findPosition(width,depth);
+    const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:button.dataset.name||'Sản phẩm',category:button.dataset.category||'',colorHint:button.dataset.color||'',color:productColor(button.dataset.color,button.dataset.name),width,depth,x:position.x,y:position.y,estimated:button.dataset.estimated==='true'};
+    objects.push(item);selectedId=item.id;drawPlan();
+  }));
+  document.getElementById('roomProductSearch')?.addEventListener('input',event=>{const query=normalize(event.target.value);document.querySelectorAll('[data-room-product]').forEach(item=>item.hidden=!normalize(item.dataset.search).includes(query))});
+  form.addEventListener('submit',event=>{event.preventDefault();roomWidth=Math.min(10,Math.max(1,Number(roomWidthInput.value)||3));roomDepth=Math.min(15,Math.max(1,Number(roomDepthInput.value)||4));roomWidthInput.value=roomWidth;roomDepthInput.value=roomDepth;clampObjects();drawPlan()});
+  [loftInput,doorSideInput,doorSwingInput,doorPositionInput,paletteInput].forEach(input=>['input','change'].forEach(eventName=>input.addEventListener(eventName,drawPlan)));
+  svg.addEventListener('pointerdown',event=>{const group=event.target.closest('[data-room-object]');if(!group)return;const item=objects.find(value=>value.id===group.dataset.roomObject);if(!item)return;selectedId=item.id;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse());drag={id:item.id,offsetX:(local.x-frame.x)/frame.scale-item.x,offsetY:(local.y-frame.y)/frame.scale-item.y};svg.setPointerCapture(event.pointerId);drawPlan();event.preventDefault()});
+  svg.addEventListener('pointermove',event=>{if(!drag)return;const item=objects.find(value=>value.id===drag.id);if(!item)return;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse()),pad=.06;item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,(local.x-frame.x)/frame.scale-drag.offsetX));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,(local.y-frame.y)/frame.scale-drag.offsetY));drawPlan()});
+  const endDrag=()=>{drag=null};svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
+  rotateButton.addEventListener('click',()=>{const item=objects.find(value=>value.id===selectedId);if(!item)return;[item.width,item.depth]=[item.depth,item.width];const pad=.06;item.x=Math.max(pad,Math.min(item.x,roomWidth-pad-item.width));item.y=Math.max(pad,Math.min(item.y,roomDepth-pad-item.depth));drawPlan()});
+  removeButton.addEventListener('click',()=>{objects=objects.filter(item=>item.id!==selectedId);selectedId=null;drawPlan()});
+  document.getElementById('clearRoomPlan').addEventListener('click',()=>{objects=[];selectedId=null;drawPlan()});
+  document.getElementById('roomPlanExport').addEventListener('click',()=>{const copy=svg.cloneNode(true);copy.setAttribute('xmlns',ns);copy.setAttribute('width','1520');copy.setAttribute('height','1400');const styles=node('style');styles.textContent='.room-wall{stroke:#879681;stroke-width:7;stroke-linecap:square;fill:none}.room-door-leaf{stroke:#ae8f76;stroke-width:2.2;fill:none}.room-door-arc{stroke:#bc9b80;stroke-width:1.5;stroke-dasharray:4 3;fill:none}.room-loft-area{fill:#c8aa8b;fill-opacity:.23;stroke:#ac9278;stroke-width:1.5;stroke-dasharray:7 5}.room-structure-label{fill:#817460;font:700 11px sans-serif;letter-spacing:.06em;text-anchor:middle}.room-door-label{fill:#967b68;font:600 8px sans-serif;text-anchor:middle}.room-compass text{fill:#817460;font:700 10px sans-serif;text-anchor:middle}.room-compass path{fill:none;stroke:#879681;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}';copy.insertBefore(styles,copy.firstChild);const xml=new XMLSerializer().serializeToString(copy);const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='reroom-so-do-phong.svg';link.click();URL.revokeObjectURL(url)});
+  document.querySelectorAll('.room-filters button').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.room-filters button').forEach(other=>other.classList.toggle('active',other===button));const filter=normalize(button.dataset.filter),terms={ngu:['ngu','chan','goi','giuong'],hoc:['hoc','ban','den'],'thu gian':['thu gian','sofa','ghe']}[filter]||[filter];document.querySelectorAll('#roomProducts .product-card').forEach(card=>card.hidden=filter!=='all'&&!terms.some(term=>normalize(card.dataset.category).includes(term)))}));
+  drawPlan();
+})();

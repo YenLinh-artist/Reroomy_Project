@@ -1,1 +1,95 @@
-{% load static %}<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Phòng mẫu | Re:Room</title><link rel="stylesheet" href="{% static 'store/fonts.css' %}"><link rel="stylesheet" href="{% static 'store/site-chrome.css' %}"><link rel="stylesheet" href="{% static 'store/cart-flow.css' %}"><link rel="stylesheet" href="{% static 'store/customer-pages.css' %}"></head><body>{% include 'store/partials/header.html' %}<main class="flow-wrap customer-page"><nav class="flow-crumb"><a href="{% url 'trang_chu' %}">Trang chủ</a><span>/</span><b>Phòng mẫu</b></nav><header class="flow-heading"><div><p class="eyebrow">Một chút cảm hứng cho căn phòng</p><h1>Phòng mẫu Re:Room</h1><p class="subhead">Chọn góc phòng, xem sản phẩm gợi ý và thử sơ đồ 2D.</p></div></header><section class="customer-card"><div class="room-gallery"><div class="room-gallery-main" id="roomGalleryMain"><img class="room-gallery-photo" id="roomGalleryPhoto" src="{% static 'store/images/room-samples/bedroom.jpg' %}" alt="Phòng ngủ nhỏ"><div class="gallery-placeholder" id="roomGalleryFallback" hidden><img src="{% static 'store/icons/sofa.svg' %}" alt=""><span>Ảnh phòng mẫu</span><small>Thêm ảnh vào store/static/store/images/room-samples/</small></div></div><div class="room-gallery-picks"><button class="active" data-title="Phòng ngủ nhỏ" data-image="{% static 'store/images/room-samples/bedroom.jpg' %}">Phòng ngủ nhỏ</button><button data-title="Góc học tập" data-image="{% static 'store/images/room-samples/study.jpg' %}">Góc học tập</button><button data-title="Góc thư giãn" data-image="{% static 'store/images/room-samples/lounge.jpg' %}">Góc thư giãn</button></div></div><p class="secure-note">Ảnh minh họa được chia theo phòng ngủ, góc học tập và góc thư giãn; chọn từng thẻ để xem ảnh. Các gợi ý sản phẩm bên dưới dùng dữ liệu mẫu/sản phẩm bạn đã nhập.</p></section><section class="customer-card"><div class="card-heading"><div><h2>Gợi ý cho không gian</h2><p class="subhead">Lọc theo nhu cầu sử dụng.</p></div></div><div class="room-filters"><button class="active" data-filter="all">Tất cả</button><button data-filter="ngủ">Phòng ngủ</button><button data-filter="học">Góc học tập</button><button data-filter="thư giãn">Thư giãn</button></div><div class="mini-product-grid" id="roomProducts">{% for item in suggestions %}<article class="mini-product" data-category="{{ item.category|lower }}"><a href="{% url 'chi_tiet_san_pham' item.detail_url %}" class="mini-product-image">{% if item.has_photo %}<img src="{{ item.image_url }}" alt="{{ item.name }}">{% else %}<img src="{{ item.icon_url }}" alt="" class="category-placeholder-icon"><span>Ảnh sản phẩm</span>{% endif %}</a><div><h3>{{ item.name }}</h3><p>{{ item.category }} · {{ item.price_text }}</p><button class="secondary-link add-cart" data-id="{{ item.id }}" data-name="{{ item.name }}" data-price="{{ item.price }}" data-image="{{ item.image_url }}">Thêm vào giỏ</button></div></article>{% endfor %}</div></section><section class="customer-card" id="room-planner"><div class="card-heading"><div><p class="eyebrow">Công cụ tham khảo 2D</p><h2>Thử bố trí phòng</h2><p class="subhead">Kéo các món đồ trên sơ đồ để đổi vị trí; bấm sơ đồ để xem toàn màn hình.</p></div></div><form id="sampleRoomForm" class="room-controls"><label>Ngang (m)<input type="number" name="width" min="1" max="10" step=".1" value="3"></label><label>Dài (m)<input type="number" name="depth" min="1" max="15" step=".1" value="4"></label><label>Màu phòng<select name="palette"><option value="#fff0e9">Kem đào</option><option value="#f1efff">Lavender</option><option value="#eaf4e9">Xanh dịu</option></select></label><label>Chọn sản phẩm<select name="item">{% for item in suggestions %}<option>{{ item.name }}</option>{% endfor %}</select></label><label>Phân loại<input name="variant" placeholder="Ví dụ: màu kem, size M"></label><button class="primary-link">Cập nhật sơ đồ</button></form><div class="room-plan-wrap"><canvas id="sampleRoomPlan" width="760" height="430" aria-label="Sơ đồ phòng mẫu 2D"></canvas><div class="room-plan-actions"><button id="roomPlanExport" type="button" class="secondary-link">Tải PNG</button><a class="secondary-link" href="{% url 'goi_y_combo' %}">Gợi ý combo theo phòng</a></div></div></section></main>{% include 'store/partials/footer.html' %}<script src="{% static 'store/cart.js' %}"></script><script src="{% static 'store/rooms.js' %}"></script><script src="{% static 'store/room-gallery.js' %}"></script></body></html>\n
+{% load static %}
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Phòng mẫu | Re:Room</title>
+  <link rel="stylesheet" href="{% static 'store/fonts.css' %}">
+  <link rel="stylesheet" href="{% static 'store/site-chrome.css' %}">
+  <link rel="stylesheet" href="{% static 'store/cart-flow.css' %}">
+  <link rel="stylesheet" href="{% static 'store/customer-pages.css' %}">
+  <link rel="stylesheet" href="{% static 'store/product-cards.css' %}">
+  <link rel="stylesheet" href="{% static 'store/room-planner.css' %}">
+</head>
+<body>
+{% include 'store/partials/header.html' %}
+<main class="flow-wrap customer-page">
+  <nav class="flow-crumb"><a href="{% url 'trang_chu' %}">Trang chủ</a><span>/</span><b>Phòng mẫu</b></nav>
+  <header class="flow-heading"><div><p class="eyebrow">Một chút cảm hứng cho căn phòng</p><h1>Phòng mẫu Re:Room</h1><p class="subhead">Chọn góc phòng, xem sản phẩm gợi ý và thử sơ đồ 2D.</p></div></header>
+
+  <section class="customer-card">
+    <div class="room-gallery">
+      <div class="room-gallery-main" id="roomGalleryMain">
+        <img class="room-gallery-photo" id="roomGalleryPhoto" src="{% static 'store/images/room-samples/bedroom.jpg' %}" alt="Phòng ngủ nhỏ">
+        <div class="gallery-placeholder" id="roomGalleryFallback" hidden><img src="{% static 'store/icons/sofa.svg' %}" alt=""><span>Ảnh phòng mẫu</span><small>Thêm ảnh vào store/static/store/images/room-samples/</small></div>
+      </div>
+      <div class="room-gallery-picks">
+        <button class="active" data-title="Phòng ngủ nhỏ" data-image="{% static 'store/images/room-samples/bedroom.jpg' %}">Phòng ngủ nhỏ</button>
+        <button data-title="Góc học tập" data-image="{% static 'store/images/room-samples/study.jpg' %}">Góc học tập</button>
+        <button data-title="Góc thư giãn" data-image="{% static 'store/images/room-samples/lounge.jpg' %}">Góc thư giãn</button>
+      </div>
+    </div>
+    <p class="secure-note">Các gợi ý sản phẩm bên dưới lấy từ dữ liệu mẫu hoặc sản phẩm đang có trong hệ thống.</p>
+  </section>
+
+  <section class="customer-card">
+    <div class="card-heading"><div><h2>Gợi ý cho không gian</h2><p class="subhead">Lọc theo nhu cầu sử dụng.</p></div></div>
+    <div class="room-filters"><button class="active" data-filter="all">Tất cả</button><button data-filter="ngủ">Phòng ngủ</button><button data-filter="học">Góc học tập</button><button data-filter="thư giãn">Thư giãn</button></div>
+    <div class="product-grid product-grid--room" id="roomProducts">{% for item in suggestions %}{% include 'store/partials/product_card.html' with product=item %}{% endfor %}</div>
+  </section>
+
+  <section class="customer-card room-planner-card" id="room-planner">
+    <div class="card-heading room-planner-heading"><div><p class="eyebrow">Bố trí theo tỷ lệ</p><h2>Thử sắp xếp phòng</h2><p class="subhead">Chọn sản phẩm có trong hệ thống, thêm vào sơ đồ vector rồi kéo để đổi vị trí.</p></div><span class="room-plan-badge">Bản thử nghiệm</span></div>
+    <form id="sampleRoomForm" class="room-controls">
+      <label>Ngang phòng (m)<input type="number" name="width" min="1" max="10" step="0.1" value="3"></label>
+      <label>Sâu phòng (m)<input type="number" name="depth" min="1" max="15" step="0.1" value="4"></label>
+      <label>Có gác?<select name="loft"><option value="no">Không</option><option value="yes">Có</option></select></label>
+      <label>Hướng đặt cửa<select name="doorSide"><option value="top">Bắc · tường trên</option><option value="right">Đông · tường phải</option><option value="bottom">Nam · tường dưới</option><option value="left">Tây · tường trái</option></select></label>
+      <label>Hướng mở cửa<select name="doorSwing"><option value="inside">Mở vào trong</option><option value="outside">Mở ra ngoài</option></select></label>
+      <label>Vị trí cửa dọc tường<input type="range" name="doorPosition" min="0.15" max="0.85" step="0.05" value="0.5"><small>Thanh kéo chỉ dời cửa trên bức tường đã chọn.</small></label>
+      <label>Màu sàn<select name="palette"><option value="#fff4eb">Kem đào</option><option value="#f1efff">Lavender</option><option value="#edf5e9">Xanh dịu</option></select></label>
+      <button class="primary-link" type="submit">Cập nhật phòng</button>
+    </form>
+    <div class="room-planner-layout">
+      <aside class="room-product-picker" aria-label="Chọn sản phẩm cho sơ đồ">
+        <div class="room-picker-heading"><div><strong>Sản phẩm của Re:Room</strong><small>{{ room_products|length }} sản phẩm đang kinh doanh</small></div><img src="{% static 'store/icons/search.svg' %}" alt=""></div>
+        <input type="search" id="roomProductSearch" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm cho sơ đồ">
+        <div class="room-picker-list" id="roomProductPicker">
+          {% for item in room_products %}
+            <article class="room-picker-item" data-room-product data-search="{{ item.name|lower }} {{ item.category|lower }} {{ item.room_color_hint|lower }}">
+              <div class="room-picker-photo">{% if item.image_url %}<img src="{{ item.image_url }}" alt="">{% else %}<img src="{{ item.icon_url }}" alt="">{% endif %}</div>
+              <div class="room-picker-copy"><strong>{{ item.name }}</strong><small>{{ item.category }}</small><small>{% if item.room_dimensions_estimated %}Kích thước tạm tính{% else %}{{ item.room_width_cm|floatformat:0 }} × {{ item.room_depth_cm|floatformat:0 }} cm{% endif %}</small></div>
+              <button type="button" class="room-add-button" data-add-room-product data-name="{{ item.name }}" data-category="{{ item.category }}" data-color="{{ item.room_color_hint }}" data-width="{{ item.room_width_cm }}" data-depth="{{ item.room_depth_cm }}" data-estimated="{{ item.room_dimensions_estimated|yesno:'true,false' }}">Thêm</button>
+            </article>
+          {% empty %}
+            <div class="room-picker-empty"><strong>Chưa có sản phẩm để bố trí</strong><span>Sản phẩm đang kinh doanh sẽ xuất hiện ở đây sau khi được thêm vào kho.</span></div>
+          {% endfor %}
+        </div>
+        <p class="room-picker-note">Màu footprint dựa trên tên/phân loại sản phẩm. Nhập kích thước trong hồ sơ để sơ đồ thể hiện sát thực tế hơn.</p>
+      </aside>
+
+      <div class="room-plan-workspace">
+        <div class="room-plan-toolbar"><span id="roomPlanSelection">Chọn món đồ trong danh sách</span><div><button id="rotateRoomProduct" type="button" disabled>Xoay 90°</button><button id="removeRoomProduct" type="button" disabled>Xóa món</button><button id="clearRoomPlan" type="button">Dọn sơ đồ</button></div></div>
+        <div class="room-plan-vector-wrap">
+          <svg id="sampleRoomPlan" viewBox="0 0 760 700" role="img" aria-label="Sơ đồ bố trí phòng dạng vector">
+            <defs><pattern id="roomGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#e9dcd6" stroke-width=".8"/></pattern></defs>
+            <rect class="room-plan-paper" width="760" height="700" rx="16" fill="#fffaf6"></rect>
+            <g class="room-compass" transform="translate(714 44)" aria-hidden="true"><text x="0" y="0">BẮC</text><path d="M0 31V9M-5 15L0 9L5 15"></path></g>
+            <g id="roomPlanFloor"></g>
+            <g id="roomPlanArchitecture"></g>
+            <g id="roomPlanObjects"></g>
+          </svg>
+        </div>
+        <div class="room-plan-footer"><span id="roomPlanDimensions">Phòng 3 × 4 m</span><span>Cung cửa chỉ hướng mở; vùng gác lửng và thang được đánh dấu để tham khảo.</span><button id="roomPlanExport" type="button" class="secondary-link">Tải sơ đồ SVG</button></div>
+      </div>
+    </div>
+  </section>
+</main>
+{% include 'store/partials/footer.html' %}
+<script src="{% static 'store/cart.js' %}"></script>
+<script src="{% static 'store/product-cards.js' %}"></script>
+<script src="{% static 'store/rooms.js' %}"></script>
+<script src="{% static 'store/room-gallery.js' %}"></script>
+</body>
+</html>

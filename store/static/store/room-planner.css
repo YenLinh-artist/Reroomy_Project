@@ -1,0 +1,57 @@
+.room-planner-card{overflow:hidden}
+.room-planner-heading{align-items:flex-start}
+.room-plan-badge{flex:none;padding:7px 10px;border:1px solid #f4d7df;border-radius:999px;background:#fff5f6;color:#c9507b;font-size:10px;font-weight:700}
+.room-planner-card .room-controls{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;align-items:end;padding:13px;border:1px solid #f3e4df;border-radius:13px;background:#fffaf7}
+.room-planner-card .room-controls label{display:grid;gap:6px;color:#806e68;font-size:11px;font-weight:700}
+.room-planner-card .room-controls input,.room-planner-card .room-controls select{width:100%;height:40px;padding:0 10px;border:1px solid #eadbd6;border-radius:9px;background:#fff;color:#544641;font:13px var(--font-body,Arial,sans-serif)}
+.room-planner-card .room-controls input[type=range]{height:28px;padding:0;border:0;background:transparent;accent-color:#e94e86;cursor:pointer}
+.room-planner-card .room-controls label small{color:#a08c84;font-size:9px;font-weight:400;line-height:1.35}
+.room-planner-card .room-controls button{height:40px;padding:0 13px;border:0;border-radius:9px;background:#f18b78;color:white;font:700 11px var(--font-body,Arial,sans-serif);cursor:pointer;box-shadow:0 3px 0 #ffd1c3}
+.room-planner-layout{display:grid;grid-template-columns:minmax(235px,.34fr) minmax(0,1fr);gap:14px;margin-top:14px;align-items:stretch}
+.room-product-picker,.room-plan-workspace{min-width:0;border:1px solid #f0e3de;border-radius:14px;background:#fff}
+.room-product-picker{display:flex;flex-direction:column;padding:12px}
+.room-picker-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.room-picker-heading>div{display:grid;gap:3px}.room-picker-heading strong{color:#55433e;font-size:12px}.room-picker-heading small{color:#a18e86;font-size:10px}
+.room-picker-heading img{width:18px;height:18px;opacity:.68}
+#roomProductSearch{width:100%;height:37px;margin-bottom:9px;padding:0 10px;border:1px solid #eee0dc;border-radius:9px;background:#fffaf8;color:#51433e;font:12px var(--font-body,Arial,sans-serif);outline:0}
+#roomProductSearch:focus{border-color:#ef9cb3;box-shadow:0 0 0 3px #e94e8617}
+.room-picker-list{display:grid;gap:7px;max-height:490px;overflow:auto;padding-right:3px;scrollbar-color:#e9bdcb #fff7f5;scrollbar-width:thin}
+.room-picker-item{display:grid;grid-template-columns:52px minmax(0,1fr) auto;align-items:center;gap:8px;padding:7px;border:1px solid #f2e8e4;border-radius:10px;background:#fff;transition:border-color .16s,background .16s}
+.room-picker-item[hidden]{display:none}.room-picker-item:hover{border-color:#f0b4c5;background:#fffaf9}
+.room-picker-photo{width:52px;height:52px;overflow:hidden;border-radius:8px;background:#fff3ee}
+.room-picker-photo img{display:block;width:100%;height:100%;object-fit:cover}
+.room-picker-copy{min-width:0;display:grid;gap:3px}.room-picker-copy strong{overflow:hidden;color:#51423e;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.room-picker-copy small{overflow:hidden;color:#9c8982;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.room-add-button{min-height:30px;padding:0 9px;border:1px solid #f1c2d0;border-radius:8px;background:#fff4f7;color:#d45080;font:700 10px var(--font-body,Arial,sans-serif);cursor:pointer;transition:background .16s,color .16s}
+.room-add-button:hover{background:#e94e86;color:white}
+.room-picker-empty{display:grid;gap:6px;padding:24px 12px;text-align:center;color:#9c8982;font-size:11px;line-height:1.5}
+.room-picker-empty strong{color:#67504a;font-size:12px}
+.room-picker-note{margin:10px 1px 0;color:#a08c84;font-size:9px;line-height:1.5}
+.room-plan-workspace{display:flex;flex-direction:column;padding:10px}
+.room-plan-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:1px 2px 9px;color:#907d77;font-size:10px}
+.room-plan-toolbar>div{display:flex;gap:5px;flex-wrap:wrap}
+.room-plan-toolbar button{min-height:29px;padding:0 9px;border:1px solid #eedbd7;border-radius:8px;background:#fff;color:#8e6f70;font:600 10px var(--font-body,Arial,sans-serif);cursor:pointer}
+.room-plan-toolbar button:hover:not(:disabled){border-color:#e995ad;background:#fff5f7;color:#c94c79}
+.room-plan-toolbar button:disabled{opacity:.42;cursor:not-allowed}
+.room-plan-vector-wrap{flex:none;height:auto;min-height:0;overflow:hidden;border:1px solid #f0e3dc;border-radius:11px;background:#fffaf6}
+#sampleRoomPlan{display:block;width:100%;height:auto;min-height:0;aspect-ratio:760/700;touch-action:none;user-select:none}
+.room-plan-paper{fill:#fffaf6}
+.room-compass text{fill:#817460;font:700 10px var(--font-body,Arial,sans-serif);text-anchor:middle}
+.room-compass path{fill:none;stroke:#879681;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.room-floor{stroke:none}
+.room-wall{stroke:#879681;stroke-width:7;stroke-linecap:square;fill:none}
+.room-door-leaf{stroke:#ae8f76;stroke-width:2.2;fill:none}
+.room-door-arc{stroke:#bc9b80;stroke-width:1.5;stroke-dasharray:4 3;fill:none}
+.room-loft-area{fill:#c8aa8b;fill-opacity:.23;stroke:#ac9278;stroke-width:1.5;stroke-dasharray:7 5}
+.room-structure-label{fill:#817460;font:700 11px var(--font-body,Arial,sans-serif);letter-spacing:.06em;text-anchor:middle;pointer-events:none}
+.room-door-label{fill:#967b68;font:600 8px var(--font-body,Arial,sans-serif);text-anchor:middle;pointer-events:none}
+.room-object{cursor:grab;touch-action:none}
+.room-object:active{cursor:grabbing}
+.room-object.is-selected .object-footprint{stroke:#e64e87;stroke-width:3}
+.object-label{fill:#493c39;font:600 12px var(--font-body,Arial,sans-serif);pointer-events:none}
+.object-index{fill:#fff;font:700 10px var(--font-body,Arial,sans-serif);pointer-events:none}
+.room-plan-footer{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 2px 1px;color:#a08d85;font-size:10px}
+.room-plan-footer>span:first-child{color:#745c55;font-weight:700}
+.room-plan-footer button{margin-left:auto;min-height:32px;padding:0 11px;border:1px solid #edcad4;border-radius:8px;background:#fff6f8;color:#c94c79;font:700 10px var(--font-body,Arial,sans-serif);cursor:pointer}
+.room-plan-footer button:hover{background:#e94e86;color:#fff}
+@media(max-width:950px){.room-planner-layout{grid-template-columns:1fr}.room-picker-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:280px}}
+@media(max-width:620px){.room-planner-card .room-controls{grid-template-columns:1fr 1fr}.room-planner-card .room-controls label:nth-child(6),.room-planner-card .room-controls label:nth-last-child(2),.room-planner-card .room-controls button{grid-column:1/-1}.room-picker-list{grid-template-columns:1fr;max-height:260px}.room-plan-toolbar{align-items:flex-start;flex-direction:column}.room-plan-toolbar>div{width:100%}.room-plan-toolbar button{flex:1}.room-plan-footer{align-items:flex-start;flex-direction:column}.room-plan-footer button{margin-left:0}}

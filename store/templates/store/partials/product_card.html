@@ -1,0 +1,20 @@
+{% load static %}
+<article class="product-card" data-id="{{ product.id }}" data-category="{{ product.category|lower }}" data-name="{{ product.name|lower }}"{% if selected_category and not product.matches_selected_category %} hidden{% endif %}>
+  <div class="product-image">
+    <div class="product-placeholder" role="img" aria-label="Ảnh {{ product.name }} đang chờ bổ sung">
+      <img class="category-placeholder-icon" src="{{ product.icon_url }}" alt="" aria-hidden="true">
+      <span>Ảnh sản phẩm</span><small>Đang chờ ảnh gốc</small>
+    </div>
+    {% if product.has_photo %}<img class="product-photo" src="{{ product.image_url }}" alt="{{ product.name }}" loading="lazy" onload="this.parentElement.classList.add('has-photo')">{% endif %}
+    <span class="product-tag">{{ product.tag }}</span>
+    <button class="heart" type="button" aria-label="Lưu {{ product.name }}" aria-pressed="false">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78Z"/></svg>
+    </button>
+  </div>
+  <div class="product-info">
+    <div class="product-top"><h3 class="product-name"><a href="{% url 'chi_tiet_san_pham' product.detail_url %}">{{ product.name }}</a></h3><span class="price">{{ product.display_price }}</span></div>
+    <p class="sold">{{ product.sold_text }}</p>
+    <a class="detail-link" href="{% url 'chi_tiet_san_pham' product.detail_url %}">Xem chi tiết</a>
+    <button class="add-cart" type="button" data-name="{{ product.name }}" data-price="{{ product.price }}" data-image="{{ product.image_url }}" data-stock="{{ product.stock_quantity|default_if_none:'' }}" data-id="{{ product.id }}" data-variant="{{ product.variant }}" data-variants="{{ product.variants|join:'|' }}">Thêm vào giỏ</button>
+  </div>
+</article>

@@ -524,10 +524,16 @@ class OrderServiceRequest(models.Model):
 
     class Status(models.TextChoices):
         PENDING = "pending", "Chờ xử lý"
+        ADMIN_REVIEW = "admin_review", "Chờ admin duyệt"
         APPROVED = "approved", "Đã xác nhận"
         REJECTED = "rejected", "Không được duyệt"
         PROCESSING = "processing", "Đang tiếp nhận"
+        RECEIVED = "received", "Đã nhận hàng hoàn"
         COMPLETED = "completed", "Đã xử lý xong"
+
+    class ResolutionType(models.TextChoices):
+        REFUND = "refund", "Hoàn tiền"
+        REPLACEMENT = "replacement", "Đổi sản phẩm"
 
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="service_requests")
     order_item = models.ForeignKey(OrderItem, null=True, blank=True, on_delete=models.SET_NULL, related_name="service_requests")
@@ -537,6 +543,8 @@ class OrderServiceRequest(models.Model):
     reason = models.CharField(max_length=80)
     details = models.TextField(blank=True, max_length=1000)
     unboxing_video = models.FileField(upload_to="order_returns/videos/", blank=True)
+    resolution_type = models.CharField(max_length=16, choices=ResolutionType.choices, blank=True, default="")
+    resolution_notes = models.TextField(blank=True, max_length=1000, default="")
     requested_product = models.ForeignKey(SanPham, null=True, blank=True, on_delete=models.SET_NULL, related_name="requested_order_exchanges")
     requested_variant = models.CharField(max_length=120, blank=True)
     handled_by = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="handled_order_service_requests")

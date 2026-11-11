@@ -831,6 +831,18 @@ def theo_doi_don_hang(request, tracking_token):
                 if reason not in allowed_return_reasons:
                     messages.error(request, "Chọn lý do trả hàng trước khi gửi.")
                 else:
+                    if reason == "missing_item" and not request.POST.get("order_item_id", "").strip():
+                        messages.error(request, "Chọn sản phẩm đang bị thiếu để CSKH kiểm tra đúng mặt hàng.")
+                        return redirect("theo_doi_don_hang", tracking_token=order.tracking_token)
+                    unboxing_video = request.FILES.get("unboxing_video")
+                    allowed_video_extensions = {"mp4", "mov", "webm"}
+                    video_extension = unboxing_video.name.rsplit(".", 1)[-1].lower() if unboxing_video and "." in unboxing_video.name else ""
+                    if unboxing_video and video_extension not in allowed_video_extensions:
+                        messages.error(request, "Video cần có định dạng MP4, MOV hoặc WEBM.")
+                        return redirect("theo_doi_don_hang", tracking_token=order.tracking_token)
+                    if unboxing_video and unboxing_video.size > 50 * 1024 * 1024:
+                        messages.error(request, "Video không được vượt quá 50 MB.")
+                        return redirect("theo_doi_don_hang", tracking_token=order.tracking_token)
                     try:
                         with transaction.atomic():
                             locked_order = Order.objects.select_for_update().get(pk=order.pk)
@@ -840,7 +852,8 @@ def theo_doi_don_hang(request, tracking_token):
                                 order=locked_order,
                                 request_type=OrderServiceRequest.RequestType.RETURN,
                                 status__in=[OrderServiceRequest.Status.PENDING, OrderServiceRequest.Status.APPROVED,
-                                            OrderServiceRequest.Status.PROCESSING, OrderServiceRequest.Status.COMPLETED],
+                                            OrderServiceRequest.Status.ADMIN_REVIEW, OrderServiceRequest.Status.PROCESSING,
+                                            OrderServiceRequest.Status.RECEIVED, OrderServiceRequest.Status.COMPLETED],
                             ).exists():
                                 raise ValidationError("Đơn hàng đã có yêu cầu trả hàng đang được xử lý.")
                             return_item_id = request.POST.get("order_item_id", "").strip()
@@ -855,6 +868,7 @@ def theo_doi_don_hang(request, tracking_token):
                                 request_type=OrderServiceRequest.RequestType.RETURN,
                                 reason=allowed_return_reasons[reason],
                                 details=request.POST.get("details", "").strip()[:1000],
+                                unboxing_video=unboxing_video,
                             )
                             _create_order_service_message(
                                 service_request,
@@ -862,14 +876,14 @@ def theo_doi_don_hang(request, tracking_token):
                             )
                             OrderNotification.objects.create(
                                 order=locked_order,
-                                message="Yêu cầu trả hàng đã được gửi và đang chờ admin duyệt.",
+                                message="Yêu cầu hoàn đơn đã được gửi đến nhân viên chăm sóc khách hàng.",
                             )
                             _notify_order_service_staff(
                                 locked_order,
-                                f"Khách gửi yêu cầu trả hàng cho đơn {locked_order.code}; cần admin duyệt.",
-                                [StaffProfile.Role.ADMIN],
+                                f"Khách gửi yêu cầu hoàn đơn {locked_order.code}; CSKH cần kiểm tra và đề xuất phương án.",
+                                [StaffProfile.Role.CONSULTANT],
                             )
-                        messages.success(request, "Đã gửi yêu cầu trả hàng. Admin sẽ xem xét và cập nhật tiến độ tại đây.")
+                        messages.success(request, "Đã gửi yêu cầu hoàn đơn đến CSKH. Bạn có thể theo dõi cập nhật tại đây.")
                     except ValidationError as exc:
                         messages.error(request, "; ".join(exc.messages))
         elif action == "report_issue":
@@ -943,7 +957,9 @@ def theo_doi_don_hang(request, tracking_token):
             and order.customer.user_id == request.user.pk
             and order.status == Order.Status.COMPLETED
             and not any(item.request_type == OrderServiceRequest.RequestType.RETURN and item.status in (
-                OrderServiceRequest.Status.PENDING, OrderServiceRequest.Status.APPROVED, OrderServiceRequest.Status.PROCESSING, OrderServiceRequest.Status.COMPLETED,
+                OrderServiceRequest.Status.PENDING, OrderServiceRequest.Status.ADMIN_REVIEW,
+                OrderServiceRequest.Status.APPROVED, OrderServiceRequest.Status.PROCESSING,
+                OrderServiceRequest.Status.RECEIVED, OrderServiceRequest.Status.COMPLETED,
             ) for item in order_service_requests)
         ),
     })
@@ -1393,7 +1409,7 @@ def quan_tri_dashboard(request):
     )
     pending_orders = pending_for_sales.count() if role in ("admin", "sales") else 0
     pending_return_requests = OrderServiceRequest.objects.filter(
-        request_type=OrderServiceRequest.RequestType.RETURN, status=OrderServiceRequest.Status.PENDING,
+        request_type=OrderServiceRequest.RequestType.RETURN, status=OrderServiceRequest.Status.ADMIN_REVIEW,
     ).count() if role == "admin" else 0
     admin_order_updates = list(
         StaffNotification.objects.filter(user=request.user, order__isnull=False, is_read=False)
@@ -1700,7 +1716,7 @@ def quan_tri_don_hang(request):
     if request.GET.get("service_request") == "return_pending":
         orders = orders.filter(
             service_requests__request_type=OrderServiceRequest.RequestType.RETURN,
-            service_requests__status=OrderServiceRequest.Status.PENDING,
+            service_requests__status=OrderServiceRequest.Status.ADMIN_REVIEW,
         ).distinct()
     search_term = request.GET.get("q", "").strip()
     payment_method = request.GET.get("payment", "")
@@ -1827,38 +1843,97 @@ def quan_tri_cap_nhat_don(request, order_id):
             profile = getattr(request.user, "staff_profile", None)
             if not request.user.is_superuser and (not profile or profile.role != StaffProfile.Role.ADMIN):
                 return HttpResponseForbidden("Chỉ admin được duyệt yêu cầu trả hàng.")
-            service_request = get_object_or_404(
-                OrderServiceRequest, pk=request.POST.get("request_id"), order=order,
-                request_type=OrderServiceRequest.RequestType.RETURN,
-                status=OrderServiceRequest.Status.PENDING,
-            )
-            service_request.status = (
-                OrderServiceRequest.Status.APPROVED
-                if action == "approve_return_request"
-                else OrderServiceRequest.Status.REJECTED
-            )
-            service_request.handled_by = request.user
-            service_request.save(update_fields=["status", "handled_by", "updated_at"])
-            notification_text = (
-                f"Yêu cầu trả hàng của đơn {order.code} đã được admin duyệt; chờ nhân viên tiếp nhận."
-                if action == "approve_return_request"
-                else f"Yêu cầu trả hàng của đơn {order.code} chưa được duyệt. Nhân viên CSKH sẽ trao đổi thêm với bạn."
-            )
-            OrderNotification.objects.create(order=order, message=notification_text)
-            CustomerServiceMessage.objects.create(
-                conversation=service_request.conversation,
-                sender=request.user,
-                sender_role=CustomerServiceMessage.SenderRole.STAFF,
-                body=notification_text,
-                order_request=service_request,
-            )
-            if action == "approve_return_request":
+            with transaction.atomic():
+                service_request = get_object_or_404(
+                    OrderServiceRequest.objects.select_for_update().select_related(
+                        "order_item", "requested_product", "conversation",
+                    ),
+                    pk=request.POST.get("request_id"), order=order,
+                    request_type=OrderServiceRequest.RequestType.RETURN,
+                    status=OrderServiceRequest.Status.ADMIN_REVIEW,
+                )
+                if action == "approve_return_request":
+                    if service_request.resolution_type == OrderServiceRequest.ResolutionType.REPLACEMENT:
+                        target = service_request.requested_product
+                        item = service_request.order_item
+                        if not target or not target.is_active or not item:
+                            raise ValidationError("Phương án đổi cần có sản phẩm thay thế và món hàng gốc.")
+                        if target.gia_ban != item.unit_price:
+                            raise ValidationError("Giá sản phẩm thay thế đã thay đổi; CSKH cần chốt lại phương án.")
+                        allowed_variants = [value.strip() for value in (target.phan_loai or "").split(",") if value.strip()] or ["Mẫu hiện có"]
+                        if service_request.requested_variant not in allowed_variants:
+                            raise ValidationError("Phân loại sản phẩm thay thế không còn khả dụng.")
+                        if target.pk != item.product_id and target.so_luong < item.quantity:
+                            raise ValidationError("Tồn kho sản phẩm thay thế không đủ; CSKH cần chọn phương án khác.")
+                    service_request.status = OrderServiceRequest.Status.APPROVED
+                    notification_text = (
+                        f"Admin đã duyệt yêu cầu hoàn đơn {order.code}. Nhân viên bán hàng sẽ tiếp nhận và kiểm tra hàng hoàn."
+                    )
+                else:
+                    service_request.status = OrderServiceRequest.Status.REJECTED
+                    notification_text = (
+                        f"Yêu cầu hoàn đơn {order.code} chưa được duyệt. Nhân viên CSKH sẽ trao đổi thêm với bạn."
+                    )
+                service_request.handled_by = request.user
+                service_request.reviewed_by = request.user
+                service_request.reviewed_at = timezone.now()
+                service_request.save(update_fields=[
+                    "status", "handled_by", "reviewed_by", "reviewed_at", "updated_at",
+                ])
+                OrderNotification.objects.create(order=order, message=notification_text)
+                CustomerServiceMessage.objects.create(
+                    conversation=service_request.conversation,
+                    sender=request.user,
+                    sender_role=CustomerServiceMessage.SenderRole.STAFF,
+                    body=notification_text,
+                    order_request=service_request,
+                )
                 _notify_order_service_staff(
                     order,
-                    f"Admin đã duyệt yêu cầu trả hàng đơn {order.code}; nhân viên bán hàng tiếp nhận xử lý.",
-                    [StaffProfile.Role.SALES],
+                    (
+                        f"Admin đã duyệt yêu cầu hoàn đơn {order.code}; bán hàng tiếp nhận và kiểm tra hàng hoàn."
+                        if action == "approve_return_request"
+                        else f"Admin chưa duyệt yêu cầu hoàn đơn {order.code}; CSKH cần trao đổi phương án khác."
+                    ),
+                    [StaffProfile.Role.SALES] if action == "approve_return_request" else [StaffProfile.Role.CONSULTANT],
                 )
             messages.success(request, "Đã cập nhật yêu cầu trả hàng.")
+            return redirect("quan_tri_chi_tiet_don", order_id=order.pk)
+        elif action == "complete_refund_request":
+            profile = getattr(request.user, "staff_profile", None)
+            if not request.user.is_superuser and (not profile or profile.role != StaffProfile.Role.ADMIN):
+                return HttpResponseForbidden("Chỉ admin được xác nhận hoàn tiền.")
+            with transaction.atomic():
+                service_request = get_object_or_404(
+                    OrderServiceRequest.objects.select_for_update().select_related("conversation"),
+                    pk=request.POST.get("request_id"), order=order,
+                    request_type=OrderServiceRequest.RequestType.RETURN,
+                    resolution_type=OrderServiceRequest.ResolutionType.REFUND,
+                    status=OrderServiceRequest.Status.RECEIVED,
+                    inventory_restored_at__isnull=False,
+                )
+                service_request.status = OrderServiceRequest.Status.COMPLETED
+                service_request.handled_by = request.user
+                service_request.save(update_fields=["status", "handled_by", "updated_at"])
+                if order.payment_status == Order.PaymentStatus.PAID:
+                    order.payment_status = Order.PaymentStatus.REFUNDED
+                    order.save(update_fields=["payment_status", "updated_at"])
+                    notification_text = f"Yêu cầu hoàn đơn {order.code} đã hoàn tất; admin đã xác nhận hoàn tiền."
+                elif order.payment_status == Order.PaymentStatus.REFUNDED:
+                    notification_text = f"Yêu cầu hoàn đơn {order.code} đã hoàn tất; khoản thanh toán đã được hoàn trước đó."
+                else:
+                    notification_text = (
+                        f"Yêu cầu hoàn đơn {order.code} đã hoàn tất. Đơn chưa ghi nhận khoản thanh toán nên không phát sinh tiền cần hoàn."
+                    )
+                OrderNotification.objects.create(order=order, message=notification_text)
+                CustomerServiceMessage.objects.create(
+                    conversation=service_request.conversation,
+                    sender=request.user,
+                    sender_role=CustomerServiceMessage.SenderRole.STAFF,
+                    body=notification_text,
+                    order_request=service_request,
+                )
+            messages.success(request, "Đã xác nhận hoàn tất yêu cầu hoàn tiền.")
             return redirect("quan_tri_chi_tiet_don", order_id=order.pk)
         elif action == "confirm":
             confirm_order(order.pk, request.user)
@@ -2012,7 +2087,16 @@ def quan_tri_duyet_voucher(request, voucher_id):
 
 @_roles_required(StaffProfile.Role.ADMIN, StaffProfile.Role.SALES)
 def quan_tri_ton_kho(request):
-    products = SanPham.objects.select_related("danh_muc").order_by("so_luong", "ten_san_pham")
+    products = SanPham.objects.select_related("danh_muc").annotate(
+        sold_units=Coalesce(
+            Sum(
+                "order_items__quantity",
+                filter=Q(order_items__order__status__in=[Order.Status.CONFIRMED, Order.Status.SHIPPING, Order.Status.COMPLETED]),
+            ),
+            Value(0),
+            output_field=SanPham._meta.get_field("so_luong"),
+        )
+    ).order_by("so_luong", "ten_san_pham")
     profile = getattr(request.user, "staff_profile", None)
     role = StaffProfile.Role.ADMIN if request.user.is_superuser else profile.role
     can_adjust = role == StaffProfile.Role.ADMIN
@@ -2042,6 +2126,18 @@ def quan_tri_ton_kho(request):
                     messages.success(request, "Đã ghi nhận điều chỉnh tồn kho.")
         return redirect("quan_tri_ton_kho")
     query = request.GET.get("q", "").strip()
+    stock_filter = request.GET.get("stock_filter", "").strip()
+    normalized_query = "".join(
+        char for char in unicodedata.normalize("NFKD", query.casefold())
+        if not unicodedata.combining(char)
+    )
+    if not stock_filter:
+        if "sap het" in normalized_query or "low stock" in normalized_query:
+            stock_filter, query = "low", ""
+        elif "ton kho" in normalized_query and "200" in normalized_query:
+            stock_filter, query = "over_200", ""
+        elif "ban chay" in normalized_query and "50" in normalized_query:
+            stock_filter, query = "sold_under_50", ""
     if query and not demo_preview:
         matches = (
             Q(ten_san_pham__icontains=query)
@@ -2052,10 +2148,25 @@ def quan_tri_ton_kho(request):
         if product_number.isdigit():
             matches |= Q(pk=int(product_number))
         products = products.filter(matches)
+    if not demo_preview:
+        if stock_filter == "low":
+            products = products.filter(so_luong__lte=5)
+        elif stock_filter == "over_200":
+            products = products.filter(so_luong__gt=200)
+        elif stock_filter == "sold_under_50":
+            products = products.filter(sold_units__lt=50)
     if demo_preview:
         products = _demo_admin_products()
+        for product in products:
+            product.sold_units = 0
         if query:
             products = [item for item in products if query.casefold() in f"{item.ten_san_pham} {item.danh_muc.ten_danh_muc}".casefold()]
+        if stock_filter == "low":
+            products = [item for item in products if item.so_luong <= 5]
+        elif stock_filter == "over_200":
+            products = [item for item in products if item.so_luong > 200]
+        elif stock_filter == "sold_under_50":
+            products = [item for item in products if item.sold_units < 50]
     products = list(products)
     product_ids = [product.pk for product in products if product.pk]
     variant_rows = OrderItem.objects.filter(product_id__in=product_ids).exclude(variant="").values_list("product_id", "variant").distinct()
@@ -2069,7 +2180,7 @@ def quan_tri_ton_kho(request):
     events = InventoryAdjustment.objects.select_related("product", "actor").order_by("-created_at")[:20]
     return render(request, "store/admin_inventory.html", {
         "products": products, "events": events, "demo_preview": demo_preview,
-        "query": query, "role": role, "can_adjust": can_adjust,
+        "query": query, "stock_filter": stock_filter, "role": role, "can_adjust": can_adjust,
     })
 
 
@@ -2634,7 +2745,11 @@ def cskh_hop_thu(request):
 def cskh_don_hang(request):
     if not _has_cskh_access(request.user):
         return HttpResponseForbidden("T\u00e0i kho\u1ea3n n\u00e0y kh\u00f4ng thu\u1ed9c b\u1ed9 ph\u1eadn CSKH.")
-    orders = list(Order.objects.select_related("customer").prefetch_related("items", "support_messages").order_by("-product_change_requested", "-created_at"))
+    orders = list(Order.objects.select_related("customer").prefetch_related(
+        "items", "support_messages",
+        "service_requests__order_item", "service_requests__requested_product",
+        "service_requests__handled_by", "service_requests__conversation",
+    ).order_by("-product_change_requested", "-created_at"))
     for order in orders:
         try:
             requested_items = json.loads(order.product_change_requested_items or "{}")
@@ -2655,9 +2770,94 @@ def cskh_don_hang(request):
         "orders": orders,
         "staff_notifications": staff_notifications,
         "products": _order_change_products(),
+        "return_products": SanPham.objects.filter(is_active=True).order_by("ten_san_pham"),
+        "pending_return_count": OrderServiceRequest.objects.filter(
+            request_type=OrderServiceRequest.RequestType.RETURN,
+            status=OrderServiceRequest.Status.PENDING,
+        ).count(),
         "product_change_count": Order.objects.filter(product_change_requested=True).count(),
         "pending_order_count": Order.objects.filter(status=Order.Status.PENDING).count(),
     })
+
+
+def cskh_xu_ly_yeu_cau_hoan(request, order_id):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    if not _has_cskh_access(request.user):
+        return HttpResponseForbidden("Tài khoản này không thuộc bộ phận CSKH.")
+    order = get_object_or_404(Order, pk=order_id)
+    try:
+        resolution_type = request.POST.get("resolution_type", "").strip()
+        if resolution_type not in OrderServiceRequest.ResolutionType.values:
+            raise ValidationError("Chọn phương án hoàn tiền hoặc đổi sản phẩm.")
+        if request.POST.get("customer_agreed") != "yes":
+            raise ValidationError("Xác nhận đã trao đổi và khách đồng ý với phương án trước khi chuyển admin.")
+        notes = request.POST.get("resolution_notes", "").strip()[:1000]
+        with transaction.atomic():
+            service_request = get_object_or_404(
+                OrderServiceRequest.objects.select_for_update().select_related("order_item", "conversation"),
+                pk=request.POST.get("request_id"), order=order,
+                request_type=OrderServiceRequest.RequestType.RETURN,
+                status=OrderServiceRequest.Status.PENDING,
+            )
+            target = None
+            variant = ""
+            if resolution_type == OrderServiceRequest.ResolutionType.REPLACEMENT:
+                if not service_request.order_item:
+                    raise ValidationError("Yêu cầu hoàn cả đơn cần được CSKH xử lý theo phương án hoàn tiền.")
+                target_id = request.POST.get("requested_product_id", "").strip()
+                if not target_id.isdecimal():
+                    raise ValidationError("Chọn sản phẩm thay thế trước khi gửi admin.")
+                target = SanPham.objects.select_for_update().filter(pk=int(target_id), is_active=True).first()
+                if not target:
+                    raise ValidationError("Sản phẩm thay thế không còn được bán.")
+                item = service_request.order_item
+                if target.gia_ban != item.unit_price:
+                    raise ValidationError("Sản phẩm thay thế cần có giá bằng món trong đơn.")
+                if target.pk != item.product_id and target.so_luong < item.quantity:
+                    raise ValidationError("Tồn kho sản phẩm thay thế không đủ số lượng.")
+                variant = request.POST.get("requested_variant", "").strip()[:120]
+                allowed_variants = [value.strip() for value in (target.phan_loai or "").split(",") if value.strip()] or ["Mẫu hiện có"]
+                if not variant and allowed_variants == ["Mẫu hiện có"]:
+                    variant = "Mẫu hiện có"
+                if variant not in allowed_variants:
+                    raise ValidationError("Chọn một phân loại còn có của sản phẩm thay thế.")
+            service_request.resolution_type = resolution_type
+            service_request.resolution_notes = notes
+            service_request.requested_product = target
+            service_request.requested_variant = variant
+            service_request.status = OrderServiceRequest.Status.ADMIN_REVIEW
+            service_request.handled_by = request.user
+            service_request.save(update_fields=[
+                "resolution_type", "resolution_notes", "requested_product", "requested_variant",
+                "status", "handled_by", "updated_at",
+            ])
+            plan = "Hoàn tiền" if resolution_type == OrderServiceRequest.ResolutionType.REFUND else (
+                f"Đổi sang {target.ten_san_pham} · {variant} × {service_request.order_item.quantity}"
+            )
+            staff_note = f"CSKH đã tư vấn và gửi admin duyệt phương án {plan} cho đơn {order.code}."
+            if notes:
+                staff_note += f" Ghi chú: {notes}"
+            OrderNotification.objects.create(
+                order=order,
+                message=f"CSKH đã tiếp nhận yêu cầu hoàn đơn {order.code} và chuyển phương án cho admin duyệt.",
+            )
+            CustomerServiceMessage.objects.create(
+                conversation=service_request.conversation,
+                sender=request.user,
+                sender_role=CustomerServiceMessage.SenderRole.STAFF,
+                body=staff_note,
+                order_request=service_request,
+            )
+            _notify_order_service_staff(
+                order,
+                f"Yêu cầu hoàn đơn {order.code} đã có phương án từ CSKH và đang chờ admin duyệt.",
+                [StaffProfile.Role.ADMIN],
+            )
+        messages.success(request, f"Đã chuyển phương án {plan} của đơn {order.code} cho admin duyệt.")
+    except ValidationError as exc:
+        messages.error(request, "; ".join(exc.messages))
+    return redirect(f"/cskh/don-hang/#order-{order.pk}")
 
 
 def cskh_gui_tin_nhan_don_hang(request, order_id):
@@ -2900,6 +3100,133 @@ def _resolve_order_attention(order):
     order.save(update_fields=["status", "status_before_attention", "support_reason", "updated_at"])
 
 
+@transaction.atomic
+def _receive_return_request(service_request_id, order_id, actor):
+    service_request = get_object_or_404(
+        OrderServiceRequest.objects.select_for_update().select_related(
+            "order_item", "requested_product", "conversation",
+        ),
+        pk=service_request_id, order_id=order_id,
+        request_type=OrderServiceRequest.RequestType.RETURN,
+        status=OrderServiceRequest.Status.PROCESSING,
+    )
+    if service_request.inventory_restored_at:
+        raise ValidationError("Hàng hoàn đã được ghi nhận vào kho rồi.")
+    order = Order.objects.select_for_update().get(pk=order_id)
+    if not order.stock_reserved:
+        raise ValidationError("Đơn này không có lượt giữ kho để đối soát hàng hoàn an toàn.")
+    if service_request.order_item_id:
+        returned_items = list(OrderItem.objects.select_for_update().filter(
+            pk=service_request.order_item_id, order=order,
+        ))
+        if not returned_items:
+            raise ValidationError("Không tìm thấy sản phẩm cần nhận hoàn trong đơn.")
+    else:
+        returned_items = list(OrderItem.objects.select_for_update().filter(order=order).order_by("pk"))
+    if not returned_items:
+        raise ValidationError("Đơn không còn sản phẩm để đối soát hàng hoàn.")
+    target = service_request.requested_product
+    if service_request.resolution_type == OrderServiceRequest.ResolutionType.REPLACEMENT:
+        if not service_request.order_item_id or not target or not target.is_active:
+            raise ValidationError("Phương án đổi thiếu sản phẩm hoặc dòng hàng gốc.")
+        if target.gia_ban != service_request.order_item.unit_price:
+            raise ValidationError("Giá sản phẩm thay thế đã thay đổi; cần admin/CSKH xác nhận lại.")
+        allowed_variants = [value.strip() for value in (target.phan_loai or "").split(",") if value.strip()] or ["Mẫu hiện có"]
+        if service_request.requested_variant not in allowed_variants:
+            raise ValidationError("Phân loại thay thế không còn khả dụng.")
+    product_ids = {item.product_id for item in returned_items if item.product_id}
+    if target:
+        product_ids.add(target.pk)
+    locked_products = {
+        product.pk: product
+        for product in SanPham.objects.select_for_update().filter(pk__in=product_ids).order_by("pk")
+    }
+    items_to_restock = (
+        [] if service_request.reason == "Thiếu sản phẩm trong đơn"
+        else returned_items
+    )
+    for item in items_to_restock:
+        product = locked_products.get(item.product_id)
+        if not product:
+            continue
+        product.so_luong += item.quantity
+        product.save(update_fields=["so_luong"])
+        InventoryAdjustment.objects.create(
+            product=product,
+            quantity_delta=item.quantity,
+            reason=f"Nhận hàng hoàn từ đơn {order.code}",
+            actor=actor,
+            order=order,
+        )
+    if service_request.resolution_type == OrderServiceRequest.ResolutionType.REPLACEMENT:
+        target = locked_products.get(service_request.requested_product_id)
+        quantity = service_request.order_item.quantity
+        if not target or target.so_luong < quantity:
+            raise ValidationError("Tồn kho sản phẩm đổi vừa thay đổi; chưa thể chuẩn bị hàng thay thế.")
+        target.so_luong -= quantity
+        target.save(update_fields=["so_luong"])
+        InventoryAdjustment.objects.create(
+            product=target,
+            quantity_delta=-quantity,
+            reason=f"Chuẩn bị sản phẩm đổi cho đơn {order.code}",
+            actor=actor,
+            order=order,
+        )
+    service_request.status = OrderServiceRequest.Status.RECEIVED
+    service_request.inventory_restored_at = timezone.now()
+    service_request.handled_by = actor
+    service_request.save(update_fields=["status", "inventory_restored_at", "handled_by", "updated_at"])
+    if service_request.resolution_type == OrderServiceRequest.ResolutionType.REPLACEMENT:
+        note = (
+            f"Bán hàng đã nhận và kiểm tra hàng hoàn của đơn {order.code}; "
+            f"{target.ten_san_pham} ({service_request.requested_variant}) đã được giữ kho để chuẩn bị giao đổi."
+        )
+        notify_roles = [StaffProfile.Role.ADMIN, StaffProfile.Role.CONSULTANT]
+    else:
+        note = (
+            f"Bán hàng đã nhận và kiểm tra hàng hoàn của đơn {order.code}. "
+            "Yêu cầu đang chờ admin xác nhận bước hoàn tiền."
+        )
+        notify_roles = [StaffProfile.Role.ADMIN, StaffProfile.Role.CONSULTANT]
+    OrderNotification.objects.create(order=order, message=note)
+    CustomerServiceMessage.objects.create(
+        conversation=service_request.conversation,
+        sender=actor,
+        sender_role=CustomerServiceMessage.SenderRole.STAFF,
+        body=note,
+        order_request=service_request,
+    )
+    _notify_order_service_staff(order, note, notify_roles)
+    return service_request
+
+
+@transaction.atomic
+def _finish_replacement_request(service_request_id, order_id, actor):
+    service_request = get_object_or_404(
+        OrderServiceRequest.objects.select_for_update().select_related("order", "conversation", "requested_product"),
+        pk=service_request_id, order_id=order_id,
+        request_type=OrderServiceRequest.RequestType.RETURN,
+        resolution_type=OrderServiceRequest.ResolutionType.REPLACEMENT,
+        status=OrderServiceRequest.Status.RECEIVED,
+        inventory_restored_at__isnull=False,
+    )
+    service_request.status = OrderServiceRequest.Status.COMPLETED
+    service_request.handled_by = actor
+    service_request.save(update_fields=["status", "handled_by", "updated_at"])
+    order = service_request.order
+    note = f"Đơn đổi {order.code} đã được bàn giao cho vận chuyển. Yêu cầu hoàn/đổi đã hoàn tất."
+    OrderNotification.objects.create(order=order, message=note)
+    CustomerServiceMessage.objects.create(
+        conversation=service_request.conversation,
+        sender=actor,
+        sender_role=CustomerServiceMessage.SenderRole.STAFF,
+        body=note,
+        order_request=service_request,
+    )
+    _notify_order_service_staff(order, note, [StaffProfile.Role.ADMIN, StaffProfile.Role.CONSULTANT])
+    return service_request
+
+
 def ban_hang_cap_nhat_don(request, order_id):
     if request.method != "POST":
         return HttpResponseNotAllowed(["POST"])
@@ -2909,39 +3236,41 @@ def ban_hang_cap_nhat_don(request, order_id):
     action = request.POST.get("action", "")
     notification_text = None
     try:
-        if action in ("start_return_request", "complete_return_request"):
-            service_request = get_object_or_404(
-                OrderServiceRequest, pk=request.POST.get("request_id"), order=order,
-                request_type=OrderServiceRequest.RequestType.RETURN,
-            )
-            expected_status = (
-                OrderServiceRequest.Status.APPROVED
-                if action == "start_return_request"
-                else OrderServiceRequest.Status.PROCESSING
-            )
-            if service_request.status != expected_status:
-                raise ValidationError("Yêu cầu trả hàng vừa được cập nhật; hãy tải lại danh sách.")
-            service_request.status = (
-                OrderServiceRequest.Status.PROCESSING
-                if action == "start_return_request"
-                else OrderServiceRequest.Status.COMPLETED
-            )
-            service_request.handled_by = request.user
-            service_request.save(update_fields=["status", "handled_by", "updated_at"])
-            notification_text = (
-                f"Nhân viên bán hàng đã tiếp nhận yêu cầu trả hàng đơn {order.code}."
-                if action == "start_return_request"
-                else f"Yêu cầu trả hàng đơn {order.code} đã được tiếp nhận xử lý xong."
-            )
-            OrderNotification.objects.create(order=order, message=notification_text)
-            CustomerServiceMessage.objects.create(
-                conversation=service_request.conversation,
-                sender=request.user,
-                sender_role=CustomerServiceMessage.SenderRole.STAFF,
-                body=notification_text,
-                order_request=service_request,
-            )
-            messages.success(request, "Đã cập nhật yêu cầu trả hàng.")
+        if action in ("start_return_request", "complete_return_request", "finish_replacement_request"):
+            if action == "start_return_request":
+                with transaction.atomic():
+                    service_request = get_object_or_404(
+                        OrderServiceRequest.objects.select_for_update().select_related("conversation"),
+                        pk=request.POST.get("request_id"), order=order,
+                        request_type=OrderServiceRequest.RequestType.RETURN,
+                        status=OrderServiceRequest.Status.APPROVED,
+                    )
+                    service_request.status = OrderServiceRequest.Status.PROCESSING
+                    service_request.handled_by = request.user
+                    service_request.save(update_fields=["status", "handled_by", "updated_at"])
+                    notification_text = f"Nhân viên bán hàng đã tiếp nhận yêu cầu hoàn đơn {order.code} và đang chờ nhận hàng để kiểm tra."
+                    OrderNotification.objects.create(order=order, message=notification_text)
+                    CustomerServiceMessage.objects.create(
+                        conversation=service_request.conversation,
+                        sender=request.user,
+                        sender_role=CustomerServiceMessage.SenderRole.STAFF,
+                        body=notification_text,
+                        order_request=service_request,
+                    )
+                    _notify_order_service_staff(
+                        order,
+                        notification_text,
+                        [StaffProfile.Role.ADMIN, StaffProfile.Role.CONSULTANT],
+                    )
+                messages.success(request, "Đã tiếp nhận yêu cầu hoàn đơn.")
+            elif action == "complete_return_request":
+                service_request = _receive_return_request(
+                    request.POST.get("request_id"), order.pk, request.user,
+                )
+                messages.success(request, "Đã ghi nhận hàng hoàn, cập nhật kho và chuyển sang bước hoàn tiền/đổi hàng.")
+            else:
+                _finish_replacement_request(request.POST.get("request_id"), order.pk, request.user)
+                messages.success(request, "Đã xác nhận bàn giao sản phẩm thay thế cho vận chuyển.")
             return redirect("ban_hang_don_hang")
         elif action == "confirm":
             is_product_change = order.product_change_pending_sales
@@ -3458,16 +3787,36 @@ def quan_tri_dat_lai_mat_khau_nhan_vien(request, employee_id):
 def ban_hang_san_pham(request):
     if not _has_sales_access(request.user):
         return HttpResponseForbidden("Trang n\u00e0y d\u00e0nh cho nh\u00e2n vi\u00ean b\u00e1n h\u00e0ng.")
-    products = SanPham.objects.filter(is_active=True).select_related("danh_muc").order_by("so_luong", "ten_san_pham")
+    products = SanPham.objects.filter(is_active=True).select_related("danh_muc").annotate(
+        sold_units=Coalesce(
+            Sum(
+                "order_items__quantity",
+                filter=Q(order_items__order__status__in=[Order.Status.CONFIRMED, Order.Status.SHIPPING, Order.Status.COMPLETED]),
+            ),
+            Value(0),
+            output_field=SanPham._meta.get_field("so_luong"),
+        )
+    ).order_by("so_luong", "ten_san_pham")
     search = request.GET.get("q", "").strip()
+    stock_filter = request.GET.get("stock_filter", "").strip()
     normalized_search = "".join(
         char for char in unicodedata.normalize("NFKD", search.casefold())
         if not unicodedata.combining(char)
     )
     low_stock_search = "sap het" in normalized_search or "low stock" in normalized_search
     if low_stock_search:
+        stock_filter = stock_filter or "low"
+    elif not stock_filter and "ton kho" in normalized_search and "200" in normalized_search:
+        stock_filter, search = "over_200", ""
+    elif not stock_filter and "ban chay" in normalized_search and "50" in normalized_search:
+        stock_filter, search = "sold_under_50", ""
+    if stock_filter == "low":
         products = products.filter(so_luong__lte=5)
-    elif search:
+    elif stock_filter == "over_200":
+        products = products.filter(so_luong__gt=200)
+    elif stock_filter == "sold_under_50":
+        products = products.filter(sold_units__lt=50)
+    if search and not low_stock_search:
         products = products.filter(
             Q(ten_san_pham__icontains=search)
             | Q(danh_muc__ten_danh_muc__icontains=search)
@@ -3476,6 +3825,7 @@ def ban_hang_san_pham(request):
     return render(request, "store/sales_products.html", {
         "products": products,
         "search": search,
+        "stock_filter": stock_filter,
         "low_stock_search": low_stock_search,
         "low_stock_count": SanPham.objects.filter(is_active=True, so_luong__lte=5).count(),
     })

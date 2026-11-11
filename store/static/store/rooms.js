@@ -8,33 +8,76 @@
   const selectionLabel=document.getElementById('roomPlanSelection');
   const rotateButton=document.getElementById('rotateRoomProduct');
   const removeButton=document.getElementById('removeRoomProduct');
+  const plannerLayout=document.getElementById('roomPlannerLayout');
+  const plannerHome=plannerLayout.parentElement;
+  const fullscreenControls=document.getElementById('roomFullscreenControls');
+  const fullscreenToggle=document.getElementById('roomFullscreenToggle');
+  const fullscreenClose=document.getElementById('roomFullscreenClose');
+  const zoomLevel=document.getElementById('roomZoomLevel');
   const roomWidthInput=form.elements.width,roomDepthInput=form.elements.depth;
   const paletteInput=form.elements.palette;
   const loftInput=form.elements.loft,doorSideInput=form.elements.doorSide;
   const doorSwingInput=form.elements.doorSwing,doorPositionInput=form.elements.doorPosition;
+  const bathroomInput=form.elements.bathroom,kitchenInput=form.elements.kitchen;
+  const loftSideInput=form.elements.loftSide,loftDirectionField=document.getElementById('roomLoftDirectionField');
   const ns='http://www.w3.org/2000/svg';
   let roomWidth=Number(roomWidthInput.value)||3,roomDepth=Number(roomDepthInput.value)||4;
-  let objects=[],selectedId=null,frame=null,drag=null;
+  let objects=[],selectedId=null,frame=null,drag=null,zoom=1,plannerPlaceholder=null;
   const normalize=value=>String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
   const swatches=[[/xanh\s*duong|xanh\s*bien/,'#9ab7d2'],[/xanh\s*reu/,'#a7b28d'],[/xanh\s*la/,'#a8bd9e'],[/(^|\s)trang($|\s)/,'#f4eee8'],[/kem/,'#edcfaa'],[/(^|\s)be($|\s)/,'#d9bd9e'],[/vang/,'#e8cf84'],[/hong/,'#e8a9b8'],[/mau\s*do|do\s*tuoi/,'#d9847b'],[/nau/,'#9d7964'],[/(^|\s)den($|\s)/,'#777274'],[/caro/,'#caa899'],[/xanh/,'#9ab7bd']];
   function productColor(hint,name){const value=normalize(hint+' '+name);for(const [pattern,color] of swatches){if(pattern.test(value))return color}let hash=0;for(const char of value)hash=(hash*31+char.charCodeAt(0))|0;return ['#e8b5bb','#b9c8b2','#d9c2a4','#b9c4d7','#dfb6d0','#b8d0cd'][Math.abs(hash)%6]}
   function node(tag,attrs={}){const result=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([key,value])=>result.setAttribute(key,String(value)));return result}
+  function updateZoom(){const width=760/zoom,height=700/zoom;svg.setAttribute('viewBox',`${(760-width)/2} ${(700-height)/2} ${width} ${height}`);zoomLevel.textContent=`${Math.round(zoom*100)}%`}
+  function setFullscreen(enabled){
+    plannerLayout.classList.toggle('is-fullscreen',enabled);document.body.classList.toggle('room-plan-layout-open',enabled);
+    zoom=1;updateZoom();
+    if(enabled){plannerPlaceholder=document.createComment('room planner position');plannerHome.insertBefore(plannerPlaceholder,plannerLayout);document.body.append(plannerLayout);fullscreenControls.append(form);fullscreenToggle.hidden=true;fullscreenClose.hidden=false;fullscreenToggle.setAttribute('aria-pressed','true')}
+    else{plannerHome.insertBefore(plannerLayout,plannerPlaceholder);plannerPlaceholder.remove();plannerPlaceholder=null;plannerHome.insertBefore(form,plannerLayout);fullscreenToggle.hidden=false;fullscreenClose.hidden=true;fullscreenToggle.setAttribute('aria-pressed','false')}
+    requestAnimationFrame(drawPlan);
+  }
+  fullscreenToggle.addEventListener('click',()=>setFullscreen(true));
+  fullscreenClose.addEventListener('click',()=>setFullscreen(false));
+  document.addEventListener('keydown',event=>{if(event.key==='Escape'&&plannerLayout.classList.contains('is-fullscreen'))setFullscreen(false)});
+  document.getElementById('roomZoomIn').addEventListener('click',()=>{zoom=Math.min(2.8,Math.round((zoom+0.2)*10)/10);updateZoom()});
+  document.getElementById('roomZoomOut').addEventListener('click',()=>{zoom=Math.max(1,Math.round((zoom-0.2)*10)/10);updateZoom()});
+  document.getElementById('roomZoomReset').addEventListener('click',()=>{zoom=1;updateZoom()});
   function clampObjects(){const pad=.06;objects.forEach(item=>{item.width=Math.min(item.width,Math.max(.2,roomWidth-pad*2));item.depth=Math.min(item.depth,Math.max(.2,roomDepth-pad*2));item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,item.x));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,item.y))})}
   function getFrame(){const scale=Math.min(620/roomWidth,430/roomDepth,150);const width=roomWidth*scale,depth=roomDepth*scale;return{x:(760-width)/2,y:(700-depth)/2,width,depth,scale}}
   function drawRoomArchitecture(){
     architectureLayer.replaceChildren();
     const wallWidth=Math.max(4,frame.scale*.055),side=doorSideInput.value;
     if(loftInput.value==='yes'){
-      const loftDepth=Math.min(frame.depth*.4,1.7*frame.scale);
-      architectureLayer.append(node('rect',{x:frame.x+wallWidth,y:frame.y+wallWidth,width:frame.width-wallWidth*2,height:loftDepth,rx:3,class:'room-loft-area'}));
-      const boundary=node('line',{x1:frame.x+wallWidth,y1:frame.y+loftDepth+wallWidth,x2:frame.x+frame.width-wallWidth,y2:frame.y+loftDepth+wallWidth,stroke:'#ac9278','stroke-width':2,'stroke-dasharray':'7 5'});
+      const loftSide=loftSideInput.value,horizontal=loftSide==='top'||loftSide==='bottom';
+      const loftWidth=horizontal?frame.width-wallWidth*2:Math.min(frame.width*.4,1.7*frame.scale);
+      const loftDepth=horizontal?Math.min(frame.depth*.4,1.7*frame.scale):frame.depth-wallWidth*2;
+      const loftX=loftSide==='right'?frame.x+frame.width-wallWidth-loftWidth:frame.x+wallWidth;
+      const loftY=loftSide==='bottom'?frame.y+frame.depth-wallWidth-loftDepth:frame.y+wallWidth;
+      architectureLayer.append(node('rect',{x:loftX,y:loftY,width:loftWidth,height:loftDepth,rx:3,class:'room-loft-area'}));
+      const boundary=horizontal
+        ?node('line',{x1:frame.x+wallWidth,y1:loftSide==='top'?loftY+loftDepth:loftY,x2:frame.x+frame.width-wallWidth,y2:loftSide==='top'?loftY+loftDepth:loftY,stroke:'#ac9278','stroke-width':2,'stroke-dasharray':'7 5'})
+        :node('line',{x1:loftSide==='left'?loftX+loftWidth:loftX,y1:frame.y+wallWidth,x2:loftSide==='left'?loftX+loftWidth:loftX,y2:frame.y+frame.depth-wallWidth,stroke:'#ac9278','stroke-width':2,'stroke-dasharray':'7 5'});
       architectureLayer.append(boundary);
-      const loftLabel=node('text',{x:frame.x+frame.width/2,y:frame.y+loftDepth*.53,class:'room-structure-label'});
+      const loftLabel=node('text',{x:loftX+loftWidth/2,y:loftY+loftDepth/2+4,class:'room-structure-label'});
       loftLabel.textContent='KHU GÁC LỬNG';architectureLayer.append(loftLabel);
-      const ladderX=frame.x+frame.width*.76,ladderY=frame.y+loftDepth-wallWidth*.2;
-      architectureLayer.append(node('path',{d:'M '+(ladderX-10)+' '+ladderY+' V '+(ladderY+frame.scale*.42)+' M '+(ladderX+10)+' '+ladderY+' V '+(ladderY+frame.scale*.42),stroke:'#a88d70','stroke-width':2}));
-      for(let rung=1;rung<5;rung++)architectureLayer.append(node('line',{x1:ladderX-9,y1:ladderY+frame.scale*.42*rung/5,x2:ladderX+9,y2:ladderY+frame.scale*.42*rung/5,stroke:'#a88d70','stroke-width':1.4}));
+      const ladderLength=frame.scale*.42,ladderCenter=horizontal?frame.x+frame.width*.76:frame.y+frame.depth*.76;
+      const ladderBoundary=horizontal?(loftSide==='top'?loftY+loftDepth:loftY):(loftSide==='left'?loftX+loftWidth:loftX);
+      const ladderStart=horizontal?(loftSide==='top'?ladderBoundary:ladderBoundary-ladderLength):ladderBoundary;
+      const ladderEnd=horizontal?(loftSide==='top'?ladderBoundary+ladderLength:ladderBoundary):ladderBoundary+(loftSide==='left'?ladderLength:-ladderLength);
+      if(horizontal){
+        architectureLayer.append(node('path',{d:'M '+(ladderCenter-10)+' '+ladderStart+' V '+ladderEnd+' M '+(ladderCenter+10)+' '+ladderStart+' V '+ladderEnd,stroke:'#a88d70','stroke-width':2}));
+        for(let rung=1;rung<5;rung++)architectureLayer.append(node('line',{x1:ladderCenter-9,y1:ladderStart+(ladderEnd-ladderStart)*rung/5,x2:ladderCenter+9,y2:ladderStart+(ladderEnd-ladderStart)*rung/5,stroke:'#a88d70','stroke-width':1.4}));
+      }else{
+        architectureLayer.append(node('path',{d:'M '+ladderStart+' '+(ladderCenter-10)+' H '+ladderEnd+' M '+ladderStart+' '+(ladderCenter+10)+' H '+ladderEnd,stroke:'#a88d70','stroke-width':2}));
+        for(let rung=1;rung<5;rung++)architectureLayer.append(node('line',{x1:ladderStart+(ladderEnd-ladderStart)*rung/5,y1:ladderCenter-9,x2:ladderStart+(ladderEnd-ladderStart)*rung/5,y2:ladderCenter+9,stroke:'#a88d70','stroke-width':1.4}));
+      }
     }
+    const zoneWidth=frame.width*.27,zoneDepth=frame.depth*.2;
+    const addZone=(label,x,y,fill)=>{
+      architectureLayer.append(node('rect',{x,y,width:zoneWidth,height:zoneDepth,rx:5,class:'room-zone',fill}));
+      const text=node('text',{x:x+zoneWidth/2,y:y+zoneDepth/2+4,class:'room-zone-label'});text.textContent=label;architectureLayer.append(text);
+    };
+    if(bathroomInput.checked)addZone('NHÀ VỆ SINH',frame.x+frame.width-zoneWidth-wallWidth*2,frame.y+frame.depth-zoneDepth-wallWidth*2,'#dce8e3');
+    if(kitchenInput.checked&&loftInput.value!=='yes')addZone('KHU BẾP',frame.x+frame.width-zoneWidth-wallWidth*2,frame.y+wallWidth*2,'#f0e5d7');
     const horizontal=side==='top'||side==='bottom';
     const sideLength=horizontal?frame.width:frame.depth;
     const doorWidth=Math.min(frame.scale*.82,sideLength*.34);
@@ -77,6 +120,9 @@
     return lines.filter(Boolean);
   }
   function drawPlan(){
+    loftDirectionField.hidden=loftInput.value!=='yes';
+    kitchenInput.disabled=loftInput.value==='yes';
+    document.getElementById('roomKitchenToggle').classList.toggle('is-disabled',kitchenInput.disabled);
     frame=getFrame();floorLayer.replaceChildren();architectureLayer.replaceChildren();objectLayer.replaceChildren();
     const floor=node('rect',{x:frame.x,y:frame.y,width:frame.width,height:frame.depth,rx:3,fill:paletteInput.value,class:'room-floor'});
     const grid=node('rect',{x:frame.x,y:frame.y,width:frame.width,height:frame.depth,rx:8,fill:'url(#roomGrid)',opacity:.7,'pointer-events':'none'});
@@ -145,14 +191,15 @@
   }));
   document.getElementById('roomProductSearch')?.addEventListener('input',event=>{const query=normalize(event.target.value);document.querySelectorAll('[data-room-product]').forEach(item=>item.hidden=!normalize(item.dataset.search).includes(query))});
   form.addEventListener('submit',event=>{event.preventDefault();roomWidth=Math.min(10,Math.max(1,Number(roomWidthInput.value)||3));roomDepth=Math.min(15,Math.max(1,Number(roomDepthInput.value)||4));roomWidthInput.value=roomWidth;roomDepthInput.value=roomDepth;clampObjects();drawPlan()});
-  [loftInput,doorSideInput,doorSwingInput,doorPositionInput,paletteInput].forEach(input=>['input','change'].forEach(eventName=>input.addEventListener(eventName,drawPlan)));
+  [doorSideInput,doorSwingInput,doorPositionInput,paletteInput,bathroomInput,kitchenInput,loftSideInput].forEach(input=>['input','change'].forEach(eventName=>input.addEventListener(eventName,drawPlan)));
+  loftInput.addEventListener('change',drawPlan);
   svg.addEventListener('pointerdown',event=>{const group=event.target.closest('[data-room-object]');if(!group)return;const item=objects.find(value=>value.id===group.dataset.roomObject);if(!item)return;selectedId=item.id;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse());drag={id:item.id,offsetX:(local.x-frame.x)/frame.scale-item.x,offsetY:(local.y-frame.y)/frame.scale-item.y};svg.setPointerCapture(event.pointerId);drawPlan();event.preventDefault()});
   svg.addEventListener('pointermove',event=>{if(!drag)return;const item=objects.find(value=>value.id===drag.id);if(!item)return;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse()),pad=.06;item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,(local.x-frame.x)/frame.scale-drag.offsetX));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,(local.y-frame.y)/frame.scale-drag.offsetY));drawPlan()});
   const endDrag=()=>{drag=null};svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
   rotateButton.addEventListener('click',()=>{const item=objects.find(value=>value.id===selectedId);if(!item)return;[item.width,item.depth]=[item.depth,item.width];item.rotation=item.rotation===90?0:90;const pad=.06;item.x=Math.max(pad,Math.min(item.x,roomWidth-pad-item.width));item.y=Math.max(pad,Math.min(item.y,roomDepth-pad-item.depth));drawPlan()});
   removeButton.addEventListener('click',()=>{objects=objects.filter(item=>item.id!==selectedId);selectedId=null;drawPlan()});
   document.getElementById('clearRoomPlan').addEventListener('click',()=>{objects=[];selectedId=null;drawPlan()});
-  document.getElementById('roomPlanExport').addEventListener('click',()=>{const copy=svg.cloneNode(true);copy.setAttribute('xmlns',ns);copy.setAttribute('width','1520');copy.setAttribute('height','1400');const styles=node('style');styles.textContent='.room-wall{stroke:#879681;stroke-width:7;stroke-linecap:square;fill:none}.room-door-leaf{stroke:#ae8f76;stroke-width:2.2;fill:none}.room-door-arc{stroke:#bc9b80;stroke-width:1.5;stroke-dasharray:4 3;fill:none}.room-loft-area{fill:#c8aa8b;fill-opacity:.23;stroke:#ac9278;stroke-width:1.5;stroke-dasharray:7 5}.room-structure-label{fill:#817460;font:700 11px sans-serif;letter-spacing:.06em;text-anchor:middle}.room-door-label{fill:#967b68;font:600 8px sans-serif;text-anchor:middle}.room-compass text{fill:#817460;font:700 10px sans-serif;text-anchor:middle}.room-compass path{fill:none;stroke:#879681;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}';copy.insertBefore(styles,copy.firstChild);const xml=new XMLSerializer().serializeToString(copy);const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='reroom-so-do-phong.svg';link.click();URL.revokeObjectURL(url)});
+  document.getElementById('roomPlanExport').addEventListener('click',()=>{const copy=svg.cloneNode(true);copy.setAttribute('xmlns',ns);copy.setAttribute('width','1520');copy.setAttribute('height','1400');copy.setAttribute('viewBox','0 0 760 700');const styles=node('style');styles.textContent='.room-wall{stroke:#879681;stroke-width:7;stroke-linecap:square;fill:none}.room-door-leaf{stroke:#ae8f76;stroke-width:2.2;fill:none}.room-door-arc{stroke:#bc9b80;stroke-width:1.5;stroke-dasharray:4 3;fill:none}.room-loft-area{fill:#c8aa8b;fill-opacity:.23;stroke:#ac9278;stroke-width:1.5;stroke-dasharray:7 5}.room-zone{stroke:#b7c7bb;stroke-width:1.5}.room-zone-label{fill:#817460;font:700 7px sans-serif;text-anchor:middle}.room-structure-label{fill:#817460;font:700 11px sans-serif;letter-spacing:.06em;text-anchor:middle}.room-door-label{fill:#967b68;font:600 8px sans-serif;text-anchor:middle}.room-compass text{fill:#817460;font:700 10px sans-serif;text-anchor:middle}.room-compass path{fill:none;stroke:#879681;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}';copy.insertBefore(styles,copy.firstChild);const xml=new XMLSerializer().serializeToString(copy);const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='reroom-so-do-phong.svg';link.click();URL.revokeObjectURL(url)});
   document.querySelectorAll('.room-filters button').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.room-filters button').forEach(other=>other.classList.toggle('active',other===button));const filter=normalize(button.dataset.filter),terms={ngu:['ngu','chan','goi','giuong'],hoc:['hoc','ban','den'],'thu gian':['thu gian','sofa','ghe']}[filter]||[filter];document.querySelectorAll('#roomProducts .product-card').forEach(card=>card.hidden=filter!=='all'&&!terms.some(term=>normalize(card.dataset.category).includes(term)))}));
-  drawPlan();
+  updateZoom();drawPlan();
 })();

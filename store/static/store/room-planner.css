@@ -21,6 +21,7 @@
 .room-picker-photo{width:52px;height:52px;overflow:hidden;border-radius:8px;background:#fff3ee}
 .room-picker-photo img{display:block;width:100%;height:100%;object-fit:cover}
 .room-picker-copy{min-width:0;display:grid;gap:3px}.room-picker-copy strong{overflow:hidden;color:#51423e;font-size:11px;text-overflow:ellipsis;white-space:nowrap}.room-picker-copy small{overflow:hidden;color:#9c8982;font-size:9px;text-overflow:ellipsis;white-space:nowrap}
+.room-picker-copy .room-picker-price{color:#c94c79;font-size:10px;font-weight:700}
 .room-add-button{min-height:30px;padding:0 9px;border:1px solid #f1c2d0;border-radius:8px;background:#fff4f7;color:#d45080;font:700 10px var(--font-body,Arial,sans-serif);cursor:pointer;transition:background .16s,color .16s}
 .room-add-button:hover{background:#e94e86;color:white}
 .room-picker-empty{display:grid;gap:6px;padding:24px 12px;text-align:center;color:#9c8982;font-size:11px;line-height:1.5}
@@ -53,6 +54,15 @@
 .room-plan-footer>span:first-child{color:#745c55;font-weight:700}
 .room-plan-footer button{margin-left:auto;min-height:32px;padding:0 11px;border:1px solid #edcad4;border-radius:8px;background:#fff6f8;color:#c94c79;font:700 10px var(--font-body,Arial,sans-serif);cursor:pointer}
 .room-plan-footer button:hover{background:#e94e86;color:#fff}
+.room-budget-tools{position:relative;display:flex;align-items:center;justify-content:flex-end;margin-left:auto}
+.room-plan-footer .room-budget-tools>button{margin-left:0;white-space:nowrap}
+.room-budget-panel{position:absolute;right:0;bottom:calc(100% + 8px);z-index:8;width:min(360px,88vw);padding:13px 15px;border:1px solid #efdadf;border-radius:13px;background:#fff;box-shadow:0 12px 32px #563b3224;color:#66544f}
+.room-budget-panel[hidden]{display:none}
+.room-budget-panel>strong{display:block;margin-bottom:8px;color:#c94c79;font-size:13px}
+.room-budget-panel ul{display:grid;gap:7px;max-height:180px;overflow:auto;margin:0;padding:0;list-style:none}
+.room-budget-panel li{display:flex;justify-content:space-between;gap:12px;color:#796762;font-size:10px;line-height:1.4}
+.room-budget-panel li strong{flex:none;color:#51423e;font-size:10px}
+.room-budget-panel>small{display:block;margin-top:9px;color:#a08c84;font-size:9px;line-height:1.4}
 @media(max-width:950px){.room-planner-layout{grid-template-columns:1fr}.room-picker-list{grid-template-columns:repeat(2,minmax(0,1fr));max-height:280px}}
 @media(max-width:620px){.room-planner-card .room-controls{grid-template-columns:1fr 1fr}.room-planner-card .room-controls label:nth-child(6),.room-planner-card .room-controls label:nth-last-child(2),.room-planner-card .room-controls button{grid-column:1/-1}.room-picker-list{grid-template-columns:1fr;max-height:260px}.room-plan-toolbar{align-items:flex-start;flex-direction:column}.room-plan-toolbar>div{width:100%}.room-plan-toolbar button{flex:1}.room-plan-footer{align-items:flex-start;flex-direction:column}.room-plan-footer button{margin-left:0}}
 .room-fullscreen-controls{display:none}
@@ -119,3 +129,5 @@
 .room-planner-layout.is-fullscreen .room-controls>label:nth-child(7){grid-column:span 2}
 @media(max-width:900px){.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(4,minmax(0,1fr))}.room-planner-layout.is-fullscreen .room-controls>label:nth-child(7){grid-column:span 2}}
 @media(max-width:620px){.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.room-planner-layout.is-fullscreen .room-controls>label:nth-child(7),.room-planner-layout.is-fullscreen .room-controls>button{grid-column:1/-1}}
+.room-planner-layout.is-fullscreen .room-plan-footer .room-plan-hint{max-width:52%;text-align:right}
+@media(max-width:620px){.room-plan-footer .room-budget-tools{width:100%;margin-left:0;justify-content:flex-start}.room-planner-layout.is-fullscreen .room-plan-footer .room-plan-hint{display:none}}

@@ -14,6 +14,10 @@
   const fullscreenToggle=document.getElementById('roomFullscreenToggle');
   const fullscreenClose=document.getElementById('roomFullscreenClose');
   const zoomLevel=document.getElementById('roomZoomLevel');
+  const budgetToggle=document.getElementById('roomBudgetToggle');
+  const budgetPanel=document.getElementById('roomBudgetPanel');
+  const budgetTotal=document.getElementById('roomBudgetTotal');
+  const budgetBreakdown=document.getElementById('roomBudgetBreakdown');
   const roomWidthInput=form.elements.width,roomDepthInput=form.elements.depth;
   const paletteInput=form.elements.palette;
   const loftInput=form.elements.loft,doorSideInput=form.elements.doorSide;
@@ -22,12 +26,23 @@
   const loftSideInput=form.elements.loftSide,loftDirectionField=document.getElementById('roomLoftDirectionField');
   const ns='http://www.w3.org/2000/svg';
   let roomWidth=Number(roomWidthInput.value)||3,roomDepth=Number(roomDepthInput.value)||4;
-  let objects=[],selectedId=null,frame=null,drag=null,zoom=1,plannerPlaceholder=null;
+  let objects=[],selectedId=null,frame=null,drag=null,zoom=1,plannerPlaceholder=null,budgetExpanded=false;
   const zones={bathroom:null,kitchen:null};
   const normalize=value=>String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
   const swatches=[[/xanh\s*duong|xanh\s*bien/,'#9ab7d2'],[/xanh\s*reu/,'#a7b28d'],[/xanh\s*la/,'#a8bd9e'],[/(^|\s)trang($|\s)/,'#f4eee8'],[/kem/,'#edcfaa'],[/(^|\s)be($|\s)/,'#d9bd9e'],[/vang/,'#e8cf84'],[/hong/,'#e8a9b8'],[/mau\s*do|do\s*tuoi/,'#d9847b'],[/nau/,'#9d7964'],[/(^|\s)den($|\s)/,'#777274'],[/caro/,'#caa899'],[/xanh/,'#9ab7bd']];
   function productColor(hint,name){const value=normalize(hint+' '+name);for(const [pattern,color] of swatches){if(pattern.test(value))return color}let hash=0;for(const char of value)hash=(hash*31+char.charCodeAt(0))|0;return ['#e8b5bb','#b9c8b2','#d9c2a4','#b9c4d7','#dfb6d0','#b8d0cd'][Math.abs(hash)%6]}
   function node(tag,attrs={}){const result=document.createElementNS(ns,tag);Object.entries(attrs).forEach(([key,value])=>result.setAttribute(key,String(value)));return result}
+  function formatMoney(value){return new Intl.NumberFormat('vi-VN',{maximumFractionDigits:0}).format(Number(value)||0)+' ₫'}
+  function updateBudgetPanel(){
+    if(!budgetExpanded)return;
+    const groups=new Map();
+    objects.forEach(item=>{const key=item.name+'|'+item.price;const group=groups.get(key)||{name:item.name,price:item.price,quantity:0};group.quantity+=1;groups.set(key,group)});
+    const total=objects.reduce((sum,item)=>sum+(Number(item.price)||0),0);
+    budgetTotal.textContent='Tạm tính '+formatMoney(total)+' · '+objects.length+' món';
+    budgetBreakdown.replaceChildren();
+    if(!groups.size){const empty=document.createElement('li');empty.textContent='Thêm sản phẩm vào sơ đồ để xem bảng kê.';budgetBreakdown.append(empty);return}
+    groups.forEach(group=>{const row=document.createElement('li'),name=document.createElement('span'),price=document.createElement('strong');name.textContent=group.name+' × '+group.quantity;price.textContent=formatMoney(group.price*group.quantity);row.append(name,price);budgetBreakdown.append(row)});
+  }
   function updateZoom(){const width=760/zoom,height=700/zoom;svg.setAttribute('viewBox',`${(760-width)/2} ${(700-height)/2} ${width} ${height}`);zoomLevel.textContent=`${Math.round(zoom*100)}%`}
   function setFullscreen(enabled){
     plannerLayout.classList.toggle('is-fullscreen',enabled);document.body.classList.toggle('room-plan-layout-open',enabled);
@@ -141,8 +156,9 @@
     if(!objects.length){const empty=node('text',{x:frame.x+frame.width/2,y:frame.y+frame.depth/2,fill:'#b29d96','font-size':13,'font-family':'sans-serif','text-anchor':'middle'});empty.textContent='Chọn sản phẩm bên trái để bắt đầu bố trí';objectLayer.append(empty)}
     objects.forEach(item=>drawObject(item));
     const selected=objects.find(item=>item.id===selectedId);
-    selectionLabel.textContent=selected?selected.name+(selected.estimated?' · kích thước tạm tính':'')+' · '+Math.round(selected.width*100)+' × '+Math.round(selected.depth*100)+' cm':'Chọn món đồ trong danh sách';
+    selectionLabel.textContent=selected?selected.name+(selected.estimated?' · kích thước tạm tính':'')+' · '+Math.round(selected.width*100)+' × '+Math.round(selected.depth*100)+' cm · '+formatMoney(selected.price):'Chọn món đồ trong danh sách';
     rotateButton.disabled=!selected;removeButton.disabled=!selected;
+    updateBudgetPanel();
   }
   function drawObject(item){
     const x=frame.x+item.x*frame.scale,y=frame.y+item.y*frame.scale,w=item.width*frame.scale,h=item.depth*frame.scale;
@@ -192,7 +208,7 @@
   document.querySelectorAll('[data-add-room-product]').forEach(button=>button.addEventListener('click',()=>{
     const rawWidth=(Number(button.dataset.width)||70)/100,rawDepth=(Number(button.dataset.depth)||55)/100;
     const width=Math.min(rawWidth,Math.max(.2,roomWidth-.16)),depth=Math.min(rawDepth,Math.max(.2,roomDepth-.16)),position=findPosition(width,depth);
-    const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:button.dataset.name||'Sản phẩm',category:button.dataset.category||'',colorHint:button.dataset.color||'',color:productColor(button.dataset.color,button.dataset.name),topView:button.dataset.topView||'',rotation:0,width,depth,x:position.x,y:position.y,estimated:button.dataset.estimated==='true'};
+    const item={id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),name:button.dataset.name||'Sản phẩm',category:button.dataset.category||'',colorHint:button.dataset.color||'',color:productColor(button.dataset.color,button.dataset.name),topView:button.dataset.topView||'',price:Math.max(0,Number(button.dataset.price)||0),rotation:0,width,depth,x:position.x,y:position.y,estimated:button.dataset.estimated==='true'};
     objects.push(item);selectedId=item.id;drawPlan();
   }));
   document.getElementById('roomProductSearch')?.addEventListener('input',event=>{const query=normalize(event.target.value);document.querySelectorAll('[data-room-product]').forEach(item=>item.hidden=!normalize(item.dataset.search).includes(query))});
@@ -205,6 +221,7 @@
   rotateButton.addEventListener('click',()=>{const item=objects.find(value=>value.id===selectedId);if(!item)return;[item.width,item.depth]=[item.depth,item.width];item.rotation=item.rotation===90?0:90;const pad=.06;item.x=Math.max(pad,Math.min(item.x,roomWidth-pad-item.width));item.y=Math.max(pad,Math.min(item.y,roomDepth-pad-item.depth));drawPlan()});
   removeButton.addEventListener('click',()=>{objects=objects.filter(item=>item.id!==selectedId);selectedId=null;drawPlan()});
   document.getElementById('clearRoomPlan').addEventListener('click',()=>{objects=[];selectedId=null;drawPlan()});
+  budgetToggle.addEventListener('click',()=>{budgetExpanded=!budgetExpanded;budgetPanel.hidden=!budgetExpanded;budgetToggle.setAttribute('aria-expanded',String(budgetExpanded));updateBudgetPanel()});
   document.getElementById('roomPlanExport').addEventListener('click',()=>{const copy=svg.cloneNode(true);copy.setAttribute('xmlns',ns);copy.setAttribute('width','1520');copy.setAttribute('height','1400');copy.setAttribute('viewBox','0 0 760 700');const styles=node('style');styles.textContent='.room-wall{stroke:#879681;stroke-width:7;stroke-linecap:square;fill:none}.room-door-leaf{stroke:#ae8f76;stroke-width:2.2;fill:none}.room-door-arc{stroke:#bc9b80;stroke-width:1.5;stroke-dasharray:4 3;fill:none}.room-loft-area{fill:#c8aa8b;fill-opacity:.23;stroke:#ac9278;stroke-width:1.5;stroke-dasharray:7 5}.room-zone{stroke:#b7c7bb;stroke-width:1.5}.room-zone-label{fill:#817460;font:700 7px sans-serif;text-anchor:middle}.room-structure-label{fill:#817460;font:700 11px sans-serif;letter-spacing:.06em;text-anchor:middle}.room-door-label{fill:#967b68;font:600 8px sans-serif;text-anchor:middle}.room-compass text{fill:#817460;font:700 10px sans-serif;text-anchor:middle}.room-compass path{fill:none;stroke:#879681;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}';copy.insertBefore(styles,copy.firstChild);const xml=new XMLSerializer().serializeToString(copy);const url=URL.createObjectURL(new Blob([xml],{type:'image/svg+xml;charset=utf-8'}));const link=document.createElement('a');link.href=url;link.download='reroom-so-do-phong.svg';link.click();URL.revokeObjectURL(url)});
   document.querySelectorAll('.room-filters button').forEach(button=>button.addEventListener('click',()=>{document.querySelectorAll('.room-filters button').forEach(other=>other.classList.toggle('active',other===button));const filter=normalize(button.dataset.filter),terms={ngu:['ngu','chan','goi','giuong'],hoc:['hoc','ban','den'],'thu gian':['thu gian','sofa','ghe']}[filter]||[filter];document.querySelectorAll('#roomProducts .product-card').forEach(card=>card.hidden=filter!=='all'&&!terms.some(term=>normalize(card.dataset.category).includes(term)))}));
   updateZoom();drawPlan();

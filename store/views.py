@@ -2127,6 +2127,8 @@ def quan_tri_ton_kho(request):
         return redirect("quan_tri_ton_kho")
     query = request.GET.get("q", "").strip()
     stock_filter = request.GET.get("stock_filter", "").strip()
+    if stock_filter == "sold_under_50":
+        stock_filter = "stock_under_50"
     normalized_query = "".join(
         char for char in unicodedata.normalize("NFKD", query.casefold())
         if not unicodedata.combining(char)
@@ -2137,7 +2139,7 @@ def quan_tri_ton_kho(request):
         elif "ton kho" in normalized_query and "200" in normalized_query:
             stock_filter, query = "over_200", ""
         elif "ban chay" in normalized_query and "50" in normalized_query:
-            stock_filter, query = "sold_under_50", ""
+            stock_filter, query = "stock_under_50", ""
     if query and not demo_preview:
         matches = (
             Q(ten_san_pham__icontains=query)
@@ -2152,9 +2154,9 @@ def quan_tri_ton_kho(request):
         if stock_filter == "low":
             products = products.filter(so_luong__lte=5)
         elif stock_filter == "over_200":
-            products = products.filter(so_luong__gt=200)
-        elif stock_filter == "sold_under_50":
-            products = products.filter(sold_units__lt=50)
+            products = products.filter(so_luong__gte=200)
+        elif stock_filter == "stock_under_50":
+            products = products.filter(so_luong__lte=50)
     if demo_preview:
         products = _demo_admin_products()
         for product in products:
@@ -2164,9 +2166,9 @@ def quan_tri_ton_kho(request):
         if stock_filter == "low":
             products = [item for item in products if item.so_luong <= 5]
         elif stock_filter == "over_200":
-            products = [item for item in products if item.so_luong > 200]
-        elif stock_filter == "sold_under_50":
-            products = [item for item in products if item.sold_units < 50]
+            products = [item for item in products if item.so_luong >= 200]
+        elif stock_filter == "stock_under_50":
+            products = [item for item in products if item.so_luong <= 50]
     products = list(products)
     product_ids = [product.pk for product in products if product.pk]
     variant_rows = OrderItem.objects.filter(product_id__in=product_ids).exclude(variant="").values_list("product_id", "variant").distinct()
@@ -3809,13 +3811,15 @@ def ban_hang_san_pham(request):
     elif not stock_filter and "ton kho" in normalized_search and "200" in normalized_search:
         stock_filter, search = "over_200", ""
     elif not stock_filter and "ban chay" in normalized_search and "50" in normalized_search:
-        stock_filter, search = "sold_under_50", ""
+        stock_filter, search = "stock_under_50", ""
+    if stock_filter == "sold_under_50":
+        stock_filter = "stock_under_50"
     if stock_filter == "low":
         products = products.filter(so_luong__lte=5)
     elif stock_filter == "over_200":
-        products = products.filter(so_luong__gt=200)
-    elif stock_filter == "sold_under_50":
-        products = products.filter(sold_units__lt=50)
+        products = products.filter(so_luong__gte=200)
+    elif stock_filter == "stock_under_50":
+        products = products.filter(so_luong__lte=50)
     if search and not low_stock_search:
         products = products.filter(
             Q(ten_san_pham__icontains=search)

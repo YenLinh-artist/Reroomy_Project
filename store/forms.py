@@ -18,12 +18,12 @@ class MultipleImageField(forms.FileField):
     widget = MultipleFileInput
     allowed_extensions = {".jpg", ".jpeg", ".png", ".webp", ".gif"}
     max_files = 8
-    max_file_size = 8 * 1024 * 1024
+    max_file_size = 10 * 1024 * 1024
 
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("required", False)
         kwargs.setdefault("widget", self.widget(attrs={"accept": "image/*", "multiple": True, "class": "js-product-images"}))
-        kwargs.setdefault("help_text", "Có thể chọn tối đa 8 ảnh cùng lúc; mỗi ảnh tối đa 8 MB.")
+        kwargs.setdefault("help_text", "Có thể chọn tối đa 8 ảnh cùng lúc; mỗi ảnh tối đa 10 MB.")
         super().__init__(*args, **kwargs)
 
     def clean(self, data, initial=None):
@@ -39,7 +39,7 @@ class MultipleImageField(forms.FileField):
             if extension not in self.allowed_extensions or (content_type and not content_type.startswith("image/")):
                 raise ValidationError("Chỉ nhận ảnh JPG, PNG, WEBP hoặc GIF.")
             if upload.size > self.max_file_size:
-                raise ValidationError("Mỗi ảnh tải lên cần nhỏ hơn 8 MB.")
+                raise ValidationError("Mỗi ảnh tải lên không được vượt quá 10 MB.")
         return cleaned_files
 
 
@@ -49,8 +49,8 @@ def _validate_top_view_upload(upload):
     extension = "." + upload.name.rsplit(".", 1)[-1].lower() if "." in upload.name else ""
     if extension not in {".png", ".svg", ".webp", ".jpg", ".jpeg"}:
         raise ValidationError("Ảnh Top View cần là PNG, SVG, WEBP hoặc JPG.")
-    if upload.size > 8 * 1024 * 1024:
-        raise ValidationError("Ảnh Top View cần nhỏ hơn 8 MB.")
+    if upload.size > 10 * 1024 * 1024:
+        raise ValidationError("Ảnh Top View không được vượt quá 10 MB.")
     content_type = getattr(upload, "content_type", "") or ""
     if content_type and not content_type.startswith("image/"):
         raise ValidationError("Vui lòng chọn tệp hình ảnh cho Top View.")

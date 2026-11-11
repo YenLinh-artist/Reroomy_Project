@@ -45,13 +45,17 @@
       <label>Ngang phòng (m)<input type="number" name="width" min="1" max="10" step="0.1" value="3"></label>
       <label>Sâu phòng (m)<input type="number" name="depth" min="1" max="15" step="0.1" value="4"></label>
       <label>Có gác?<select name="loft"><option value="no">Không</option><option value="yes">Có</option></select></label>
+      <label id="roomLoftDirectionField" hidden>Hướng gác lửng<select name="loftSide"><option value="top">Bắc · phía trên</option><option value="right">Đông · bên phải</option><option value="bottom">Nam · phía dưới</option><option value="left">Tây · bên trái</option></select></label>
       <label>Hướng đặt cửa<select name="doorSide"><option value="top">Bắc · tường trên</option><option value="right">Đông · tường phải</option><option value="bottom">Nam · tường dưới</option><option value="left">Tây · tường trái</option></select></label>
       <label>Hướng mở cửa<select name="doorSwing"><option value="inside">Mở vào trong</option><option value="outside">Mở ra ngoài</option></select></label>
       <label>Vị trí cửa dọc tường<input type="range" name="doorPosition" min="0.15" max="0.85" step="0.05" value="0.5"><small>Thanh kéo chỉ dời cửa trên bức tường đã chọn.</small></label>
       <label>Màu sàn<select name="palette"><option value="#fff4eb">Kem đào</option><option value="#f1efff">Lavender</option><option value="#edf5e9">Xanh dịu</option></select></label>
+      <label class="room-feature-toggle"><input type="checkbox" name="bathroom"><span>Khu vệ sinh</span></label>
+      <label class="room-feature-toggle" id="roomKitchenToggle"><input type="checkbox" name="kitchen"><span>Khu bếp</span><small>Chỉ bố trí khi phòng không có gác.</small></label>
       <button class="primary-link" type="submit">Cập nhật phòng</button>
     </form>
-    <div class="room-planner-layout">
+    <div class="room-planner-layout" id="roomPlannerLayout">
+      <div class="room-fullscreen-controls" id="roomFullscreenControls" aria-label="Điều chỉnh phòng khi toàn màn hình"></div>
       <aside class="room-product-picker" aria-label="Chọn sản phẩm cho sơ đồ">
         <div class="room-picker-heading"><div><strong>Sản phẩm của Re:Room</strong><small>{{ room_products|length }} sản phẩm đang kinh doanh</small></div><img src="{% static 'store/icons/search.svg' %}" alt=""></div>
         <input type="search" id="roomProductSearch" placeholder="Tìm sản phẩm..." aria-label="Tìm sản phẩm cho sơ đồ">
@@ -70,7 +74,21 @@
       </aside>
 
       <div class="room-plan-workspace">
-        <div class="room-plan-toolbar"><span id="roomPlanSelection">Chọn món đồ trong danh sách</span><div><button id="rotateRoomProduct" type="button" disabled>Xoay 90°</button><button id="removeRoomProduct" type="button" disabled>Xóa món</button><button id="clearRoomPlan" type="button">Dọn sơ đồ</button></div></div>
+        <div class="room-plan-toolbar" aria-label="Công cụ sơ đồ">
+          <span class="room-plan-selection" id="roomPlanSelection">Chọn món đồ trong danh sách</span>
+          <div class="room-plan-tools">
+            <button id="rotateRoomProduct" type="button" disabled aria-label="Xoay món 90 độ" title="Xoay 90°"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5M5.6 9a7 7 0 0 1 11.7-2L20 12M4 12l2.7 5a7 7 0 0 0 11.7-2"/></svg><span class="room-tool-label">Xoay 90°</span></button>
+            <button id="removeRoomProduct" type="button" disabled aria-label="Xóa món đã chọn" title="Xóa món"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="room-tool-label">Xóa món</span></button>
+            <button id="clearRoomPlan" type="button" aria-label="Dọn sơ đồ" title="Dọn sơ đồ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6m4-6v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg><span class="room-tool-label">Dọn sơ đồ</span></button>
+            <button id="roomZoomOut" type="button" aria-label="Thu nhỏ sơ đồ" title="Thu nhỏ"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4M8 11h5.5"/></svg></button>
+            <span class="room-zoom-level" id="roomZoomLevel" aria-live="polite">100%</span>
+            <button id="roomZoomIn" type="button" aria-label="Phóng to sơ đồ" title="Phóng to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"/><path d="m16 16 4 4M8 11h5.5M10.75 8.25v5.5"/></svg></button>
+            <button id="roomZoomReset" type="button" aria-label="Đặt lại mức thu phóng" title="Vừa khung"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M4 4l5 5m11-5-5 5m5 11-5-5m-11 5 5-5"/></svg><span class="room-tool-label">Vừa khung</span></button>
+            <button id="roomPlanExport" type="button" aria-label="Tải sơ đồ SVG" title="Tải sơ đồ"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4"/></svg><span class="room-tool-label">Tải sơ đồ</span></button>
+            <button id="roomFullscreenToggle" type="button" aria-label="Mở sơ đồ toàn màn hình" title="Toàn màn hình"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4H4v4m12-4h4v4M4 16v4h4m12-4v4h-4M4 4l6 6m10-6-6 6M4 20l6-6m10 6-6-6"/></svg><span class="room-tool-label">Toàn màn hình</span></button>
+            <button id="roomFullscreenClose" type="button" aria-label="Thoát toàn màn hình" title="Thoát toàn màn hình" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4v4H4m12-4v4h4M4 16h4v4m12-4h-4v4"/></svg><span class="room-tool-label">Thoát · Esc</span></button>
+          </div>
+        </div>
         <div class="room-plan-vector-wrap">
           <svg id="sampleRoomPlan" viewBox="0 0 760 700" role="img" aria-label="Sơ đồ bố trí phòng dạng vector">
             <defs><pattern id="roomGrid" width="20" height="20" patternUnits="userSpaceOnUse"><path d="M20 0H0V20" fill="none" stroke="#e9dcd6" stroke-width=".8"/></pattern></defs>
@@ -81,7 +99,7 @@
             <g id="roomPlanObjects"></g>
           </svg>
         </div>
-        <div class="room-plan-footer"><span id="roomPlanDimensions">Phòng 3 × 4 m</span><span>Cung cửa chỉ hướng mở; vùng gác lửng và thang được đánh dấu để tham khảo.</span><button id="roomPlanExport" type="button" class="secondary-link">Tải sơ đồ SVG</button></div>
+        <div class="room-plan-footer"><span id="roomPlanDimensions">Phòng 3 × 4 m</span><span>Cung cửa chỉ hướng mở; vùng gác lửng và thang được đánh dấu để tham khảo.</span></div>
       </div>
     </div>
   </section>

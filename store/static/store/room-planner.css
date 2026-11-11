@@ -96,3 +96,26 @@
 .room-planner-layout.is-fullscreen .room-plan-footer span:last-child{max-width:65%;text-align:right}
 @media(max-width:900px){.room-planner-layout.is-fullscreen{grid-template-columns:minmax(0,1fr) 250px}.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media(max-width:620px){.room-planner-layout.is-fullscreen{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(0,1fr) 190px;padding:8px;gap:8px}.room-planner-layout.is-fullscreen .room-fullscreen-controls{grid-column:1;grid-row:1;max-height:150px}.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;padding:8px}.room-planner-layout.is-fullscreen .room-controls label:nth-child(6),.room-planner-layout.is-fullscreen .room-controls label:nth-last-child(2),.room-planner-layout.is-fullscreen .room-controls button{grid-column:auto}.room-planner-layout.is-fullscreen .room-plan-workspace{grid-column:1;grid-row:2}.room-planner-layout.is-fullscreen .room-product-picker{grid-column:1;grid-row:3;min-height:0;height:auto}.room-planner-layout.is-fullscreen .room-picker-list{display:flex;gap:7px;overflow:auto}.room-planner-layout.is-fullscreen .room-picker-item{grid-template-columns:42px minmax(90px,1fr) auto;min-width:230px}.room-planner-layout.is-fullscreen .room-picker-photo{width:42px;height:42px}.room-planner-layout.is-fullscreen .room-picker-note{display:none}.room-planner-layout.is-fullscreen .room-plan-toolbar{top:6px;left:6px}.room-planner-layout.is-fullscreen .room-plan-footer span:last-child{display:none}}
+.room-planner-card .room-controls{grid-template-columns:repeat(6,minmax(0,1fr));gap:8px;padding:10px}
+.room-planner-card .room-controls label{gap:4px;font-size:10px}
+.room-planner-card .room-controls input,.room-planner-card .room-controls select{height:35px;padding:0 9px;font-size:12px}
+.room-planner-card .room-controls input[type=range]{height:24px}
+.room-planner-card .room-controls>label:nth-child(7){grid-column:span 2}
+.room-planner-card .room-controls>button{grid-column:span 1;height:35px}
+.room-planner-card .room-feature-toggle{min-height:35px;padding:0 8px;border:1px solid #f0e3df;border-radius:9px;background:#fff}
+.room-planner-card .room-feature-toggle small{display:none}
+.room-planner-layout:not(.is-fullscreen) .room-plan-toolbar{justify-content:flex-end;padding-bottom:7px}
+.room-planner-layout:not(.is-fullscreen) .room-plan-selection{display:none}
+.room-planner-layout:not(.is-fullscreen) .room-plan-tools button:not(#roomFullscreenToggle):not(#roomFullscreenClose){display:none}
+.room-zone-group{cursor:grab;touch-action:none;outline:none}
+.room-zone-group:active{cursor:grabbing}
+.room-zone-group:focus-visible .room-zone{stroke:#e64e87;stroke-width:2.5}
+.room-zone{pointer-events:all;cursor:grab;transition:stroke .15s,fill-opacity .15s}
+.room-zone-group:hover .room-zone{fill-opacity:.95;stroke:#e995ad}
+.room-zone-label{pointer-events:none;user-select:none}
+@media(max-width:1000px){.room-planner-card .room-controls{grid-template-columns:repeat(4,minmax(0,1fr))}.room-planner-card .room-controls>label:nth-child(7),.room-planner-card .room-controls>button{grid-column:span 2}}
+@media(max-width:620px){.room-planner-card .room-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.room-planner-card .room-controls>label:nth-child(7),.room-planner-card .room-controls>button{grid-column:1/-1}.room-planner-card .room-controls>label:nth-child(5),.room-planner-card .room-controls>label:nth-child(6){grid-column:span 1}}
+.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(6,minmax(0,1fr))}
+.room-planner-layout.is-fullscreen .room-controls>label:nth-child(7){grid-column:span 2}
+@media(max-width:900px){.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(4,minmax(0,1fr))}.room-planner-layout.is-fullscreen .room-controls>label:nth-child(7){grid-column:span 2}}
+@media(max-width:620px){.room-planner-layout.is-fullscreen .room-controls{grid-template-columns:repeat(2,minmax(0,1fr))}.room-planner-layout.is-fullscreen .room-controls>label:nth-child(7),.room-planner-layout.is-fullscreen .room-controls>button{grid-column:1/-1}}

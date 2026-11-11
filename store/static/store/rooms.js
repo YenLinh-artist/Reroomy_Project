@@ -23,6 +23,7 @@
   const ns='http://www.w3.org/2000/svg';
   let roomWidth=Number(roomWidthInput.value)||3,roomDepth=Number(roomDepthInput.value)||4;
   let objects=[],selectedId=null,frame=null,drag=null,zoom=1,plannerPlaceholder=null;
+  const zones={bathroom:null,kitchen:null};
   const normalize=value=>String(value||'').normalize('NFD').replace(/\p{Diacritic}/gu,'').toLowerCase();
   const swatches=[[/xanh\s*duong|xanh\s*bien/,'#9ab7d2'],[/xanh\s*reu/,'#a7b28d'],[/xanh\s*la/,'#a8bd9e'],[/(^|\s)trang($|\s)/,'#f4eee8'],[/kem/,'#edcfaa'],[/(^|\s)be($|\s)/,'#d9bd9e'],[/vang/,'#e8cf84'],[/hong/,'#e8a9b8'],[/mau\s*do|do\s*tuoi/,'#d9847b'],[/nau/,'#9d7964'],[/(^|\s)den($|\s)/,'#777274'],[/caro/,'#caa899'],[/xanh/,'#9ab7bd']];
   function productColor(hint,name){const value=normalize(hint+' '+name);for(const [pattern,color] of swatches){if(pattern.test(value))return color}let hash=0;for(const char of value)hash=(hash*31+char.charCodeAt(0))|0;return ['#e8b5bb','#b9c8b2','#d9c2a4','#b9c4d7','#dfb6d0','#b8d0cd'][Math.abs(hash)%6]}
@@ -46,7 +47,7 @@
   function drawRoomArchitecture(){
     architectureLayer.replaceChildren();
     const wallWidth=Math.max(4,frame.scale*.055),side=doorSideInput.value;
-    if(loftInput.value==='yes'){
+    if(loftInput.checked){
       const loftSide=loftSideInput.value,horizontal=loftSide==='top'||loftSide==='bottom';
       const loftWidth=horizontal?frame.width-wallWidth*2:Math.min(frame.width*.4,1.7*frame.scale);
       const loftDepth=horizontal?Math.min(frame.depth*.4,1.7*frame.scale):frame.depth-wallWidth*2;
@@ -71,13 +72,18 @@
         for(let rung=1;rung<5;rung++)architectureLayer.append(node('line',{x1:ladderStart+(ladderEnd-ladderStart)*rung/5,y1:ladderCenter-9,x2:ladderStart+(ladderEnd-ladderStart)*rung/5,y2:ladderCenter+9,stroke:'#a88d70','stroke-width':1.4}));
       }
     }
-    const zoneWidth=frame.width*.27,zoneDepth=frame.depth*.2;
-    const addZone=(label,x,y,fill)=>{
-      architectureLayer.append(node('rect',{x,y,width:zoneWidth,height:zoneDepth,rx:5,class:'room-zone',fill}));
-      const text=node('text',{x:x+zoneWidth/2,y:y+zoneDepth/2+4,class:'room-zone-label'});text.textContent=label;architectureLayer.append(text);
+    const zoneWidth=roomWidth*.27,zoneDepth=roomDepth*.2;
+    const addZone=(id,label,defaultX,defaultY,fill)=>{
+      const position=zones[id]||(zones[id]={x:defaultX,y:defaultY});
+      position.x=Math.max(.04,Math.min(roomWidth-zoneWidth-.04,position.x));
+      position.y=Math.max(.04,Math.min(roomDepth-zoneDepth-.04,position.y));
+      const x=frame.x+position.x*frame.scale,y=frame.y+position.y*frame.scale,w=zoneWidth*frame.scale,h=zoneDepth*frame.scale;
+      const group=node('g',{class:'room-zone-group','data-room-zone':id,transform:'translate('+x+' '+y+')',tabindex:0,role:'button','aria-label':'Kéo để di chuyển '+label.toLowerCase()});
+      group.append(node('rect',{x:0,y:0,width:w,height:h,rx:5,class:'room-zone',fill}));
+      const text=node('text',{x:w/2,y:h/2+4,class:'room-zone-label'});text.textContent=label;group.append(text);architectureLayer.append(group);
     };
-    if(bathroomInput.checked)addZone('NHÀ VỆ SINH',frame.x+frame.width-zoneWidth-wallWidth*2,frame.y+frame.depth-zoneDepth-wallWidth*2,'#dce8e3');
-    if(kitchenInput.checked&&loftInput.value!=='yes')addZone('KHU BẾP',frame.x+frame.width-zoneWidth-wallWidth*2,frame.y+wallWidth*2,'#f0e5d7');
+    if(bathroomInput.checked)addZone('bathroom','NHÀ VỆ SINH',roomWidth-zoneWidth-.12,roomDepth-zoneDepth-.12,'#dce8e3');
+    if(kitchenInput.checked&&!loftInput.checked)addZone('kitchen','KHU BẾP',roomWidth-zoneWidth-.12,.12,'#f0e5d7');
     const horizontal=side==='top'||side==='bottom';
     const sideLength=horizontal?frame.width:frame.depth;
     const doorWidth=Math.min(frame.scale*.82,sideLength*.34);
@@ -120,8 +126,8 @@
     return lines.filter(Boolean);
   }
   function drawPlan(){
-    loftDirectionField.hidden=loftInput.value!=='yes';
-    kitchenInput.disabled=loftInput.value==='yes';
+    loftDirectionField.hidden=!loftInput.checked;
+    kitchenInput.disabled=loftInput.checked;
     document.getElementById('roomKitchenToggle').classList.toggle('is-disabled',kitchenInput.disabled);
     frame=getFrame();floorLayer.replaceChildren();architectureLayer.replaceChildren();objectLayer.replaceChildren();
     const floor=node('rect',{x:frame.x,y:frame.y,width:frame.width,height:frame.depth,rx:3,fill:paletteInput.value,class:'room-floor'});
@@ -191,10 +197,10 @@
   }));
   document.getElementById('roomProductSearch')?.addEventListener('input',event=>{const query=normalize(event.target.value);document.querySelectorAll('[data-room-product]').forEach(item=>item.hidden=!normalize(item.dataset.search).includes(query))});
   form.addEventListener('submit',event=>{event.preventDefault();roomWidth=Math.min(10,Math.max(1,Number(roomWidthInput.value)||3));roomDepth=Math.min(15,Math.max(1,Number(roomDepthInput.value)||4));roomWidthInput.value=roomWidth;roomDepthInput.value=roomDepth;clampObjects();drawPlan()});
-  [doorSideInput,doorSwingInput,doorPositionInput,paletteInput,bathroomInput,kitchenInput,loftSideInput].forEach(input=>['input','change'].forEach(eventName=>input.addEventListener(eventName,drawPlan)));
-  loftInput.addEventListener('change',drawPlan);
-  svg.addEventListener('pointerdown',event=>{const group=event.target.closest('[data-room-object]');if(!group)return;const item=objects.find(value=>value.id===group.dataset.roomObject);if(!item)return;selectedId=item.id;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse());drag={id:item.id,offsetX:(local.x-frame.x)/frame.scale-item.x,offsetY:(local.y-frame.y)/frame.scale-item.y};svg.setPointerCapture(event.pointerId);drawPlan();event.preventDefault()});
-  svg.addEventListener('pointermove',event=>{if(!drag)return;const item=objects.find(value=>value.id===drag.id);if(!item)return;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse()),pad=.06;item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,(local.x-frame.x)/frame.scale-drag.offsetX));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,(local.y-frame.y)/frame.scale-drag.offsetY));drawPlan()});
+  [doorSideInput,doorSwingInput,doorPositionInput,paletteInput,bathroomInput,kitchenInput,loftSideInput,loftInput].forEach(input=>['input','change'].forEach(eventName=>input.addEventListener(eventName,drawPlan)));
+  svg.addEventListener('pointerdown',event=>{const zoneGroup=event.target.closest('[data-room-zone]'),group=event.target.closest('[data-room-object]');if(!zoneGroup&&!group)return;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse());if(zoneGroup){const id=zoneGroup.dataset.roomZone,position=zones[id];if(!position)return;selectedId=null;drag={type:'zone',id,offsetX:(local.x-frame.x)/frame.scale-position.x,offsetY:(local.y-frame.y)/frame.scale-position.y}}else{const item=objects.find(value=>value.id===group.dataset.roomObject);if(!item)return;selectedId=item.id;drag={type:'object',id:item.id,offsetX:(local.x-frame.x)/frame.scale-item.x,offsetY:(local.y-frame.y)/frame.scale-item.y}}svg.setPointerCapture(event.pointerId);drawPlan();event.preventDefault()});
+  svg.addEventListener('pointermove',event=>{if(!drag)return;const point=svg.createSVGPoint();point.x=event.clientX;point.y=event.clientY;const local=point.matrixTransform(svg.getScreenCTM().inverse());if(drag.type==='zone'){const position=zones[drag.id],width=roomWidth*.27,depth=roomDepth*.2;if(!position)return;position.x=Math.max(.04,Math.min(roomWidth-width-.04,(local.x-frame.x)/frame.scale-drag.offsetX));position.y=Math.max(.04,Math.min(roomDepth-depth-.04,(local.y-frame.y)/frame.scale-drag.offsetY));drawPlan();return}const item=objects.find(value=>value.id===drag.id);if(!item)return;const pad=.06;item.x=Math.max(pad,Math.min(roomWidth-pad-item.width,(local.x-frame.x)/frame.scale-drag.offsetX));item.y=Math.max(pad,Math.min(roomDepth-pad-item.depth,(local.y-frame.y)/frame.scale-drag.offsetY));drawPlan()});
+  svg.addEventListener('keydown',event=>{const group=event.target.closest('[data-room-zone]');if(!group)return;const position=zones[group.dataset.roomZone];if(!position)return;const step=event.shiftKey ? 0.25 : 0.1,width=roomWidth*.27,depth=roomDepth*.2;const moves={ArrowLeft:[-step,0],ArrowRight:[step,0],ArrowUp:[0,-step],ArrowDown:[0,step]};if(!moves[event.key])return;const [dx,dy]=moves[event.key];position.x=Math.max(.04,Math.min(roomWidth-width-.04,position.x+dx));position.y=Math.max(.04,Math.min(roomDepth-depth-.04,position.y+dy));const id=group.dataset.roomZone;drawPlan();svg.querySelector('[data-room-zone="'+id+'"]')?.focus();event.preventDefault()});
   const endDrag=()=>{drag=null};svg.addEventListener('pointerup',endDrag);svg.addEventListener('pointercancel',endDrag);
   rotateButton.addEventListener('click',()=>{const item=objects.find(value=>value.id===selectedId);if(!item)return;[item.width,item.depth]=[item.depth,item.width];item.rotation=item.rotation===90?0:90;const pad=.06;item.x=Math.max(pad,Math.min(item.x,roomWidth-pad-item.width));item.y=Math.max(pad,Math.min(item.y,roomDepth-pad-item.depth));drawPlan()});
   removeButton.addEventListener('click',()=>{objects=objects.filter(item=>item.id!==selectedId);selectedId=null;drawPlan()});

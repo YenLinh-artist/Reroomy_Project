@@ -63,8 +63,8 @@
           {% for item in room_products %}
             <article class="room-picker-item" data-room-product data-search="{{ item.name|lower }} {{ item.category|lower }} {{ item.room_color_hint|lower }}">
               <div class="room-picker-photo">{% if item.image_url %}<img src="{{ item.image_url }}" alt="">{% else %}<img src="{{ item.icon_url }}" alt="">{% endif %}</div>
-              <div class="room-picker-copy"><strong>{{ item.name }}</strong><small>{{ item.category }}</small><small>{% if item.room_dimensions_estimated %}Kích thước tạm tính{% else %}{{ item.room_width_cm|floatformat:0 }} × {{ item.room_depth_cm|floatformat:0 }} cm{% endif %}</small></div>
-              <button type="button" class="room-add-button" data-add-room-product data-name="{{ item.name }}" data-category="{{ item.category }}" data-color="{{ item.room_color_hint }}" data-width="{{ item.room_width_cm }}" data-depth="{{ item.room_depth_cm }}" data-estimated="{{ item.room_dimensions_estimated|yesno:'true,false' }}" data-top-view="{{ item.room_top_view_url }}">Thêm</button>
+              <div class="room-picker-copy"><strong>{{ item.name }}</strong><small>{{ item.category }}</small><small>{% if item.room_dimensions_estimated %}Kích thước tạm tính{% else %}{{ item.room_width_cm|floatformat:0 }} × {{ item.room_depth_cm|floatformat:0 }} cm{% endif %}</small><small class="room-picker-price">{{ item.price_text }}</small></div>
+              <button type="button" class="room-add-button" data-add-room-product data-name="{{ item.name }}" data-category="{{ item.category }}" data-color="{{ item.room_color_hint }}" data-width="{{ item.room_width_cm }}" data-depth="{{ item.room_depth_cm }}" data-price="{{ item.price|default:0 }}" data-estimated="{{ item.room_dimensions_estimated|yesno:'true,false' }}" data-top-view="{{ item.room_top_view_url }}">Thêm</button>
             </article>
           {% empty %}
             <div class="room-picker-empty"><strong>Chưa có sản phẩm để bố trí</strong><span>Sản phẩm đang kinh doanh sẽ xuất hiện ở đây sau khi được thêm vào kho.</span></div>
@@ -99,7 +99,7 @@
             <g id="roomPlanObjects"></g>
           </svg>
         </div>
-        <div class="room-plan-footer"><span id="roomPlanDimensions">Phòng 3 × 4 m</span><span>Cung cửa chỉ hướng mở; vùng gác lửng và thang được đánh dấu để tham khảo.</span></div>
+        <div class="room-plan-footer"><span id="roomPlanDimensions">Phòng 3 × 4 m</span><span class="room-plan-hint">Cung cửa chỉ hướng mở; vùng gác lửng và thang được đánh dấu để tham khảo.</span><div class="room-budget-tools"><div class="room-budget-panel" id="roomBudgetPanel" role="status" aria-live="polite" hidden><strong id="roomBudgetTotal"></strong><ul id="roomBudgetBreakdown"></ul><small>Ước tính theo giá niêm yết, chưa tính ưu đãi và phí vận chuyển.</small></div><button id="roomBudgetToggle" type="button" aria-expanded="false" aria-controls="roomBudgetPanel">Tổng tiền decor dự kiến</button></div></div>
       </div>
     </div>
   </section>

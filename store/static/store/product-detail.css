@@ -3,6 +3,9 @@
 .variant{color:#766b68}
 .detail-price{color:#d84f4c;font-weight:800;letter-spacing:-.02em}
 .old-price{color:#8a7e79}
+.sold{margin:16px 0 6px;line-height:1.4}
+.stock-note{margin:0 0 22px;color:#8d807a;font-size:13px;line-height:1.4}
+.stock-note--low{display:table;padding:6px 10px;border-radius:999px;background:#fff0ed;color:#c34e52;font-weight:700}
 .related-card{display:flex;min-width:0;flex-direction:column;border:1px solid #f0dedb;border-radius:15px;box-shadow:0 7px 20px #704c3a12;transition:transform .2s,box-shadow .2s,border-color .2s}
 .related-card:hover{transform:translateY(-3px);border-color:#efb8c3;box-shadow:0 13px 27px #704c3a20}
 .related-media{position:relative}

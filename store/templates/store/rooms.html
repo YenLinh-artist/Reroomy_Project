@@ -44,7 +44,7 @@
     <form id="sampleRoomForm" class="room-controls">
       <label>Ngang phòng (m)<input type="number" name="width" min="1" max="10" step="0.1" value="3"></label>
       <label>Sâu phòng (m)<input type="number" name="depth" min="1" max="15" step="0.1" value="4"></label>
-      <label>Có gác?<select name="loft"><option value="no">Không</option><option value="yes">Có</option></select></label>
+      <label class="room-feature-toggle"><input type="checkbox" name="loft"><span>Có gác lửng</span></label>
       <label id="roomLoftDirectionField" hidden>Hướng gác lửng<select name="loftSide"><option value="top">Bắc · phía trên</option><option value="right">Đông · bên phải</option><option value="bottom">Nam · phía dưới</option><option value="left">Tây · bên trái</option></select></label>
       <label>Hướng đặt cửa<select name="doorSide"><option value="top">Bắc · tường trên</option><option value="right">Đông · tường phải</option><option value="bottom">Nam · tường dưới</option><option value="left">Tây · tường trái</option></select></label>
       <label>Hướng mở cửa<select name="doorSwing"><option value="inside">Mở vào trong</option><option value="outside">Mở ra ngoài</option></select></label>
